@@ -16,7 +16,7 @@ const Navbar = () => {
             <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-all">
               <div className="size-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
                 <img
-                  src="/public/logoZhuChat.svg"
+                  src="/logoZhuChat.svg"
                   alt="ZhuChat Logo"
                   className="w-20 h-20"
                 />
