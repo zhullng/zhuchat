@@ -3,16 +3,28 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
+import io from "socket.io-client";  // Importando a biblioteca para WebSocket
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
-
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
-    getUsers();
-  }, [getUsers]);
+    // Conectar ao WebSocket com a URL de produção do Render
+    const socket = io("https://zhuchat.onrender.com");  // Substitua pelo seu endereço de produção
+
+    // Ouvir eventos de WebSocket quando houver uma alteração nos usuários online
+    socket.on("getOnlineUsers", (updatedUsers) => {
+      // Atualizar a lista de usuários online com as novas informações
+      getUsers();  // Pode ser necessário ajustar a lógica aqui dependendo de como você armazena os usuários
+    });
+
+    // Limpeza ao desmontar o componente (fechar a conexão WebSocket)
+    return () => {
+      socket.disconnect();
+    };
+  }, [getUsers]);  // Apenas se "getUsers" for uma função que muda
 
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
@@ -27,7 +39,6 @@ const Sidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
-        {/* TODO: Online filter toggle */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -60,14 +71,12 @@ const Sidebar = () => {
                 className="size-12 object-cover rounded-full"
               />
               {onlineUsers.includes(user._id) && (
-                <span
-                  className="absolute bottom-0 right-0 size-3 bg-green-500 
+                <span className="absolute bottom-0 right-0 size-3 bg-green-500 
                   rounded-full ring-2 ring-zinc-900"
                 />
               )}
             </div>
 
-            {/* User info - only visible on larger screens */}
             <div className="hidden lg:block text-left min-w-0">
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-zinc-400">
@@ -84,4 +93,5 @@ const Sidebar = () => {
     </aside>
   );
 };
+
 export default Sidebar;
