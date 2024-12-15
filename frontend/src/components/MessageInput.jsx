@@ -24,7 +24,6 @@ const MessageInput = () => {
         return;
       }
 
-      // Use window.Image instead of Image
       const img = new window.Image();
       const reader = new FileReader();
 
@@ -55,12 +54,36 @@ const MessageInput = () => {
         canvas.width = width;
         canvas.height = height;
 
-        // Draw image on canvas
+        // Draw image on canvas with white background for PNG transparency
+        if (file.type === 'image/png') {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+        }
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Get original format
-        const format = file.type.split('/')[1].toLowerCase();
-        
+        // Determine output format and mime type
+        let outputFormat, mimeType;
+        const originalFormat = file.type.toLowerCase();
+
+        // Handle different image formats
+        switch (originalFormat) {
+          case 'image/png':
+            outputFormat = 'png';
+            mimeType = 'image/png';
+            break;
+          case 'image/webp':
+            outputFormat = 'webp';
+            mimeType = 'image/webp';
+            break;
+          case 'image/gif':
+            outputFormat = 'gif';
+            mimeType = 'image/gif';
+            break;
+          default:
+            outputFormat = 'jpeg';
+            mimeType = 'image/jpeg';
+        }
+
         // Try compression with initial quality
         let currentQuality = quality;
         let compressedDataUrl;
@@ -69,14 +92,22 @@ const MessageInput = () => {
 
         // Compression loop - keeps trying until size is under maxSizeInMB
         do {
-          compressedDataUrl = canvas.toDataURL(
-            format === 'png' ? 'image/png' : 'image/jpeg',
-            currentQuality
-          );
+          try {
+            compressedDataUrl = canvas.toDataURL(mimeType, 
+              // Only apply quality parameter for JPEG and WEBP
+              ['image/jpeg', 'image/webp'].includes(mimeType) ? currentQuality : undefined
+            );
+          } catch (e) {
+            // Fallback to JPEG if format is not supported
+            compressedDataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+            outputFormat = 'jpeg';
+            mimeType = 'image/jpeg';
+          }
           
           // Calculate size in MB
           const sizeInMB = (compressedDataUrl.length * 3) / 4 / (1024 * 1024);
           
+          // Break if size is acceptable or we've reached minimum quality
           if (sizeInMB <= maxSizeInMB || currentQuality <= minQuality) {
             break;
           }
@@ -93,8 +124,8 @@ const MessageInput = () => {
             // Create a new File object
             const compressedFile = new File(
               [blob],
-              `compressed_${file.name}`,
-              { type: format === 'png' ? 'image/png' : 'image/jpeg' }
+              `compressed_${file.name.replace(/\.[^/.]+$/, '')}.${outputFormat}`,
+              { type: mimeType }
             );
 
             resolve({
@@ -105,7 +136,8 @@ const MessageInput = () => {
               quality: currentQuality,
               originalSize: file.size,
               compressedSize: compressedFile.size,
-              compressionRatio: (1 - (compressedFile.size / file.size)) * 100
+              compressionRatio: (1 - (compressedFile.size / file.size)) * 100,
+              format: outputFormat
             });
           })
           .catch(error => reject(new Error('Failed to create compressed file.')));
@@ -140,13 +172,14 @@ const MessageInput = () => {
 
       setImagePreview(result.dataUrl);
       
-      // Optional: Log compression results
+      // Log compression results
       console.log('Compression results:', {
         originalSize: `${(result.originalSize / 1024 / 1024).toFixed(2)}MB`,
         compressedSize: `${(result.compressedSize / 1024 / 1024).toFixed(2)}MB`,
         compressionRatio: `${result.compressionRatio.toFixed(1)}%`,
         dimensions: `${result.width}x${result.height}`,
-        quality: result.quality
+        quality: result.quality,
+        format: result.format
       });
     } catch (error) {
       toast.error(error.message || "Failed to compress image");
