@@ -9,68 +9,74 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-
+  // Função para comprimir a imagem
   const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const reader = new FileReader();
-  
+
+      // Quando o arquivo for lido corretamente
       reader.onload = () => {
         img.src = reader.result;
       };
-  
+
+      // Quando houver erro ao ler o arquivo
       reader.onerror = (err) => {
         reject("Failed to read file.");
       };
-  
+
+      // Quando a imagem for carregada
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-  
-        // Calcula as novas dimensões da imagem com base nas dimensões máximas
+
+        // Calcula as novas dimensões para manter a proporção
         const scaleFactor = Math.min(maxWidth / img.width, maxHeight / img.height);
         const width = img.width * scaleFactor;
         const height = img.height * scaleFactor;
-  
-        // Define as dimensões do canvas
+
+        // Define o tamanho do canvas para as novas dimensões
         canvas.width = width;
         canvas.height = height;
-  
-        // Desenha a imagem comprimida no canvas
+
+        // Desenha a imagem no canvas
         ctx.drawImage(img, 0, 0, width, height);
-  
+
         // Converte o canvas em uma imagem compactada (base64)
-        canvas.toDataURL("image/jpeg", quality, (dataUrl) => {
-          resolve(dataUrl); // Retorna a imagem comprimida
-        });
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        if (compressedDataUrl) {
+          resolve(compressedDataUrl); // Retorna a imagem comprimida
+        } else {
+          reject("Compression failed.");
+        }
       };
-  
+
+      // Caso haja erro ao carregar a imagem
       img.onerror = (err) => {
         reject("Failed to load image.");
       };
-  
-      // Lê a imagem como URL de dados
+
+      // Lê o arquivo da imagem
       reader.readAsDataURL(file);
     });
   };
 
-  
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
     }
-  
+
     try {
-      // Chama a função compressImage para reduzir o tamanho da imagem
+      // Comprimir a imagem antes de exibir o preview
       const compressedImage = await compressImage(file);
       setImagePreview(compressedImage);
     } catch (error) {
-      toast.error("Failed to compress image");
+      toast.error(error || "Failed to compress image");
     }
   };
-  
+
   const removeImage = () => {
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -154,4 +160,5 @@ const MessageInput = () => {
     </div>
   );
 };
+
 export default MessageInput;
