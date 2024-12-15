@@ -29,42 +29,6 @@ const MessageInput = () => {
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    
-    // Exibe uma mensagem toast com informações úteis sobre o arquivo
-    if (!file) {
-      toast.error("No file selected.");
-      return;
-    }
-  
-    // Exibe erro caso o arquivo não seja uma imagem
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file.");
-      return;
-    }
-  
-    // Exibindo informações do arquivo no toast
-    toast.success(`File selected: ${file.name} (${file.size} bytes)`);
-  
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      // Após a leitura do arquivo, mostra um toast de sucesso
-      toast.success("Image loaded successfully.");
-      
-      // Definindo a imagem no estado para pré-visualização
-      setImagePreview(reader.result);
-    };
-  
-    reader.onerror = (error) => {
-      toast.error("Failed to load image.");
-    };
-  
-    // Lê o arquivo como uma URL de dados (DataURL)
-    reader.readAsDataURL(file);
-  };
-  
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
@@ -87,7 +51,6 @@ const MessageInput = () => {
       toast.error("Failed to send message: " + error.message);
     }
   };
-  
 
   return (
     <div className="p-4 w-full">
