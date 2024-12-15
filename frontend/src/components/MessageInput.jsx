@@ -9,39 +9,39 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  const MAX_SIZE = 10 * 1024 * 1024; // Limite de 10 MB
-  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif']; // Extensões permitidas
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Verificação do tipo MIME da imagem
+  
+    // Verificação de tipo MIME e extensão
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
     const fileExtension = file.name.split('.').pop().toLowerCase();
-    if (!file.type.startsWith("image") || !allowedExtensions.includes(fileExtension)) {
-      toast.error("Por favor, selecione um arquivo de imagem válido (jpg, jpeg, png, gif).");
+  
+    if (!file.type.startsWith('image/') || !allowedExtensions.includes(fileExtension)) {
+      toast.error("Por favor, selecione uma imagem válida (jpg, jpeg, png, gif).");
       return;
     }
-
-    // Verificação de tamanho de arquivo
+  
+    // Verificação de tamanho de arquivo (máximo 10MB)
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
     if (file.size > MAX_SIZE) {
       toast.error("O tamanho do arquivo excede o limite de 10MB.");
       return;
     }
-
+  
     // Usando FileReader para ler a imagem
     const reader = new FileReader();
     reader.onloadend = () => {
-      // A URL de dados (Data URL) gerada aqui será usada para exibir a imagem
-      setImagePreview(reader.result);
+      setImagePreview(reader.result); // Atualiza a pré-visualização
     };
+  
     reader.onerror = (error) => {
-      toast.error("Erro ao ler o arquivo.");
-      console.error("Erro no FileReader:", error);
+      console.error("Erro ao ler o arquivo:", error);
+      toast.error("Erro ao tentar carregar a imagem. Tente novamente.");
     };
+  
     reader.readAsDataURL(file);
   };
-
   const removeImage = () => {
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -49,23 +49,32 @@ const MessageInput = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
-
+  
+    // Verificação de conteúdo para enviar (texto ou imagem)
+    if (!text.trim() && !imagePreview) {
+      toast.error("Por favor, insira uma mensagem ou selecione uma imagem.");
+      return;
+    }
+  
     try {
+      // Envia a mensagem (texto ou imagem)
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
       });
-
-      // Limpar o formulário após o envio
+  
+      // Limpar formulário após envio
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+  
     } catch (error) {
-      console.error("Falha ao enviar a mensagem:", error);
+      // Captura e exibe erros durante o envio
+      console.error("Erro ao enviar a mensagem:", error);
+      toast.error("Falha ao enviar a mensagem. Tente novamente.");
     }
   };
-
+  
   return (
     <div className="p-4 w-full">
       {imagePreview && (
@@ -93,7 +102,7 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder="Digite uma mensagem..."
+            placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -125,5 +134,4 @@ const MessageInput = () => {
     </div>
   );
 };
-
 export default MessageInput;
