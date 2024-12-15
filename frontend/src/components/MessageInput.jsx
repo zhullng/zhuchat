@@ -11,57 +11,83 @@ const MessageInput = () => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-  
-    // Exibir informações úteis sobre o arquivo no toast (não o arquivo em si)
-    if (file) {
-      toast.success(`File selected: ${file.name} (${file.size} bytes)`);
-    }
-  
-    // Verifica se o arquivo é uma imagem
+    toast.error(file);
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file.");
+      toast.error("Please select an image file");
       return;
     }
-  
+
     const reader = new FileReader();
-    
-    // Quando a leitura do arquivo terminar
     reader.onloadend = () => {
-      // Aqui você pode verificar o conteúdo da imagem (mas normalmente não exibe a imagem em si com toast)
-      toast.success("Image successfully loaded.");
-      
-      // Definindo a imagem no estado para pré-visualização
+      toast.error(reader.result);
       setImagePreview(reader.result);
     };
-  
-    // Lê o arquivo como uma URL de dados (DataURL)
     reader.readAsDataURL(file);
   };
-  
 
   const removeImage = () => {
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    
+    // Exibe uma mensagem toast com informações úteis sobre o arquivo
+    if (!file) {
+      toast.error("No file selected.");
+      return;
+    }
+  
+    // Exibe erro caso o arquivo não seja uma imagem
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+  
+    // Exibindo informações do arquivo no toast
+    toast.success(`File selected: ${file.name} (${file.size} bytes)`);
+  
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Após a leitura do arquivo, mostra um toast de sucesso
+      toast.success("Image loaded successfully.");
+      
+      // Definindo a imagem no estado para pré-visualização
+      setImagePreview(reader.result);
+    };
+  
+    reader.onerror = (error) => {
+      toast.error("Failed to load image.");
+    };
+  
+    // Lê o arquivo como uma URL de dados (DataURL)
+    reader.readAsDataURL(file);
+  };
+  
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
-
+  
     try {
+      // Envia a mensagem com o texto e a imagem (em base64)
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
       });
-
-      // Clear form
+  
+      // Limpar o formulário após o envio
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+  
+      toast.success("Message sent successfully!");
     } catch (error) {
       console.error("Failed to send message:", error);
+      toast.error("Failed to send message: " + error.message);
     }
   };
+  
 
   return (
     <div className="p-4 w-full">
