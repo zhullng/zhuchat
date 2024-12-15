@@ -9,80 +9,147 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  // Função para comprimir a imagem
-  const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+  const compressImage = ({
+    file,
+    maxWidth = 800,
+    maxHeight = 800,
+    quality = 0.7,
+    minQuality = 0.3,
+    maxSizeInMB = 1,
+  }) => {
     return new Promise((resolve, reject) => {
+      // Validate input
+      if (!file || !file.type.startsWith('image/')) {
+        reject(new Error('Invalid file type. Please provide an image file.'));
+        return;
+      }
+
       const img = new Image();
       const reader = new FileReader();
 
-      // Quando o arquivo for lido corretamente
       reader.onload = () => {
         img.src = reader.result;
       };
 
-      // Quando houver erro ao ler o arquivo
-      reader.onerror = (err) => {
-        reject("Failed to read file.");
+      reader.onerror = () => {
+        reject(new Error('Failed to read file.'));
       };
 
-      // Quando a imagem for carregada
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
 
-        // Calcula as novas dimensões para manter a proporção
-        const scaleFactor = Math.min(maxWidth / img.width, maxHeight / img.height);
-        const width = img.width * scaleFactor;
-        const height = img.height * scaleFactor;
-
-        // Define o tamanho do canvas para as novas dimensões
+        // Calculate dimensions while maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.floor(width * ratio);
+          height = Math.floor(height * ratio);
+        }
+        
+        // Set canvas dimensions
         canvas.width = width;
         canvas.height = height;
 
-        // Desenha a imagem no canvas
+        // Draw image on canvas
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Verifica o tipo de imagem original e ajusta a compressão
-        const fileType = file.type.split('/')[1]; // Obtemos o tipo de arquivo (jpeg, png, etc)
+        // Get original format
+        const format = file.type.split('/')[1].toLowerCase();
+        
+        // Try compression with initial quality
+        let currentQuality = quality;
         let compressedDataUrl;
+        let attempt = 0;
+        const MAX_ATTEMPTS = 5;
 
-        // Se for PNG, mantenha o formato PNG, senão use JPEG
-        if (fileType === 'png') {
-          compressedDataUrl = canvas.toDataURL("image/png");
-        } else {
-          compressedDataUrl = canvas.toDataURL("image/jpeg", quality); // Para JPEG ou outros formatos
-        }
+        // Compression loop - keeps trying until size is under maxSizeInMB
+        do {
+          compressedDataUrl = canvas.toDataURL(
+            format === 'png' ? 'image/png' : 'image/jpeg',
+            currentQuality
+          );
+          
+          // Calculate size in MB
+          const sizeInMB = (compressedDataUrl.length * 3) / 4 / (1024 * 1024);
+          
+          if (sizeInMB <= maxSizeInMB || currentQuality <= minQuality) {
+            break;
+          }
 
-        if (compressedDataUrl) {
-          resolve(compressedDataUrl); // Retorna a imagem comprimida
-        } else {
-          reject("Compression failed.");
-        }
+          // Reduce quality for next attempt
+          currentQuality = Math.max(currentQuality - 0.1, minQuality);
+          attempt++;
+        } while (attempt < MAX_ATTEMPTS);
+
+        // Convert base64 to Blob
+        fetch(compressedDataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            // Create a new File object
+            const compressedFile = new File(
+              [blob],
+              `compressed_${file.name}`,
+              { type: format === 'png' ? 'image/png' : 'image/jpeg' }
+            );
+
+            resolve({
+              file: compressedFile,
+              dataUrl: compressedDataUrl,
+              width,
+              height,
+              quality: currentQuality,
+              originalSize: file.size,
+              compressedSize: compressedFile.size,
+              compressionRatio: (1 - (compressedFile.size / file.size)) * 100
+            });
+          })
+          .catch(error => reject(new Error('Failed to create compressed file.')));
       };
 
-      // Caso haja erro ao carregar a imagem
-      img.onerror = (err) => {
-        reject("Failed to load image.");
+      img.onerror = () => {
+        reject(new Error('Failed to load image.'));
       };
 
-      // Lê o arquivo da imagem
       reader.readAsDataURL(file);
     });
   };
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
+    if (!file) return;
+    
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
     }
 
     try {
-      // Comprimir a imagem antes de exibir o preview
-      const compressedImage = await compressImage(file);
-      setImagePreview(compressedImage);
+      const result = await compressImage({
+        file,
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.7,
+        minQuality: 0.3,
+        maxSizeInMB: 1
+      });
+
+      setImagePreview(result.dataUrl);
+      
+      // Optional: Log compression results
+      console.log('Compression results:', {
+        originalSize: `${(result.originalSize / 1024 / 1024).toFixed(2)}MB`,
+        compressedSize: `${(result.compressedSize / 1024 / 1024).toFixed(2)}MB`,
+        compressionRatio: `${result.compressionRatio.toFixed(1)}%`,
+        dimensions: `${result.width}x${result.height}`,
+        quality: result.quality
+      });
     } catch (error) {
-      toast.error(error || "Failed to compress image");
+      toast.error(error.message || "Failed to compress image");
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -107,6 +174,7 @@ const MessageInput = () => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
     }
   };
 
@@ -122,8 +190,7 @@ const MessageInput = () => {
             />
             <button
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
-              flex items-center justify-center"
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
               type="button"
             >
               <X className="size-3" />
@@ -151,8 +218,7 @@ const MessageInput = () => {
 
           <button
             type="button"
-            className={`flex btn btn-circle
-                     ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            className={`flex btn btn-circle ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
             onClick={() => fileInputRef.current?.click()}
           >
             <Image size={20} />
