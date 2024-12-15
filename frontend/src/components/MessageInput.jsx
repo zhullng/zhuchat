@@ -24,7 +24,8 @@ const MessageInput = () => {
         return;
       }
 
-      const img = new Image();
+      // Use window.Image instead of Image
+      const img = new window.Image();
       const reader = new FileReader();
 
       reader.onload = () => {
