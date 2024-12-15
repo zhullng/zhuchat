@@ -20,7 +20,7 @@ const MessageInput = () => {
     return new Promise((resolve, reject) => {
       // Validate input
       if (!file || !file.type.startsWith('image/')) {
-        reject(new Error('Invalid file type. Please provide an image file.'));
+        reject(new Error('Tipo de arquivo inválido. Por favor, forneça um arquivo de imagem.'));
         return;
       }
 
@@ -32,7 +32,7 @@ const MessageInput = () => {
       };
 
       reader.onerror = () => {
-        reject(new Error('Failed to read file.'));
+        reject(new Error('Falha ao ler o arquivo.'));
       };
 
       img.onload = () => {
@@ -140,11 +140,11 @@ const MessageInput = () => {
               format: outputFormat
             });
           })
-          .catch(error => reject(new Error('Failed to create compressed file.')));
+          .catch(error => reject(new Error('Falha ao criar o arquivo comprimido.')));
       };
 
       img.onerror = () => {
-        reject(new Error('Failed to load image.'));
+        reject(new Error('Falha ao carregar a imagem.'));
       };
 
       reader.readAsDataURL(file);
@@ -154,9 +154,16 @@ const MessageInput = () => {
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
+    // Verificando se o formato da imagem é compatível
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Por favor, selecione um arquivo de imagem.");
+      return;
+    }
+
+    // Verificando se o formato da imagem é HEIC/HEIF, que não é suportado diretamente no navegador
+    if (file.type === "image/heic" || file.type === "image/heif") {
+      toast.error("Formato HEIC/HEIF não suportado diretamente no navegador.");
       return;
     }
 
@@ -172,8 +179,8 @@ const MessageInput = () => {
 
       setImagePreview(result.dataUrl);
       
-      // Log compression results
-      console.log('Compression results:', {
+      // Log dos resultados da compressão
+      console.log('Resultados da compressão:', {
         originalSize: `${(result.originalSize / 1024 / 1024).toFixed(2)}MB`,
         compressedSize: `${(result.compressedSize / 1024 / 1024).toFixed(2)}MB`,
         compressionRatio: `${result.compressionRatio.toFixed(1)}%`,
@@ -182,7 +189,7 @@ const MessageInput = () => {
         format: result.format
       });
     } catch (error) {
-      toast.error(error.message || "Failed to compress image");
+      toast.error(error.message || "Falha ao comprimir a imagem.");
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -202,13 +209,13 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Clear form
+      // Limpar o formulário
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      console.error("Failed to send message:", error);
-      toast.error("Failed to send message");
+      console.error("Falha ao enviar a mensagem:", error);
+      toast.error("Falha ao enviar a mensagem");
     }
   };
 
@@ -238,7 +245,7 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder="Type a message..."
+            placeholder="Digite uma mensagem..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
