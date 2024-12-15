@@ -9,34 +9,35 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
-  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+  const MAX_SIZE = 10 * 1024 * 1024; // Limite de 10 MB
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif']; // Extensões permitidas
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Verifique o tipo MIME da imagem
+    // Verificação do tipo MIME da imagem
     const fileExtension = file.name.split('.').pop().toLowerCase();
     if (!file.type.startsWith("image") || !allowedExtensions.includes(fileExtension)) {
-      toast.error("Please select a valid image file (jpg, jpeg, png, gif)");
+      toast.error("Por favor, selecione um arquivo de imagem válido (jpg, jpeg, png, gif).");
       return;
     }
 
-    // Verifique o tamanho do arquivo
+    // Verificação de tamanho de arquivo
     if (file.size > MAX_SIZE) {
-      toast.error("File size exceeds 10MB limit");
+      toast.error("O tamanho do arquivo excede o limite de 10MB.");
       return;
     }
 
-    // Use FileReader para ler a imagem
+    // Usando FileReader para ler a imagem
     const reader = new FileReader();
     reader.onloadend = () => {
+      // A URL de dados (Data URL) gerada aqui será usada para exibir a imagem
       setImagePreview(reader.result);
     };
     reader.onerror = (error) => {
-      toast.error("Error reading file");
-      console.error("FileReader error:", error);
+      toast.error("Erro ao ler o arquivo.");
+      console.error("Erro no FileReader:", error);
     };
     reader.readAsDataURL(file);
   };
@@ -56,12 +57,12 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Clear form
+      // Limpar o formulário após o envio
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      console.error("Failed to send message:", error);
+      console.error("Falha ao enviar a mensagem:", error);
     }
   };
 
@@ -92,7 +93,7 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder="Type a message..."
+            placeholder="Digite uma mensagem..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
