@@ -1,94 +1,96 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import SidebarSkeleton from "./skeletons/SidebarSkeleton"; // Exemplo de esqueleto de carregamento
-// Não vamos usar o 'Users' do Lucide React, então removemos essa importação.
+import SidebarSkeleton from "./skeletons/SidebarSkeleton";
+import { Users } from "lucide-react";
 
 const Sidebar = () => {
-  // Pegando os dados e funções do store
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
-  const { onlineUsers } = useAuthStore();  // Pega os usuários online
-  const [showOnlineOnly, setShowOnlineOnly] = useState(false);  // Estado para filtrar por online
+  const { onlineUsers } = useAuthStore();
+  const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
-  // Carrega os usuários inicialmente e se inscreve para ouvir mudanças em tempo real
   useEffect(() => {
-    getUsers();  // Chama a função para pegar os usuários
+    // Função para obter os usuários ao montar o componente
+    getUsers();
+    
+    // Aqui você poderia também iniciar um mecanismo de polling, se necessário
+    // Ou se o back-end tem WebSockets, a função getUsers pode ser chamada por eles
+    const intervalId = setInterval(() => {
+      getUsers(); // Verificar se há novos usuários periodicamente
+    }, 10000); // A cada 10 segundos, você pode ajustar esse valor conforme necessário
 
-    // Configuração do WebSocket para escutar novos usuários
-    const socket = new WebSocket("ws://your-websocket-server-url");
-
-    // Escuta por mensagens do WebSocket
-    socket.addEventListener("message", (event) => {
-      const data = JSON.parse(event.data); // Converte a mensagem recebida
-
-      // Verifica o tipo de mensagem e chama 'getUsers' para atualizar a lista
-      if (data.type === "NEW_USER" || data.type === "USER_UPDATE") {
-        getUsers();  // Recarrega a lista de usuários
-      }
-    });
-
-    // Limpeza do WebSocket quando o componente for desmontado
-    return () => {
-      socket.close();
-    };
+    // Limpar o intervalo quando o componente for desmontado
+    return () => clearInterval(intervalId);
   }, [getUsers]);
 
-  // Filtrando os usuários, caso o filtro de online-only esteja ativo
   const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))  // Só mostra os online
-    : users;  // Se não, mostra todos os usuários
+    ? users.filter((user) => onlineUsers.includes(user._id))
+    : users;
 
-  // Se os usuários estão carregando, exibe o esqueleto de carregamento
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <div className="sidebar">
-      <h2>Contacts</h2>
-
-      {/* Filtro para mostrar apenas os usuários online */}
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          checked={showOnlineOnly}
-          onChange={(e) => setShowOnlineOnly(e.target.checked)}  // Atualiza o estado do filtro
-          className="checkbox checkbox-sm"
-        />
-        <span>Show online only</span>
-        <span>({onlineUsers.length - 1} online)</span>
+    <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
+      <div className="border-b border-base-300 w-full p-5">
+        <div className="flex items-center gap-2">
+          <Users className="size-6" />
+          <span className="font-medium hidden lg:block">Contacts</span>
+        </div>
+        {/* TODO: Online filter toggle */}
+        <div className="mt-3 hidden lg:flex items-center gap-2">
+          <label className="cursor-pointer flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showOnlineOnly}
+              onChange={(e) => setShowOnlineOnly(e.target.checked)}
+              className="checkbox checkbox-sm"
+            />
+            <span className="text-sm">Show online only</span>
+          </label>
+          <span className="text-xs text-zinc-500">({onlineUsers.length - 1} online)</span>
+        </div>
       </div>
 
-      {/* Lista de usuários filtrados */}
-      <div className="user-list">
+      <div className="overflow-y-auto w-full py-3">
         {filteredUsers.map((user) => (
-          <div
-            key={user._id}  // Chave única para cada usuário
-            onClick={() => setSelectedUser(user)}  // Altera o usuário selecionado ao clicar
+          <button
+            key={user._id}
+            onClick={() => setSelectedUser(user)}
             className={`
               w-full p-3 flex items-center gap-3
               hover:bg-base-300 transition-colors
               ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
             `}
           >
-            {/* Mostrar um ponto verde se o usuário estiver online */}
-            {onlineUsers.includes(user._id) && <span className="status-dot online"></span>}
-
-            {/* Exibe o nome do usuário e o status */}
-            <div className="user-info">
-              <p className="user-name">{user.fullName}</p>
-              <span className="user-status">
-                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
-              </span>
+            <div className="relative mx-auto lg:mx-0">
+              <img
+                src={user.profilePic || "/avatar.png"}
+                alt={user.name}
+                className="size-12 object-cover rounded-full"
+              />
+              {onlineUsers.includes(user._id) && (
+                <span
+                  className="absolute bottom-0 right-0 size-3 bg-green-500 
+                  rounded-full ring-2 ring-zinc-900"
+                />
+              )}
             </div>
-          </div>
+
+            {/* User info - only visible on larger screens */}
+            <div className="hidden lg:block text-left min-w-0">
+              <div className="font-medium truncate">{user.fullName}</div>
+              <div className="text-sm text-zinc-400">
+                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+              </div>
+            </div>
+          </button>
         ))}
 
-        {/* Caso não haja usuários online */}
         {filteredUsers.length === 0 && (
-          <div>No online users</div>
+          <div className="text-center text-zinc-500 py-4">No online users</div>
         )}
       </div>
-    </div>
+    </aside>
   );
 };
-
 export default Sidebar;
