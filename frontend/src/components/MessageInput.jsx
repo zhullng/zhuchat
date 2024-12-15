@@ -42,8 +42,17 @@ const MessageInput = () => {
         // Desenha a imagem no canvas
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Converte o canvas em uma imagem compactada (base64)
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        // Verifica o tipo de imagem original e ajusta a compressão
+        const fileType = file.type.split('/')[1]; // Obtemos o tipo de arquivo (jpeg, png, etc)
+        let compressedDataUrl;
+
+        // Se for PNG, mantenha o formato PNG, senão use JPEG
+        if (fileType === 'png') {
+          compressedDataUrl = canvas.toDataURL("image/png");
+        } else {
+          compressedDataUrl = canvas.toDataURL("image/jpeg", quality); // Para JPEG ou outros formatos
+        }
+
         if (compressedDataUrl) {
           resolve(compressedDataUrl); // Retorna a imagem comprimida
         } else {
