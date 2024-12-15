@@ -6,29 +6,30 @@ import { Users } from "lucide-react";
 import io from "socket.io-client";  // Importando o socket.io-client
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
+  const { users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [localOnlineUsers, setLocalOnlineUsers] = useState(onlineUsers);
 
+  // Estabelecendo a conexão com o WebSocket de maneira assíncrona
   useEffect(() => {
-    // Estabelecendo a conexão com o WebSocket
     const socket = io("https://zhuchat.onrender.com");
 
-    // Ao receber a lista de usuários online, atualize o estado sem congelar a interface
+    // Atualiza a lista de usuários online de forma eficiente
     socket.on("getOnlineUsers", (updatedUsers) => {
-      // Aqui você pode atualizar o estado, mas de forma eficiente
-      getUsers();  // Atualizar os usuários no estado (apenas se necessário)
+      // Atualiza o estado de usuários online apenas, sem forçar o re-render de todos os usuários
+      setLocalOnlineUsers(updatedUsers);
     });
 
-    // Limpeza: Desconectar o socket quando o componente for desmontado
+    // Desconectar o WebSocket quando o componente for desmontado
     return () => {
       socket.disconnect();
     };
-  }, [getUsers]);  // Essa dependência ajuda a garantir que a função "getUsers" seja chamada corretamente
+  }, []); // A dependência vazia garante que o efeito rode uma única vez na montagem
 
-  // Filtrar os usuários baseados na configuração do "Show online only"
+  // Filtrando os usuários com base no filtro "Online only"
   const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
+    ? users.filter((user) => localOnlineUsers.includes(user._id))
     : users;
 
   if (isUsersLoading) return <SidebarSkeleton />;
@@ -40,6 +41,7 @@ const Sidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
+
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -50,7 +52,7 @@ const Sidebar = () => {
             />
             <span className="text-sm">Show online only</span>
           </label>
-          <span className="text-xs text-zinc-500">({onlineUsers.length - 1} online)</span>
+          <span className="text-xs text-zinc-500">({localOnlineUsers.length - 1} online)</span>
         </div>
       </div>
 
@@ -71,7 +73,7 @@ const Sidebar = () => {
                 alt={user.name}
                 className="size-12 object-cover rounded-full"
               />
-              {onlineUsers.includes(user._id) && (
+              {localOnlineUsers.includes(user._id) && (
                 <span className="absolute bottom-0 right-0 size-3 bg-green-500 
                   rounded-full ring-2 ring-zinc-900"
                 />
@@ -81,7 +83,7 @@ const Sidebar = () => {
             <div className="hidden lg:block text-left min-w-0">
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-zinc-400">
-                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                {localOnlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
             </div>
           </button>
