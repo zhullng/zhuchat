@@ -6,21 +6,12 @@ import { Users } from "lucide-react";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
+
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
-    // Função para obter os usuários ao montar o componente
     getUsers();
-    
-    // Aqui você poderia também iniciar um mecanismo de polling, se necessário
-    // Ou se o back-end tem WebSockets, a função getUsers pode ser chamada por eles
-    const intervalId = setInterval(() => {
-      getUsers(); // Verificar se há novos usuários periodicamente
-    }, 10000); // A cada 10 segundos, você pode ajustar esse valor conforme necessário
-
-    // Limpar o intervalo quando o componente for desmontado
-    return () => clearInterval(intervalId);
   }, [getUsers]);
 
   const filteredUsers = showOnlineOnly
