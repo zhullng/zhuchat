@@ -20,7 +20,7 @@ const MessageInput = () => {
     return new Promise((resolve, reject) => {
       // Validate input
       if (!file || !file.type.startsWith('image/')) {
-        reject(new Error('Tipo de arquivo inválido. Por favor, forneça um arquivo de imagem.'));
+        reject(new Error('Invalid file type. Please provide an image file.'));
         return;
       }
 
@@ -32,7 +32,7 @@ const MessageInput = () => {
       };
 
       reader.onerror = () => {
-        reject(new Error('Falha ao ler o arquivo.'));
+        reject(new Error('Failed to read file.'));
       };
 
       img.onload = () => {
@@ -43,23 +43,46 @@ const MessageInput = () => {
         // Calculate dimensions while maintaining aspect ratio
         let width = img.width;
         let height = img.height;
-
+        
         if (width > maxWidth || height > maxHeight) {
           const ratio = Math.min(maxWidth / width, maxHeight / height);
           width = Math.floor(width * ratio);
           height = Math.floor(height * ratio);
         }
-
+        
         // Set canvas dimensions
         canvas.width = width;
         canvas.height = height;
 
-        // Draw image on canvas
+        // Draw image on canvas with white background for PNG transparency
+        if (file.type === 'image/png') {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+        }
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Set the mime type based on the original format
-        let outputFormat = file.type;
-        let mimeType = file.type;
+        // Determine output format and mime type
+        let outputFormat, mimeType;
+        const originalFormat = file.type.toLowerCase();
+
+        // Handle different image formats
+        switch (originalFormat) {
+          case 'image/png':
+            outputFormat = 'png';
+            mimeType = 'image/png';
+            break;
+          case 'image/webp':
+            outputFormat = 'webp';
+            mimeType = 'image/webp';
+            break;
+          case 'image/gif':
+            outputFormat = 'gif';
+            mimeType = 'image/gif';
+            break;
+          default:
+            outputFormat = 'jpeg';
+            mimeType = 'image/jpeg';
+        }
 
         // Try compression with initial quality
         let currentQuality = quality;
@@ -70,21 +93,20 @@ const MessageInput = () => {
         // Compression loop - keeps trying until size is under maxSizeInMB
         do {
           try {
-            // If the image is JPEG or WebP, apply quality parameter
-            compressedDataUrl = canvas.toDataURL(
-              mimeType === 'image/jpeg' || mimeType === 'image/webp' ? mimeType : 'image/jpeg',
-              mimeType === 'image/jpeg' || mimeType === 'image/webp' ? currentQuality : undefined
+            compressedDataUrl = canvas.toDataURL(mimeType, 
+              // Only apply quality parameter for JPEG and WEBP
+              ['image/jpeg', 'image/webp'].includes(mimeType) ? currentQuality : undefined
             );
           } catch (e) {
-            // In case of unsupported formats, fallback to JPEG
+            // Fallback to JPEG if format is not supported
             compressedDataUrl = canvas.toDataURL('image/jpeg', currentQuality);
-            mimeType = 'image/jpeg';
             outputFormat = 'jpeg';
+            mimeType = 'image/jpeg';
           }
-
+          
           // Calculate size in MB
           const sizeInMB = (compressedDataUrl.length * 3) / 4 / (1024 * 1024);
-
+          
           // Break if size is acceptable or we've reached minimum quality
           if (sizeInMB <= maxSizeInMB || currentQuality <= minQuality) {
             break;
@@ -115,14 +137,14 @@ const MessageInput = () => {
               originalSize: file.size,
               compressedSize: compressedFile.size,
               compressionRatio: (1 - (compressedFile.size / file.size)) * 100,
-              format: outputFormat,
+              format: outputFormat
             });
           })
-          .catch(error => reject(new Error('Falha ao criar o arquivo comprimido.')));
+          .catch(error => reject(new Error('Failed to create compressed file.')));
       };
 
       img.onerror = () => {
-        reject(new Error('Falha ao carregar a imagem.'));
+        reject(new Error('Failed to load image.'));
       };
 
       reader.readAsDataURL(file);
@@ -132,16 +154,9 @@ const MessageInput = () => {
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Verificando se o formato da imagem é compatível
+    
     if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione um arquivo de imagem.");
-      return;
-    }
-
-    // Verificando se o formato da imagem é HEIC/HEIF, que não é suportado diretamente no navegador
-    if (file.type === "image/heic" || file.type === "image/heif") {
-      toast.error("Formato HEIC/HEIF não suportado diretamente no navegador.");
+      toast.error("Please select an image file");
       return;
     }
 
@@ -157,8 +172,8 @@ const MessageInput = () => {
 
       setImagePreview(result.dataUrl);
       
-      // Log dos resultados da compressão
-      console.log('Resultados da compressão:', {
+      // Log compression results
+      console.log('Compression results:', {
         originalSize: `${(result.originalSize / 1024 / 1024).toFixed(2)}MB`,
         compressedSize: `${(result.compressedSize / 1024 / 1024).toFixed(2)}MB`,
         compressionRatio: `${result.compressionRatio.toFixed(1)}%`,
@@ -167,7 +182,7 @@ const MessageInput = () => {
         format: result.format
       });
     } catch (error) {
-      toast.error(error.message || "Falha ao comprimir a imagem.");
+      toast.error(error.message || "Failed to compress image");
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -187,13 +202,13 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Limpar o formulário
+      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      console.error("Falha ao enviar a mensagem:", error);
-      toast.error("Falha ao enviar a mensagem");
+      console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
     }
   };
 
@@ -223,7 +238,7 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder="Digite uma mensagem..."
+            placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
