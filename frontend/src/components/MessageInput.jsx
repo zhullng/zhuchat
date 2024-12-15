@@ -9,46 +9,19 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  const handleImageChange = async (e) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
-  
-    if (!file) {
-      toast.error("No file selected.");
-      return;
-    }
-  
-    console.log("File Type: ", file.type);  // Verifica o tipo de arquivo
-  
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file.");
+      toast.error("Please select an image file");
       return;
     }
-  
-    // Cria o FormData para o envio do arquivo
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'your-upload-preset');  // Substitua com seu preset no Cloudinary
-  
-    try {
-      const response = await fetch('https://api.cloudinary.com/v1_1/your-cloud-name/image/upload', {
-        method: 'POST',
-        body: formData,
-      });
-  
-      const data = await response.json();
-      if (data.secure_url) {
-        // Se o Cloudinary retornar uma URL segura, defina a pré-visualização da imagem
-        setImagePreview(data.secure_url);
-        toast.success("Image uploaded successfully.");
-      } else {
-        toast.error("Failed to upload image to Cloudinary.");
-      }
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Error uploading image: " + error.message);
-    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
-  
 
   const removeImage = () => {
     setImagePreview(null);
