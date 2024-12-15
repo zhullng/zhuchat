@@ -43,25 +43,21 @@ const MessageInput = () => {
         // Calculate dimensions while maintaining aspect ratio
         let width = img.width;
         let height = img.height;
-        
+
         if (width > maxWidth || height > maxHeight) {
           const ratio = Math.min(maxWidth / width, maxHeight / height);
           width = Math.floor(width * ratio);
           height = Math.floor(height * ratio);
         }
-        
+
         // Set canvas dimensions
         canvas.width = width;
         canvas.height = height;
 
-        // Draw image on canvas with white background for PNG transparency
-        if (file.type === 'image/png') {
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
-        }
+        // Draw image on canvas
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Use the same format as the original image for output
+        // Set the mime type based on the original format
         let outputFormat = file.type;
         let mimeType = file.type;
 
@@ -74,9 +70,10 @@ const MessageInput = () => {
         // Compression loop - keeps trying until size is under maxSizeInMB
         do {
           try {
-            compressedDataUrl = canvas.toDataURL(mimeType, 
-              // Only apply quality parameter for JPEG and WEBP
-              ['image/jpeg', 'image/webp'].includes(mimeType) ? currentQuality : undefined
+            // If the image is JPEG or WebP, apply quality parameter
+            compressedDataUrl = canvas.toDataURL(
+              mimeType === 'image/jpeg' || mimeType === 'image/webp' ? mimeType : 'image/jpeg',
+              mimeType === 'image/jpeg' || mimeType === 'image/webp' ? currentQuality : undefined
             );
           } catch (e) {
             // In case of unsupported formats, fallback to JPEG
@@ -84,10 +81,10 @@ const MessageInput = () => {
             mimeType = 'image/jpeg';
             outputFormat = 'jpeg';
           }
-          
+
           // Calculate size in MB
           const sizeInMB = (compressedDataUrl.length * 3) / 4 / (1024 * 1024);
-          
+
           // Break if size is acceptable or we've reached minimum quality
           if (sizeInMB <= maxSizeInMB || currentQuality <= minQuality) {
             break;
@@ -118,7 +115,7 @@ const MessageInput = () => {
               originalSize: file.size,
               compressedSize: compressedFile.size,
               compressionRatio: (1 - (compressedFile.size / file.size)) * 100,
-              format: outputFormat
+              format: outputFormat,
             });
           })
           .catch(error => reject(new Error('Falha ao criar o arquivo comprimido.')));
