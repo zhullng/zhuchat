@@ -1,74 +1,105 @@
 import { create } from "zustand";
+import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
-import { axiosInstance } from "../lib/axios";
-import { useAuthStore } from "./useAuthStore";
+import { io } from "socket.io-client";
 
-export const useChatStore = create((set, get) => ({
-  messages: [],
-  users: [],
-  selectedUser: null,
-  isUsersLoading: false,
-  isMessagesLoading: false,
+const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
-  getUsers: async () => {
-    set({ isUsersLoading: true });
+export const useAuthStore = create((set, get) => ({
+  authUser: null,
+  isSigningUp: false,
+  isLoggingIn: false,
+  isUpdatingProfile: false,
+  isCheckingAuth: true,
+  onlineUsers: [],
+  socket: null,
+
+  checkAuth: async () => {
     try {
-      const res = await axiosInstance.get("/messages/users");
-      set({ users: res.data });
+      const res = await axiosInstance.get("/auth/check");
+
+      set({ authUser: res.data });
+      get().connectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      console.log("Error in checkAuth:", error);
+      set({ authUser: null });
     } finally {
-      set({ isUsersLoading: false });
+      set({ isCheckingAuth: false });
     }
   },
 
-  updateUsersOnline: (onlineUsers) => {
-    set((state) => ({
-      users: state.users.map((user) => ({
-        ...user,
-        online: onlineUsers.includes(user._id),  // Marca os usuários online
-      })),
-    }));
-  },
-
-  getMessages: async (userId) => {
-    set({ isMessagesLoading: true });
+  signup: async (data) => {
+    set({ isSigningUp: true });
     try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
-      set({ messages: res.data });
+      const res = await axiosInstance.post("/auth/signup", data);
+      set({ authUser: res.data });
+      toast.success("Account created successfully");
+      get().connectSocket();
     } catch (error) {
       toast.error(error.response.data.message);
     } finally {
-      set({ isMessagesLoading: false });
+      set({ isSigningUp: false });
     }
   },
 
-  subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
+  login: async (data) => {
+    set({ isLoggingIn: true });
+    try {
+      const res = await axiosInstance.post("/auth/login", data);
+      set({ authUser: res.data });
+      toast.success("Logged in successfully");
 
-    const socket = useAuthStore.getState().socket;
-
-    socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
-
-      set({
-        messages: [...get().messages, newMessage],
-      });
-    });
-
-    // Ouça as atualizações da lista de usuários online
-    socket.on("usersOnlineUpdated", (onlineUsers) => {
-      get().updateUsersOnline(onlineUsers);  // Atualiza a lista de usuários online
-    });
+      get().connectSocket();
+    } catch (error) {
+      toast.error(error.response.data.message);
+    } finally {
+      set({ isLoggingIn: false });
+    }
   },
 
-  unsubscribeFromMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
-    socket.off("usersOnlineUpdated");
+  logout: async () => {
+    try {
+      await axiosInstance.post("/auth/logout");
+      set({ authUser: null });
+      toast.success("Logged out successfully");
+      get().disconnectSocket();
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
   },
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  updateProfile: async (data) => {
+    set({ isUpdatingProfile: true });
+    try {
+      const res = await axiosInstance.put("/auth/update-profile", data);
+      set({ authUser: res.data });
+      toast.success("Profile updated successfully");
+    } catch (error) {
+      console.log("error in update profile:", error);
+      toast.error(error.response.data.message);
+    } finally {
+      set({ isUpdatingProfile: false });
+    }
+  },
+
+  connectSocket: () => {
+    const { authUser } = get();
+    if (!authUser || get().socket?.connected) return;
+
+    const socket = io(BASE_URL, {
+      query: {
+        userId: authUser._id,
+      },
+    });
+    socket.connect();
+
+    set({ socket: socket });
+
+    socket.on("getOnlineUsers", (userIds) => {
+      set({ onlineUsers: userIds });
+    });
+  },
+  disconnectSocket: () => {
+    if (get().socket?.connected) get().socket.disconnect();
+  },
 }));
