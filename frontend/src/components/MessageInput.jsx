@@ -9,16 +9,34 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
+  const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+    if (!file) return;
+
+    // Verifique o tipo MIME da imagem
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    if (!file.type.startsWith("image") || !allowedExtensions.includes(fileExtension)) {
+      toast.error("Please select a valid image file (jpg, jpeg, png, gif)");
       return;
     }
 
+    // Verifique o tamanho do arquivo
+    if (file.size > MAX_SIZE) {
+      toast.error("File size exceeds 10MB limit");
+      return;
+    }
+
+    // Use FileReader para ler a imagem
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
+    };
+    reader.onerror = (error) => {
+      toast.error("Error reading file");
+      console.error("FileReader error:", error);
     };
     reader.readAsDataURL(file);
   };
@@ -106,4 +124,5 @@ const MessageInput = () => {
     </div>
   );
 };
+
 export default MessageInput;
