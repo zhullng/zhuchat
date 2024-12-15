@@ -3,7 +3,7 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
-import io from "socket.io-client";  // Importando a biblioteca para WebSocket
+import io from "socket.io-client";  // Importando o socket.io-client
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
@@ -11,21 +11,22 @@ const Sidebar = () => {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
-    // Conectar ao WebSocket com a URL de produção do Render
-    const socket = io("https://zhuchat.onrender.com");  // Substitua pelo seu endereço de produção
+    // Estabelecendo a conexão com o WebSocket
+    const socket = io("https://zhuchat.onrender.com");
 
-    // Ouvir eventos de WebSocket quando houver uma alteração nos usuários online
+    // Ao receber a lista de usuários online, atualize o estado sem congelar a interface
     socket.on("getOnlineUsers", (updatedUsers) => {
-      // Atualizar a lista de usuários online com as novas informações
-      getUsers();  // Pode ser necessário ajustar a lógica aqui dependendo de como você armazena os usuários
+      // Aqui você pode atualizar o estado, mas de forma eficiente
+      getUsers();  // Atualizar os usuários no estado (apenas se necessário)
     });
 
-    // Limpeza ao desmontar o componente (fechar a conexão WebSocket)
+    // Limpeza: Desconectar o socket quando o componente for desmontado
     return () => {
       socket.disconnect();
     };
-  }, [getUsers]);  // Apenas se "getUsers" for uma função que muda
+  }, [getUsers]);  // Essa dependência ajuda a garantir que a função "getUsers" seja chamada corretamente
 
+  // Filtrar os usuários baseados na configuração do "Show online only"
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
