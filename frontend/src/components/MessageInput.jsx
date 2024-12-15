@@ -11,19 +11,33 @@ const MessageInput = () => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    toast.error(file);
+  
+    // Exibir informações úteis sobre o arquivo no toast (não o arquivo em si)
+    if (file) {
+      toast.success(`File selected: ${file.name} (${file.size} bytes)`);
+    }
+  
+    // Verifica se o arquivo é uma imagem
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Please select a valid image file.");
       return;
     }
-
+  
     const reader = new FileReader();
+    
+    // Quando a leitura do arquivo terminar
     reader.onloadend = () => {
-      toast.error(reader.result);
+      // Aqui você pode verificar o conteúdo da imagem (mas normalmente não exibe a imagem em si com toast)
+      toast.success("Image successfully loaded.");
+      
+      // Definindo a imagem no estado para pré-visualização
       setImagePreview(reader.result);
     };
+  
+    // Lê o arquivo como uma URL de dados (DataURL)
     reader.readAsDataURL(file);
   };
+  
 
   const removeImage = () => {
     setImagePreview(null);
