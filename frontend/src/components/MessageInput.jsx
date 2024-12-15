@@ -11,33 +11,15 @@ const MessageInput = () => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-
-    // Verificar se o arquivo é uma imagem
-    if (!file) {
-      toast.error("No file selected.");
-      return;
-    }
-
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file.");
+      toast.error("Please select an image file");
       return;
     }
-
-    // Exibir nome do arquivo no toast
-    toast.success(`File selected: ${file.name}`);
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      // Exibe a imagem carregada na pré-visualização
       setImagePreview(reader.result);
-      toast.success("Image loaded successfully.");
     };
-
-    reader.onerror = () => {
-      toast.error("Failed to load image.");
-    };
-
-    // Lê o arquivo como Data URL (base64)
     reader.readAsDataURL(file);
   };
 
@@ -48,27 +30,20 @@ const MessageInput = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) {
-      toast.error("Please enter a message or select an image.");
-      return;
-    }
+    if (!text.trim() && !imagePreview) return;
 
     try {
-      // Envia a mensagem com o texto e a imagem (em base64)
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
       });
 
-      // Limpar o formulário após o envio
+      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-
-      toast.success("Message sent successfully!");
     } catch (error) {
       console.error("Failed to send message:", error);
-      toast.error("Failed to send message: " + error.message);
     }
   };
 
@@ -131,5 +106,4 @@ const MessageInput = () => {
     </div>
   );
 };
-
 export default MessageInput;
