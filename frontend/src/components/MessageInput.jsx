@@ -6,8 +6,55 @@ import toast from "react-hot-toast";
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [compressedImage, setCompressedImage] = useState(null);
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
+
+  const compressImage = (file) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new Image();
+      img.src = reader.result;
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Redimensionar a imagem
+        const maxWidth = 800;
+        const maxHeight = 800;
+        let width = img.width;
+        let height = img.height;
+
+        // Ajustar o tamanho com base nas dimensões máximas
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Desenhar a imagem no canvas redimensionada
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Comprimir a imagem com uma qualidade de 0.7
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+
+        // Definir o preview da imagem comprimida
+        setCompressedImage(compressedDataUrl);
+        setImagePreview(compressedDataUrl);
+      };
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -16,31 +63,29 @@ const MessageInput = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-    };
-    reader.readAsDataURL(file);
+    compressImage(file);
   };
 
   const removeImage = () => {
     setImagePreview(null);
+    setCompressedImage(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
+    if (!text.trim() && !compressedImage) return;
 
     try {
       await sendMessage({
         text: text.trim(),
-        image: imagePreview,
+        image: compressedImage,
       });
 
       // Clear form
       setText("");
       setImagePreview(null);
+      setCompressedImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -106,4 +151,5 @@ const MessageInput = () => {
     </div>
   );
 };
+
 export default MessageInput;
