@@ -3,35 +3,33 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
-import io from "socket.io-client";  // Importando o socket.io-client
 
 const Sidebar = () => {
-  const { users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
-  const [localOnlineUsers, setLocalOnlineUsers] = useState(onlineUsers);
 
-  // Estabelecendo a conexão com o WebSocket de maneira assíncrona
+  // Carregar usuários e se inscrever nas atualizações em tempo real
   useEffect(() => {
-    const socket = io("https://zhuchat.onrender.com");
+    getUsers(); // Carregar os usuários
+    const socket = useAuthStore.getState().socket;
 
-    // Atualiza a lista de usuários online de forma eficiente
-    socket.on("getOnlineUsers", (updatedUsers) => {
-      // Atualiza o estado de usuários online apenas, sem forçar o re-render de todos os usuários
-      setLocalOnlineUsers(updatedUsers);
+    // Inscrever-se nas atualizações de usuários online em tempo real
+    socket.on("usersOnlineUpdated", (onlineUsers) => {
+      // Esse evento atualiza os usuários online em tempo real
     });
 
-    // Desconectar o WebSocket quando o componente for desmontado
     return () => {
-      socket.disconnect();
+      socket.off("usersOnlineUpdated"); // Remover o ouvinte quando o componente desmontar
     };
-  }, []); // A dependência vazia garante que o efeito rode uma única vez na montagem
+  }, [getUsers]);
 
-  // Filtrando os usuários com base no filtro "Online only"
+  // Filtrar os usuários para mostrar somente os online, se necessário
   const filteredUsers = showOnlineOnly
-    ? users.filter((user) => localOnlineUsers.includes(user._id))
+    ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
 
+  // Exibir esqueleto enquanto os dados estão sendo carregados
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
@@ -52,7 +50,7 @@ const Sidebar = () => {
             />
             <span className="text-sm">Show online only</span>
           </label>
-          <span className="text-xs text-zinc-500">({localOnlineUsers.length - 1} online)</span>
+          <span className="text-xs text-zinc-500">({onlineUsers.length - 1} online)</span>
         </div>
       </div>
 
@@ -61,11 +59,9 @@ const Sidebar = () => {
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
-            className={`
-              w-full p-3 flex items-center gap-3
-              hover:bg-base-300 transition-colors
-              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
-            `}
+            className={`w-full p-3 flex items-center gap-3 hover:bg-base-300 transition-colors ${
+              selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""
+            }`}
           >
             <div className="relative mx-auto lg:mx-0">
               <img
@@ -73,17 +69,15 @@ const Sidebar = () => {
                 alt={user.name}
                 className="size-12 object-cover rounded-full"
               />
-              {localOnlineUsers.includes(user._id) && (
-                <span className="absolute bottom-0 right-0 size-3 bg-green-500 
-                  rounded-full ring-2 ring-zinc-900"
-                />
+              {onlineUsers.includes(user._id) && (
+                <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
               )}
             </div>
 
             <div className="hidden lg:block text-left min-w-0">
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-zinc-400">
-                {localOnlineUsers.includes(user._id) ? "Online" : "Offline"}
+                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
             </div>
           </button>
