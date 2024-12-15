@@ -61,28 +61,9 @@ const MessageInput = () => {
         }
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Determine output format and mime type
-        let outputFormat, mimeType;
-        const originalFormat = file.type.toLowerCase();
-
-        // Handle different image formats
-        switch (originalFormat) {
-          case 'image/png':
-            outputFormat = 'png';
-            mimeType = 'image/png';
-            break;
-          case 'image/webp':
-            outputFormat = 'webp';
-            mimeType = 'image/webp';
-            break;
-          case 'image/gif':
-            outputFormat = 'gif';
-            mimeType = 'image/gif';
-            break;
-          default:
-            outputFormat = 'jpeg';
-            mimeType = 'image/jpeg';
-        }
+        // Use the same format as the original image for output
+        let outputFormat = file.type;
+        let mimeType = file.type;
 
         // Try compression with initial quality
         let currentQuality = quality;
@@ -98,10 +79,10 @@ const MessageInput = () => {
               ['image/jpeg', 'image/webp'].includes(mimeType) ? currentQuality : undefined
             );
           } catch (e) {
-            // Fallback to JPEG if format is not supported
+            // In case of unsupported formats, fallback to JPEG
             compressedDataUrl = canvas.toDataURL('image/jpeg', currentQuality);
-            outputFormat = 'jpeg';
             mimeType = 'image/jpeg';
+            outputFormat = 'jpeg';
           }
           
           // Calculate size in MB
