@@ -11,6 +11,7 @@ const MessageInput = () => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
+    toast.error(file);
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
@@ -18,6 +19,7 @@ const MessageInput = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
+      toast.error(reader.result);
       setImagePreview(reader.result);
     };
     reader.readAsDataURL(file);
