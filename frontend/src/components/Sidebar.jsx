@@ -4,33 +4,60 @@ import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
 
+// Hook para gerenciar a conexão com WebSocket
+const useWebSocket = (onMessageReceived) => {
+  useEffect(() => {
+    // Conectar ao WebSocket (substitua a URL pelo seu servidor WebSocket)
+    const socket = new WebSocket("ws://localhost:4000"); // Exemplo de WebSocket
+
+    socket.onopen = () => {
+      console.log("Conectado ao WebSocket");
+    };
+
+    socket.onmessage = (event) => {
+      // Chama a função de callback com a mensagem recebida
+      onMessageReceived(JSON.parse(event.data));
+    };
+
+    socket.onerror = (error) => {
+      console.log("Erro no WebSocket:", error);
+    };
+
+    socket.onclose = () => {
+      console.log("WebSocket fechado");
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [onMessageReceived]);
+};
+
 const Sidebar = () => {
-  const { getUsers, users, setSelectedUser, isUsersLoading, updateUsers } = useChatStore();
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, updateUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
-  useEffect(() => {
-    // Inicializa a obtenção dos dados quando o componente é montado
-    if (users.length === 0) {
-      getUsers();
+  // Função chamada quando uma nova mensagem (alteração) é recebida via WebSocket
+  const handleWebSocketMessage = (message) => {
+    if (message.type === "USER_LIST_UPDATED") {
+      // Atualiza a lista de usuários no store
+      updateUsers(message.users);
+    } else if (message.type === "USER_STATUS_CHANGED") {
+      // Atualiza o status de um usuário (online/offline)
+      updateUsers(message.user);
     }
+  };
 
-    // Usar polling, mas sem resetar a lista
-    const intervalId = setInterval(() => {
-      // Atualizar dados sem apagar a lista de usuários já carregados
-      getUsers(true); // O parâmetro `true` poderia ser utilizado para indicar um 'refetch' sem resetar a lista
-    }, 10000);
+  // Conectar ao WebSocket
+  useWebSocket(handleWebSocketMessage);
 
-    // Limpar o intervalo quando o componente for desmontado
-    return () => clearInterval(intervalId);
-  }, [getUsers, users]);
-
-  // Filtra usuários para mostrar apenas os online, se necessário
+  // Filtra os usuários online, se necessário
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
 
-  if (isUsersLoading && users.length === 0) return <SidebarSkeleton />;
+  if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
