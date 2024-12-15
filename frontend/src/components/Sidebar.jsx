@@ -4,55 +4,28 @@ import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
 
-// Hook para gerenciar a conexão com WebSocket
-const useWebSocket = (onMessageReceived) => {
-  useEffect(() => {
-    // Conectar ao WebSocket (substitua a URL pelo seu servidor WebSocket)
-    const socket = new WebSocket("ws://localhost:4000"); // Exemplo de WebSocket
-
-    socket.onopen = () => {
-      console.log("Conectado ao WebSocket");
-    };
-
-    socket.onmessage = (event) => {
-      // Chama a função de callback com a mensagem recebida
-      onMessageReceived(JSON.parse(event.data));
-    };
-
-    socket.onerror = (error) => {
-      console.log("Erro no WebSocket:", error);
-    };
-
-    socket.onclose = () => {
-      console.log("WebSocket fechado");
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [onMessageReceived]);
-};
-
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, updateUsers } = useChatStore();
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
-  // Função chamada quando uma nova mensagem (alteração) é recebida via WebSocket
-  const handleWebSocketMessage = (message) => {
-    if (message.type === "USER_LIST_UPDATED") {
-      // Atualiza a lista de usuários no store
-      updateUsers(message.users);
-    } else if (message.type === "USER_STATUS_CHANGED") {
-      // Atualiza o status de um usuário (online/offline)
-      updateUsers(message.user);
-    }
-  };
+  useEffect(() => {
+    // Estabelecendo a conexão WebSocket
+    const socket = new WebSocket("wss://zhuchat.onrender.com"); // Altere para seu servidor WebSocket real
 
-  // Conectar ao WebSocket
-  useWebSocket(handleWebSocketMessage);
+    // Recebe eventos do servidor e atualiza os usuários online
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "USER_STATUS_UPDATE") {
+        // Atualiza a lista de usuários quando houver mudança no status
+        getUsers(); // Chama a função para obter usuários atualizados
+      }
+    };
 
-  // Filtra os usuários online, se necessário
+    // Limpeza ao desmontar o componente
+    return () => socket.close();
+  }, [getUsers]);
+
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
@@ -66,7 +39,7 @@ const Sidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
-        {/* Filtro para exibir apenas online */}
+        {/* Toggle para mostrar usuários online */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -86,11 +59,9 @@ const Sidebar = () => {
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
-            className={`
-              w-full p-3 flex items-center gap-3
-              hover:bg-base-300 transition-colors
-              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
-            `}
+            className={`w-full p-3 flex items-center gap-3 hover:bg-base-300 transition-colors ${
+              selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""
+            }`}
           >
             <div className="relative mx-auto lg:mx-0">
               <img
@@ -100,13 +71,12 @@ const Sidebar = () => {
               />
               {onlineUsers.includes(user._id) && (
                 <span
-                  className="absolute bottom-0 right-0 size-3 bg-green-500 
-                  rounded-full ring-2 ring-zinc-900"
+                  className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900"
                 />
               )}
             </div>
 
-            {/* Informações do usuário - visíveis apenas em telas grandes */}
+            {/* User info - only visible on larger screens */}
             <div className="hidden lg:block text-left min-w-0">
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-zinc-400">
