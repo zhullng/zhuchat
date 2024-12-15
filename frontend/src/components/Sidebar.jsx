@@ -5,29 +5,32 @@ import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
+  const { getUsers, users, setSelectedUser, isUsersLoading, updateUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
-    // Função para obter os usuários ao montar o componente
-    getUsers();
-    
-    // Aqui você poderia também iniciar um mecanismo de polling, se necessário
-    // Ou se o back-end tem WebSockets, a função getUsers pode ser chamada por eles
+    // Inicializa a obtenção dos dados quando o componente é montado
+    if (users.length === 0) {
+      getUsers();
+    }
+
+    // Usar polling, mas sem resetar a lista
     const intervalId = setInterval(() => {
-      getUsers(); // Verificar se há novos usuários periodicamente
-    }, 10000); // A cada 10 segundos, você pode ajustar esse valor conforme necessário
+      // Atualizar dados sem apagar a lista de usuários já carregados
+      getUsers(true); // O parâmetro `true` poderia ser utilizado para indicar um 'refetch' sem resetar a lista
+    }, 10000);
 
     // Limpar o intervalo quando o componente for desmontado
     return () => clearInterval(intervalId);
-  }, [getUsers]);
+  }, [getUsers, users]);
 
+  // Filtra usuários para mostrar apenas os online, se necessário
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
 
-  if (isUsersLoading) return <SidebarSkeleton />;
+  if (isUsersLoading && users.length === 0) return <SidebarSkeleton />;
 
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
@@ -36,7 +39,7 @@ const Sidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
-        {/* TODO: Online filter toggle */}
+        {/* Filtro para exibir apenas online */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -76,7 +79,7 @@ const Sidebar = () => {
               )}
             </div>
 
-            {/* User info - only visible on larger screens */}
+            {/* Informações do usuário - visíveis apenas em telas grandes */}
             <div className="hidden lg:block text-left min-w-0">
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-zinc-400">
