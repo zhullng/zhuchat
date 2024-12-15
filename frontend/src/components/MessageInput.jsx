@@ -6,86 +6,89 @@ import toast from "react-hot-toast";
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
-  const [compressedImage, setCompressedImage] = useState(null);
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  const compressImage = (file) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const img = new Image();
-      img.src = reader.result;
 
+  const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+  
+      reader.onload = () => {
+        img.src = reader.result;
+      };
+  
+      reader.onerror = (err) => {
+        reject("Failed to read file.");
+      };
+  
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-
-        // Redimensionar a imagem
-        const maxWidth = 800;
-        const maxHeight = 800;
-        let width = img.width;
-        let height = img.height;
-
-        // Ajustar o tamanho com base nas dimensões máximas
-        if (width > height) {
-          if (width > maxWidth) {
-            height *= maxWidth / width;
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width *= maxHeight / height;
-            height = maxHeight;
-          }
-        }
-
+  
+        // Calcula as novas dimensões da imagem com base nas dimensões máximas
+        const scaleFactor = Math.min(maxWidth / img.width, maxHeight / img.height);
+        const width = img.width * scaleFactor;
+        const height = img.height * scaleFactor;
+  
+        // Define as dimensões do canvas
         canvas.width = width;
         canvas.height = height;
-
-        // Desenhar a imagem no canvas redimensionada
+  
+        // Desenha a imagem comprimida no canvas
         ctx.drawImage(img, 0, 0, width, height);
-
-        // Comprimir a imagem com uma qualidade de 0.7
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
-
-        // Definir o preview da imagem comprimida
-        setCompressedImage(compressedDataUrl);
-        setImagePreview(compressedDataUrl);
+  
+        // Converte o canvas em uma imagem compactada (base64)
+        canvas.toDataURL("image/jpeg", quality, (dataUrl) => {
+          resolve(dataUrl); // Retorna a imagem comprimida
+        });
       };
-    };
-    reader.readAsDataURL(file);
+  
+      img.onerror = (err) => {
+        reject("Failed to load image.");
+      };
+  
+      // Lê a imagem como URL de dados
+      reader.readAsDataURL(file);
+    });
   };
 
-  const handleImageChange = (e) => {
+  
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
     }
-
-    compressImage(file);
+  
+    try {
+      // Chama a função compressImage para reduzir o tamanho da imagem
+      const compressedImage = await compressImage(file);
+      setImagePreview(compressedImage);
+    } catch (error) {
+      toast.error("Failed to compress image");
+    }
   };
-
+  
   const removeImage = () => {
     setImagePreview(null);
-    setCompressedImage(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !compressedImage) return;
+    if (!text.trim() && !imagePreview) return;
 
     try {
       await sendMessage({
         text: text.trim(),
-        image: compressedImage,
+        image: imagePreview,
       });
 
       // Clear form
       setText("");
       setImagePreview(null);
-      setCompressedImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -151,5 +154,4 @@ const MessageInput = () => {
     </div>
   );
 };
-
 export default MessageInput;
