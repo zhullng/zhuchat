@@ -10,74 +10,15 @@ const ProfilePage = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      console.error("Please select an image file");
-      return;
-    }
+    const reader = new FileReader();
 
-    try {
-      const compressedImage = await compressImage(file);
-      setSelectedImg(compressedImage);
-      await updateProfile({ profilePic: compressedImage });
-    } catch (error) {
-      console.error("Failed to process image:", error);
-    }
-  };
+    reader.readAsDataURL(file);
 
-  const compressImage = async (file) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        img.src = reader.result;
-      };
-
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // Calculate dimensions
-        let width = img.width;
-        let height = img.height;
-        const maxSize = 800;
-        
-        if (width > maxSize || height > maxSize) {
-          const ratio = Math.min(maxSize / width, maxSize / height);
-          width = Math.floor(width * ratio);
-          height = Math.floor(height * ratio);
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Handle PNG transparency
-        if (file.type === 'image/png') {
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Determine output format
-        const formatMap = {
-          'image/png': { mime: 'image/png', quality: undefined },
-          'image/webp': { mime: 'image/webp', quality: 0.8 },
-          'image/jpeg': { mime: 'image/jpeg', quality: 0.8 },
-          'image/jpg': { mime: 'image/jpeg', quality: 0.8 }
-        };
-
-        const { mime, quality } = formatMap[file.type.toLowerCase()] || formatMap['image/jpeg'];
-        
-        const compressedDataUrl = canvas.toDataURL(mime, quality);
-        resolve(compressedDataUrl);
-      };
-
-      img.onerror = () => reject(new Error('Failed to load image'));
-      reader.onerror = () => reject(new Error('Failed to read file'));
-
-      reader.readAsDataURL(file);
-    });
+    reader.onload = async () => {
+      const base64Image = reader.result;
+      setSelectedImg(base64Image);
+      await updateProfile({ profilePic: base64Image });
+    };
   };
 
   return (
@@ -89,12 +30,14 @@ const ProfilePage = () => {
             <p className="mt-2">Your profile information</p>
           </div>
 
+          {/* avatar upload section */}
+
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <img
                 src={selectedImg || authUser.profilePic || "/avatar.png"}
                 alt="Profile"
-                className="size-32 rounded-full object-cover border-4"
+                className="size-32 rounded-full object-cover border-4 "
               />
               <label
                 htmlFor="avatar-upload"
@@ -158,5 +101,4 @@ const ProfilePage = () => {
     </div>
   );
 };
-
 export default ProfilePage;
