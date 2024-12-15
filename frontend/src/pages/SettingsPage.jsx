@@ -4,7 +4,7 @@ import { Send } from "lucide-react";
 
 const PREVIEW_MESSAGES = [
   { id: 1, content: "Hey! How's it going?", isSent: false },
-  { id: 2, content: "I'm doing great! Just working on some new features.", isSent: true },
+  { id: 2, content: "I'm doing great! ZhuChat is the best chat app I've ever used!", isSent: true },
 ];
 
 const SettingsPage = () => {
@@ -54,10 +54,10 @@ const SettingsPage = () => {
                 <div className="px-4 py-3 border-b border-base-300 bg-base-100">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content font-medium">
-                      J
+                      Z
                     </div>
                     <div>
-                      <h3 className="font-medium text-sm">John Doe</h3>
+                      <h3 className="font-medium text-sm">Zhu</h3>
                       <p className="text-xs text-base-content/70">Online</p>
                     </div>
                   </div>
