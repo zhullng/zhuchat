@@ -6,24 +6,12 @@ import { Users } from "lucide-react";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
+
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
-    // Estabelecendo a conexão WebSocket
-    const socket = new WebSocket("wss://zhuchat.onrender.com"); // Altere para seu servidor WebSocket real
-
-    // Recebe eventos do servidor e atualiza os usuários online
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "USER_STATUS_UPDATE") {
-        // Atualiza a lista de usuários quando houver mudança no status
-        getUsers(); // Chama a função para obter usuários atualizados
-      }
-    };
-
-    // Limpeza ao desmontar o componente
-    return () => socket.close();
+    getUsers();
   }, [getUsers]);
 
   const filteredUsers = showOnlineOnly
@@ -39,7 +27,7 @@ const Sidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
-        {/* Toggle para mostrar usuários online */}
+        {/* TODO: Online filter toggle */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -59,9 +47,11 @@ const Sidebar = () => {
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
-            className={`w-full p-3 flex items-center gap-3 hover:bg-base-300 transition-colors ${
-              selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""
-            }`}
+            className={`
+              w-full p-3 flex items-center gap-3
+              hover:bg-base-300 transition-colors
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+            `}
           >
             <div className="relative mx-auto lg:mx-0">
               <img
@@ -71,7 +61,8 @@ const Sidebar = () => {
               />
               {onlineUsers.includes(user._id) && (
                 <span
-                  className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900"
+                  className="absolute bottom-0 right-0 size-3 bg-green-500 
+                  rounded-full ring-2 ring-zinc-900"
                 />
               )}
             </div>
