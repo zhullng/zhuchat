@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
-import imageCompression from 'browser-image-compression';
 
 const MessageInput = () => {
   const [text, setText] = useState("");
@@ -10,31 +9,18 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  const handleImageChange = async (e) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
     }
 
-    // Compress the image if necessary
-    const options = {
-      maxSizeMB: 1,   // Limit the size of the image to 1MB
-      maxWidthOrHeight: 800,   // Resize image if it's larger than 800px
-      useWebWorker: true,
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
     };
-
-    try {
-      const compressedFile = await imageCompression(file, options);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(compressedFile);
-    } catch (error) {
-      toast.error("Error compressing image");
-      console.error(error);
-    }
+    reader.readAsDataURL(file);
   };
 
   const removeImage = () => {
@@ -52,7 +38,7 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Clear form after message is sent
+      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -120,5 +106,4 @@ const MessageInput = () => {
     </div>
   );
 };
-
 export default MessageInput;
