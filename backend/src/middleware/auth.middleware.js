@@ -13,26 +13,29 @@ export const protectRoute = async (req, res, next) => {
     }
 
     // Verificar e decodificar o token usando o segredo JWT
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+      if (err) {
+        // Se o token for expirado ou inválido
+        if (err.name === "TokenExpiredError") {
+          return res.status(401).json({ message: "Unauthorized - Token Expired" });
+        }
+        return res.status(401).json({ message: "Unauthorized - Invalid Token" });
+      }
 
-    // Se o token não for válido, retornar erro de autorização
-    if (!decoded) {
-      return res.status(401).json({ message: "Unauthorized - Invalid Token" });
-    }
+      // Buscar o usuário no banco de dados usando o ID do token
+      const user = await User.findById(decoded.userId).select("-password");
 
-    // Buscar o usuário no banco de dados usando o ID do token
-    const user = await User.findById(decoded.userId).select("-password");
+      // Se o usuário não for encontrado, retornar erro
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-    // Se o usuário não for encontrado, retornar erro
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+      // Adicionar o usuário à requisição para que possa ser acessado em rotas subsequentes
+      req.user = user;
 
-    // Adicionar o usuário à requisição para que possa ser acessado em rotas subsequentes
-    req.user = user;
-
-    // Chamar o próximo middleware ou rota
-    next();
+      // Chamar o próximo middleware ou rota
+      next();
+    });
   } catch (error) {
     console.log("Error in protectRoute middleware: ", error.message);
     res.status(500).json({ message: "Internal server error" });
