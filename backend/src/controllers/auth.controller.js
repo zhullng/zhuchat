@@ -61,20 +61,14 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Gera o token JWT
-    const token = generateToken(user._id, res); // Aqui você pode modificar o generateToken para retornar o token
-    const deepLinkUrl = `myapp://login-success?token=${token}`;  // Cria o deep link com o token
+    generateToken(user._id, res);
 
-    // Redireciona para o deep link com o token
-    res.redirect(deepLinkUrl);  // Esse é o redirecionamento que abrirá o app com o token
-
-    // Você também pode retornar os dados do usuário se necessário
-    // res.status(200).json({
-    //   _id: user._id,
-    //   fullName: user.fullName,
-    //   email: user.email,
-    //   profilePic: user.profilePic,
-    // });
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+    });
   } catch (error) {
     console.log("Error in login controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
