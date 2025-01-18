@@ -1,7 +1,9 @@
 const AuthImagePattern = ({ title, subtitle }) => {
   return (
     <div className="hidden lg:flex items-center justify-center bg-base-200 p-12">
+      {/* Mostra apenas em telas maiores */}
       <div className="max-w-md text-center">
+        {/* Quadrados animados */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[...Array(9)].map((_, i) => (
             <div
@@ -12,8 +14,14 @@ const AuthImagePattern = ({ title, subtitle }) => {
             />
           ))}
         </div>
+
+        {/* Título */}
         <h2 className="text-2xl font-bold mb-4">{title}</h2>
+        {/* Subtítulo */}
         <p className="text-base-content/60">{subtitle}</p>
+        {/* 
+          text-base-content/60": Texto com opacidade de 60% para o subtítulo
+        */}
       </div>
     </div>
   );

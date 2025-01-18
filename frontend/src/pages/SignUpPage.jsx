@@ -1,21 +1,26 @@
-import { useState } from "react";
-import { useAuthStore } from "../store/useAuthStore";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useState } from "react"; // Importa o hook useState do React para gerir o estado
+import { useAuthStore } from "../store/useAuthStore"; // Importa o hook personalizado para o store de autenticação
+import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react"; // Importa os ícones necessários
+import { Link } from "react-router-dom"; // Importa o componente Link para navegação
 
-import AuthImagePattern from "../components/AuthImagePattern";
-import toast from "react-hot-toast";
+import AuthImagePattern from "../components/AuthImagePattern"; // Importa o componente de imagem de fundo
+import toast from "react-hot-toast"; // Importa o toast para mensagens de feedback
 
 const SignUpPage = () => {
+  // Estado para mostrar ou nao a pass
   const [showPassword, setShowPassword] = useState(false);
+
+  // Estado para armazenar os dados do formulário
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     password: "",
   });
 
+  // Recebe as funções e o estado de "isSigningUp" do store de autenticação
   const { signup, isSigningUp } = useAuthStore();
 
+  // Função de validação do formulário
   const validateForm = () => {
     if (!formData.fullName.trim()) return toast.error("Full name is required");
     if (!formData.email.trim()) return toast.error("Email is required");
@@ -23,20 +28,21 @@ const SignUpPage = () => {
     if (!formData.password) return toast.error("Password is required");
     if (formData.password.length < 6) return toast.error("Password must be at least 6 characters");
 
-    return true;
+    return true; // Se todos os campos forem válidos, retorna true
   };
 
+  // Função de envio do formulário
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Impede o comportamento padrão de envio do formulário
 
-    const success = validateForm();
+    const success = validateForm(); // Valida os dados do formulário
 
-    if (success === true) signup(formData);
+    if (success === true) signup(formData); // Se os dados forem válidos, chama a função de signup
   };
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* left side */}
+      {/* lado esquerdo */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
           {/* LOGO */}
@@ -53,7 +59,9 @@ const SignUpPage = () => {
             </div>
           </div>
 
+          {/* Formulário de inscrição */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Campo para o nome completo */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Full Name</span>
@@ -72,6 +80,7 @@ const SignUpPage = () => {
               </div>
             </div>
 
+            {/* Campo para o email */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Email</span>
@@ -90,6 +99,7 @@ const SignUpPage = () => {
               </div>
             </div>
 
+            {/* Campo para a pass */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Password</span>
@@ -99,7 +109,7 @@ const SignUpPage = () => {
                   <Lock className="size-5 text-base-content/40" />
                 </div>
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? "text" : "password"} // Altera o tipo do input dependendo do estado de showPassword
                   className={`input input-bordered w-full pl-10`}
                   placeholder="••••••••"
                   value={formData.password}
@@ -108,7 +118,7 @@ const SignUpPage = () => {
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword(!showPassword)} // Altera o estado de showPassword ao clicar
                 >
                   {showPassword ? (
                     <EyeOff className="size-5 text-base-content/40" />
@@ -119,6 +129,7 @@ const SignUpPage = () => {
               </div>
             </div>
 
+            {/* Botão para submeter o formulário */}
             <button type="submit" className="btn btn-primary w-full" disabled={isSigningUp}>
               {isSigningUp ? (
                 <>
@@ -131,6 +142,7 @@ const SignUpPage = () => {
             </button>
           </form>
 
+          {/* Link para a página de login */}
           <div className="text-center">
             <p className="text-base-content/60">
               Already have an account?{" "}
@@ -142,8 +154,7 @@ const SignUpPage = () => {
         </div>
       </div>
 
-      {/* right side */}
-
+      {/* lado direito */}
       <AuthImagePattern
         title="Join our community"
         subtitle="Connect with friends, share moments, and stay in touch with your loved ones."

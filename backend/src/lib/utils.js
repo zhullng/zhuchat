@@ -6,11 +6,12 @@ export const generateToken = (userId, res) => {
   });
 
   res.cookie("jwt", token, {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // MS
-    httpOnly: true, // prevent XSS attacks cross-site scripting attacks
-    sameSite: "strict", // CSRF attacks cross-site request forgery attacks
-    secure: process.env.NODE_ENV !== "development",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // Define o tempo de validade do cookie como 7 dias em ms
+    httpOnly: true, // Impede ataques de XSS (Cross-Site Scripting) protege de scripts que tentam roubar cookies.
+    sameSite: "strict", // Protege contra ataques CSRF (Cross-Site Request Forgery) o cookie só será enviado em requisições do mesmo domínio
+    secure: process.env.NODE_ENV !== "development", // Se a aplicação estiver em ambiente de desenvolvimento, o cookie é enviado em HTTP. Em produção, deve ser enviado apenas via HTTPS.
   });
+  
 
   return token;
 };
