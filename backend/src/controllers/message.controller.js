@@ -21,14 +21,14 @@ export const getUsersForSidebar = async (req, res) => {
 // Função para obter as mensagens entre o user com login e outro user
 export const getMessages = async (req, res) => {
   try {
-    const { id: chatId } = req.params; // ID do user ou grupo com quem se quer conversar
+    const { id: userToChatId } = req.params; // ID do user com quem se quer conversar
     const myId = req.user._id; // ID do user
 
-    // Obtém as mensagens (para usuários ou grupos)
+    // Obtém as mensagens
     const messages = await Message.find({
       $or: [
-        { senderId: myId, receiverId: chatId },
-        { senderId: chatId, receiverId: myId },
+        { senderId: myId, receiverId: userToChatId },
+        { senderId: userToChatId, receiverId: myId },
       ],
     });
 
@@ -42,9 +42,9 @@ export const getMessages = async (req, res) => {
 // Função para enviar uma mensagem
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, receiverType } = req.body; // Texto, imagem e tipo de destinatário
-    const { id: receiverId } = req.params; // ID do destinatário (usuário ou grupo)
-    const senderId = req.user._id; // ID do remetente
+    const { text, image } = req.body; // Texto e imagem da mensagem
+    const { id: receiverId } = req.params; // ID do user destinatário
+    const senderId = req.user._id; // ID do user remetente
 
     let imageUrl;
     if (image) {
@@ -59,30 +59,16 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text,
       image: imageUrl,
-      receiverType, // Agora o receiverType é "user" ou "group"
     });
 
     // Guarda a nova mensagem na bd
     await newMessage.save();
 
-    if (receiverType === "user") {
-      // Se for para um usuário, envia a mensagem apenas para o destinatário
-      const receiverSocketId = getReceiverSocketId(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("newMessage", newMessage);
-      }
-    } else if (receiverType === "group") {
-      // Se for para um grupo, envia para todos os participantes
-      // Supondo que você tenha um modelo de Grupo e ele tem um campo "participants"
-      const group = await Group.findById(receiverId);
-      if (group && group.participants) {
-        group.participants.forEach(async (participantId) => {
-          const participantSocketId = getReceiverSocketId(participantId.toString());
-          if (participantSocketId) {
-            io.to(participantSocketId).emit("newMessage", newMessage);
-          }
-        });
-      }
+    // Obtém o socketId do user destinatário
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      // Se o user destinatário estiver online (conectado ao socket), envia a mensagem para ele
+      io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
     res.status(201).json(newMessage);
