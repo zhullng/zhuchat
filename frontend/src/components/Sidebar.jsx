@@ -8,18 +8,18 @@ const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(""); // Novo estado para pesquisa
+  const [searchQuery, setSearchQuery] = useState(""); // Novo state para pesquisa
 
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
-  // Filtra os usuários com base no que é digitado no campo de pesquisa
+  // Filtra os users com base no que está no campo de pesquisa
   const filteredUsers = users.filter((user) => {
     const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
     const matchesSearch =
       user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()); // Caso você tenha um username
+      user.username.toLowerCase().includes(searchQuery.toLowerCase()); // Caso exista um username
     return isOnline && matchesSearch;
   });
 
