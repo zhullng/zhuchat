@@ -3,6 +3,7 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
+import { SearchInput } from "./SearchInput";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
@@ -41,7 +42,7 @@ const Sidebar = () => {
           <span className="text-xs text-zinc-500">({onlineUsers.length - 1} online)</span>
         </div>
       </div>
-
+    <SearchInput />
       <div className="overflow-y-auto w-full py-3">
         {filteredUsers.map((user) => (
           <button
