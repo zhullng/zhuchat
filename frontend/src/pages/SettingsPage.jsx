@@ -1,5 +1,5 @@
 import { useThemeStore } from "../store/useThemeStore"; // Importa a store do tema
-import { useLanguageStore } from "../store/useLanguage"; // Importa a store do idioma
+import { useLanguageStore } from "../store/useLanguageStore"; // Importa a store do idioma
 import { Send } from "lucide-react"; // Ícone de envio de mensagem
 
 const PREVIEW_MESSAGES = [
