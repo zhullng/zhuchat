@@ -1,9 +1,9 @@
 import { useChatStore } from "../store/useChatStore"; // Hook para saber o estado do chat
 import { useEffect, useRef } from "react"; // useEffect para efeitos colaterais e useRef para referências
 
-import ChatHeader from "./ChatHeader"; 
-import MessageInput from "./MessageInput"; 
-import MessageSkeleton from "./skeletons/MessageSkeleton"; 
+import ChatHeader from "./ChatHeader";
+import MessageInput from "./MessageInput";
+import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore"; // Hook para saber o estado da autenticação
 import { formatMessageTime } from "../lib/utils"; // Função para a data das mensagens
 
@@ -39,9 +39,9 @@ const ChatContainer = () => {
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
-        <ChatHeader /> 
+        <ChatHeader />
         <MessageSkeleton />
-        <MessageInput /> 
+        <MessageInput />
       </div>
     );
   }
@@ -49,7 +49,7 @@ const ChatContainer = () => {
   // Renderiza o conteúdo do chat
   return (
     <div className="flex-1 flex flex-col overflow-auto">
-      <ChatHeader /> 
+      <ChatHeader />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
@@ -59,7 +59,7 @@ const ChatContainer = () => {
             ref={messageEndRef} // Referência para scroll
           >
             {/* Avatar da mensagem */}
-            <div className=" chat-image avatar">
+            <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
@@ -68,6 +68,7 @@ const ChatContainer = () => {
                       : selectedUser.profilePic || "/avatar.png" // Foto do destinatário
                   }
                   alt="profile pic"
+                  className="w-10 h-10 object-cover rounded-full"
                 />
               </div>
             </div>
@@ -80,7 +81,7 @@ const ChatContainer = () => {
             </div>
 
             {/* Conteúdo da mensagem */}
-            <div className="chat-bubble flex flex-col">
+            <div className="chat-bubble flex flex-col max-w-[90%] sm:max-w-[70%]">
               {/* Anexo de imagem, se existir */}
               {message.image && (
                 <img

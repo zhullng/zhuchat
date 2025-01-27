@@ -55,7 +55,7 @@ const MessageInput = () => {
             <img
               src={imagePreview}
               alt="Preview"
-              className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-zinc-700"
             />
             <button
               onClick={removeImage}
@@ -106,4 +106,5 @@ const MessageInput = () => {
     </div>
   );
 };
+
 export default MessageInput;

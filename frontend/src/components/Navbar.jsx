@@ -12,41 +12,44 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-4 h-16">
         <div className="flex items-center justify-between h-full">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 sm:gap-8">
             <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-all">
               <div className="size-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
                 <img
                   src="/logoZhuChat.svg"
                   alt="ZhuChat Logo"
-                  className="w-20 h-20"
+                  className="w-16 h-16 sm:w-20 sm:h-20"
                 />
               </div>
               <h1 className="text-lg font-bold">ZhuChat</h1>
             </Link>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link
               to={"/settings"}
-              className={`
-              btn btn-sm gap-2 transition-colors
-              
-              `}
+              className="btn btn-sm gap-2 hidden sm:flex transition-colors"
             >
               <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Settings</span>
+              <span>Settings</span>
             </Link>
 
             {authUser && (
               <>
-                <Link to={"/profile"} className={`btn btn-sm gap-2`}>
+                <Link
+                  to={"/profile"}
+                  className="btn btn-sm gap-2 hidden sm:flex"
+                >
                   <User className="size-5" />
-                  <span className="hidden sm:inline">Profile</span>
+                  <span>Profile</span>
                 </Link>
 
-                <button className="flex gap-2 items-center" onClick={logout}>
+                <button
+                  className="flex gap-2 items-center btn btn-sm hidden sm:flex"
+                  onClick={logout}
+                >
                   <LogOut className="size-5" />
-                  <span className="hidden sm:inline">Logout</span>
+                  <span>Logout</span>
                 </button>
               </>
             )}
@@ -56,4 +59,5 @@ const Navbar = () => {
     </header>
   );
 };
+
 export default Navbar;
