@@ -1,4 +1,3 @@
-// src/components/SearchInput.jsx
 import { useState } from "react";
 import { IoSearchSharp } from "react-icons/io5";
 import useConversation from "../zustand/useConversation";
@@ -30,15 +29,15 @@ const SearchInput = () => {
       <input
         type="text"
         placeholder="Search…"
-        className="input input-bordered rounded-full"
+        className="input input-bordered rounded-full bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <button type="submit" className="btn btn-circle bg-sky-500 text-white">
+      <button type="submit" className="btn btn-circle bg-green-500 text-white hover:bg-green-600 transition-colors">
         <IoSearchSharp className="w-6 h-6 outline-none" />
       </button>
     </form>
   );
 };
 
-export { SearchInput }; // <-- Make sure this is added
+export { SearchInput };
