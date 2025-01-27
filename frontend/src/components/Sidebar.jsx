@@ -3,7 +3,6 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
-import { SearchInput } from "./SearchInput";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
@@ -28,6 +27,19 @@ const Sidebar = () => {
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
 
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search…"
+            className="input input-bordered rounded-full bg-gray-200 text-gray-700 placeholder-gray-500 text-sm h-7 w-40 focus:ring-2 focus:ring-gray-400"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button type="submit" className="btn btn-circle bg-gray-400 text-white hover:bg-gray-500 transition-colors h-8 w-8 flex items-center justify-center">
+            <IoSearchSharp className="w-4 h-4" />
+          </button>
+        </form>
+
         {/* Online Filter Toggle */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
@@ -41,11 +53,6 @@ const Sidebar = () => {
           </label>
           <span className="text-xs text-zinc-500">({onlineUsers.length - 1} online)</span>
         </div>
-      </div>
-
-      {/* Search Input */}
-      <div className="px-4 py-3">
-        <SearchInput />
       </div>
 
       <div className="overflow-y-auto w-full px-4 py-2">
