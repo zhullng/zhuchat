@@ -8,14 +8,20 @@ const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(""); // Novo estado para pesquisa
 
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
-  const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
-    : users;
+  // Filtra os usuários com base no que é digitado no campo de pesquisa
+  const filteredUsers = users.filter((user) => {
+    const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
+    const matchesSearch =
+      user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.username.toLowerCase().includes(searchQuery.toLowerCase()); // Caso você tenha um username
+    return isOnline && matchesSearch;
+  });
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
@@ -27,18 +33,16 @@ const Sidebar = () => {
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        {/* Input de Pesquisa */}
+        <div className="mt-3 hidden lg:block">
           <input
             type="text"
-            placeholder="Search…"
-            className="input input-bordered rounded-full bg-gray-200 text-gray-700 placeholder-gray-500 text-sm h-7 w-40 focus:ring-2 focus:ring-gray-400"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search..."
+            className="input input-sm w-full"
           />
-          <button type="submit" className="btn btn-circle bg-gray-400 text-white hover:bg-gray-500 transition-colors h-8 w-8 flex items-center justify-center">
-            <IoSearchSharp className="w-4 h-4" />
-          </button>
-        </form>
+        </div>
 
         {/* Online Filter Toggle */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
@@ -88,7 +92,7 @@ const Sidebar = () => {
 
         {/* No Users Message */}
         {filteredUsers.length === 0 && (
-          <div className="text-center text-zinc-500 py-4">No online users</div>
+          <div className="text-center text-zinc-500 py-4">No users found</div>
         )}
       </div>
     </aside>
