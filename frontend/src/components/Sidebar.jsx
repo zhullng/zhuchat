@@ -42,7 +42,7 @@ const Sidebar = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search..."
-            className="input input-sm w-full bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input input-sm w-full bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-500"
           />
         </div>
 
