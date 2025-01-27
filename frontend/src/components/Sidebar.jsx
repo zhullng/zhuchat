@@ -8,18 +8,20 @@ const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(""); // Novo state para pesquisa
+  const [searchQuery, setSearchQuery] = useState(""); // Novo estado para pesquisa
 
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
-  // Filtra os users com base no que está no campo de pesquisa
-  const filteredUsers = users.filter((user) => {
+  // Verifica se há usuários carregados antes de tentar filtrar
+  const filteredUsers = (users || []).filter((user) => {
+    if (!user) return false;
+
     const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
     const matchesSearch =
       user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()); // Caso exista um username
+      user.username?.toLowerCase().includes(searchQuery.toLowerCase()); // Caso você tenha um username
     return isOnline && matchesSearch;
   });
 
@@ -40,7 +42,7 @@ const Sidebar = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search..."
-            className="input input-sm w-full"
+            className="input input-sm w-full bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
