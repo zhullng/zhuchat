@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
 import { BrowserRouter } from "react-router-dom";
-import './i18n'; // Importa o arquivo de configuração do i18next
+import './lib/i18next'; // Importa o arquivo de configuração do i18next
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
