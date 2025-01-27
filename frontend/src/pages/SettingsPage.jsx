@@ -2,6 +2,7 @@ import { useThemeStore } from "../store/useThemeStore"; // Importa a store do te
 import { useLanguageStore } from "../store/useLanguageStore"; // Importa a store do idioma
 import { Send } from "lucide-react"; // Ícone de envio de mensagem
 
+// Mensagens de pré-visualização
 const PREVIEW_MESSAGES = [
   { id: 1, content: "Hey! How's it going?", isSent: false },
   { id: 2, content: "I'm doing great! ZhuChat is the best chat app I've ever used!", isSent: true },
@@ -10,6 +11,10 @@ const PREVIEW_MESSAGES = [
 const SettingsPage = () => {
   const { theme, setTheme } = useThemeStore(); // Estado e função para mudar o tema
   const { language, setLanguage } = useLanguageStore(); // Estado e função para mudar o idioma
+
+  // Adicione console.log para depuração
+  console.log('Theme:', theme);
+  console.log('Language:', language);
 
   return (
     <div className="h-screen container mx-auto px-4 pt-20 max-w-5xl">
