@@ -9,7 +9,12 @@ const messageSchema = new mongoose.Schema(
     },
     receiverId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Group", // Pode ser um grupo, agora
+      required: true,
+    },
+    receiverType: { // Identifica se o destinatário é um usuário ou um grupo
+      type: String,
+      enum: ["user", "group"],
       required: true,
     },
     text: {
