@@ -29,12 +29,12 @@ const SearchInput = () => {
       <input
         type="text"
         placeholder="Search…"
-        className="input input-bordered rounded-full bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500"
+        className="input input-bordered rounded-full bg-gray-200 text-gray-700 placeholder-gray-500 text-sm w-48 focus:ring-2 focus:ring-gray-400"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <button type="submit" className="btn btn-circle bg-green-500 text-white hover:bg-green-600 transition-colors">
-        <IoSearchSharp className="w-6 h-6 outline-none" />
+      <button type="submit" className="btn btn-circle bg-gray-400 text-white hover:bg-gray-500 transition-colors">
+        <IoSearchSharp className="w-5 h-5" />
       </button>
     </form>
   );
