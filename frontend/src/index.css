@@ -1,3 +1,26 @@
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos personalizados para mobile */
+@media (max-width: 1023px) {
+  .chat-container {
+    position: fixed;
+    top: 4rem;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: hsl(var(--b1));
+    z-index: 40;
+    transition: transform 0.3s ease;
+  }
+
+  .chat-open .chat-container {
+    transform: translateX(0);
+  }
+
+  .chat-open #root > div > div:first-child { /* Sidebar */
+    transform: translateX(-100%);
+  }
+}
