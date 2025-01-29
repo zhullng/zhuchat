@@ -1,14 +1,15 @@
-// Sidebar.jsx
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
+import { debounce } from "lodash";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -19,72 +20,82 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, [getUsers]);
 
-  const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
-    : users;
+  const handleSearchChange = debounce((query) => {
+    setSearchQuery(query);
+  }, 300);
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         user.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
+    return matchesSearch && isOnline;
+  });
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className="h-full w-full lg:w-72 border-r border-base-300 flex flex-col">
-      {/* Header */}
-      <div className="border-b border-base-300 p-4">
+    <aside className={`h-full w-full lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200
+      ${isMobile && selectedUser ? 'hidden' : 'block'}`}>
+      
+      <div className="border-b border-base-300 w-full p-3 lg:p-4">
         <div className="flex items-center gap-2">
           <Users className="size-6" />
           <span className="font-medium">Contacts</span>
         </div>
-        
-        {/* Mobile-friendly controls */}
-        <div className="mt-3 flex flex-col gap-2">
+
+        <div className="mt-2 lg:mt-3 space-y-2">
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="input input-bordered input-sm w-full"
+          />
+
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2">
+            <label className="cursor-pointer flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={showOnlineOnly}
                 onChange={(e) => setShowOnlineOnly(e.target.checked)}
-                className="toggle toggle-sm"
+                className="toggle toggle-xs lg:toggle-sm"
               />
-              <span className="text-sm">Online</span>
+              <span className="text-xs lg:text-sm">Online only</span>
             </label>
-            <span className="text-sm text-base-content/60">
-              {onlineUsers.length} online
+            <span className="text-xs text-base-content/60">
+              {onlineUsers.length - 1} online
             </span>
           </div>
         </div>
       </div>
 
-      {/* Contacts List */}
-      <div className="overflow-y-auto flex-1 p-2">
+      <div className="overflow-y-auto flex-1 p-1 lg:p-2">
         {filteredUsers.map((user) => (
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
             className={`
-              w-full flex items-center gap-3 p-3 rounded-lg
-              hover:bg-base-200 transition-colors
-              ${selectedUser?._id === user._id ? "bg-base-300" : ""}
+              w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
+              transition-colors hover:bg-base-200
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
             `}
           >
-            {/* Avatar with status indicator */}
             <div className="relative">
               <img
                 src={user.profilePic || "/avatar.png"}
                 alt={user.name}
-                className="size-12 object-cover rounded-full border-2 border-primary"
+                className="size-10 lg:size-12 object-cover rounded-full border"
               />
               {onlineUsers.includes(user._id) && (
-                <div className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-base-100" />
+                <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
               )}
             </div>
 
-            {/* User info - Always visible */}
-            <div className="flex-1 text-left min-w-0">
-              <div className="font-medium truncate">{user.fullName}</div>
-              <div className={`text-sm ${
-                onlineUsers.includes(user._id) 
-                  ? "text-green-500" 
-                  : "text-base-content/60"
-              }`}>
+            {/* Informações sempre visíveis */}
+            <div className="flex-1 text-left">
+              <div className="font-medium truncate text-sm lg:text-base">
+                {user.fullName}
+              </div>
+              <div className={`text-xs ${onlineUsers.includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
                 {onlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
             </div>
@@ -93,7 +104,7 @@ const Sidebar = () => {
 
         {filteredUsers.length === 0 && (
           <div className="text-center text-base-content/60 p-4">
-            No contacts found
+            {showOnlineOnly ? "No online users" : "No contacts found"}
           </div>
         )}
       </div>
