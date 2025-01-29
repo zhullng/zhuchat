@@ -1,43 +1,24 @@
-import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
+
 import Sidebar from "../components/Sidebar";
-import ChatContainer from "../components/ChatContainer";
 import NoChatSelected from "../components/NoChatSelected";
+import ChatContainer from "../components/ChatContainer";
 
 const HomePage = () => {
   const { selectedUser } = useChatStore();
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth <= 1024;
-      setIsMobile(mobile);
-      
-      if (mobile && selectedUser) {
-        document.body.classList.add('chat-active');
-      } else {
-        document.body.classList.remove('chat-active');
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [selectedUser]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] relative">
-      {/* Sidebar */}
-      <div className={`sidebar-container ${isMobile && selectedUser ? 'hidden' : 'block'} w-full lg:w-80`}>
-        <Sidebar />
-      </div>
+    <div className="h-screen bg-base-200">
+      <div className="flex items-center justify-center pt-20 px-4">
+        <div className="bg-base-100 rounded-lg shadow-cl w-full max-w-6xl h-[calc(100vh-8rem)]">
+          <div className="flex h-full rounded-lg overflow-hidden">
+            <Sidebar />
 
-      {/* Chat Container */}
-      <div className={`flex-1 ${!selectedUser ? 'hidden lg:block' : 'block'} chat-container ${selectedUser ? 'active' : ''}`}>
-        {selectedUser ? <ChatContainer /> : <NoChatSelected />}
+            {!selectedUser ? <NoChatSelected /> : <ChatContainer />}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-
 export default HomePage;
