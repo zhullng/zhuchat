@@ -10,20 +10,30 @@ const HomePage = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      // Forçar atualização do layout ao mudar orientação
+      if (selectedUser && mobile) {
+        document.body.classList.add('chat-open');
+      } else {
+        document.body.classList.remove('chat-open');
+      }
+    };
+    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [selectedUser]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] relative">
-      {/* Sidebar */}
-      <div className={`${isMobile && selectedUser ? 'hidden' : 'block'} w-full lg:w-80`}>
+      {/* Sidebar - Sempre visível em desktop, condicional em mobile */}
+      <div className={`${isMobile && selectedUser ? 'hidden' : 'block'} w-full lg:w-80 transition-transform duration-300`}>
         <Sidebar />
       </div>
 
-      {/* Chat Container */}
+      {/* Chat Container - Animação suave em mobile */}
       <div className={`flex-1 ${!selectedUser ? 'hidden lg:block' : 'block'} chat-container`}>
         {selectedUser ? <ChatContainer /> : <NoChatSelected />}
       </div>
