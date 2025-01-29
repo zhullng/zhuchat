@@ -1,4 +1,3 @@
-// Navbar.jsx
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { LogOut, Settings, User } from "lucide-react";
@@ -7,44 +6,47 @@ const Navbar = () => {
   const { logout, authUser } = useAuthStore();
 
   return (
-    <header className="bg-base-100 border-b border-base-300 fixed w-full top-0 z-40 backdrop-blur-lg bg-base-100/80">
-      <div className="container mx-auto px-2 sm:px-4 h-14 sm:h-16">
+    <header
+      className="bg-base-100 border-b border-base-300 fixed w-full top-0 z-40 
+    backdrop-blur-lg bg-base-100/80"
+    >
+      <div className="container mx-auto px-4 h-16">
         <div className="flex items-center justify-between h-full">
-          <div className="flex items-center gap-4 sm:gap-8">
-            <Link to="/" className="flex items-center gap-1.5 sm:gap-2.5 hover:opacity-80 transition-all">
-              <div className="size-8 sm:size-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+          <div className="flex items-center gap-8">
+            <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-all">
+              <div className="size-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
                 <img
                   src="/logoZhuChat.svg"
                   alt="ZhuChat Logo"
-                  className="w-16 sm:w-20 h-16 sm:h-20"
+                  className="w-20 h-20"
                 />
               </div>
-              <h1 className="text-sm sm:text-lg font-bold">ZhuChat</h1>
+              <h1 className="text-lg font-bold">ZhuChat</h1>
             </Link>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2">
             <Link
               to={"/settings"}
-              className="btn btn-ghost btn-sm sm:btn-md gap-1 sm:gap-2 p-1 sm:p-2"
+              className={`
+              btn btn-sm gap-2 transition-colors
+              
+              `}
             >
-              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline text-xs sm:text-sm">Settings</span>
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
             </Link>
 
             {authUser && (
               <>
-                <Link to={"/profile"} className="btn btn-ghost btn-sm sm:btn-md gap-1 sm:gap-2 p-1 sm:p-2">
-                  <User className="size-4 sm:size-5" />
-                  <span className="hidden xs:inline text-xs sm:text-sm">Profile</span>
+                <Link to={"/profile"} className={`btn btn-sm gap-2`}>
+                  <User className="size-5" />
+                  <span className="hidden sm:inline">Profile</span>
                 </Link>
 
-                <button 
-                  className="btn btn-ghost btn-sm sm:btn-md gap-1 sm:gap-2 p-1 sm:p-2" 
-                  onClick={logout}
-                >
-                  <LogOut className="size-4 sm:size-5" />
-                  <span className="hidden xs:inline text-xs sm:text-sm">Logout</span>
+                <button className="flex gap-2 items-center" onClick={logout}>
+                  <LogOut className="size-5" />
+                  <span className="hidden sm:inline">Logout</span>
                 </button>
               </>
             )}
