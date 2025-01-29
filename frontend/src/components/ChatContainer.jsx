@@ -1,4 +1,3 @@
-// ChatContainer.jsx
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef } from "react";
 import ChatHeader from "./ChatHeader";
@@ -37,7 +36,7 @@ const ChatContainer = () => {
 
   if (isMessagesLoading) {
     return (
-      <div className="flex-1 flex flex-col h-[calc(100vh-160px)] md:h-auto">
+      <div className="flex-1 flex flex-col h-full">
         <ChatHeader />
         <MessageSkeleton />
         <MessageInput />
@@ -46,7 +45,7 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-160px)] md:h-auto">
+    <div className="flex-1 flex flex-col h-full chat-container">
       <ChatHeader />
       <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3">
         {messages.map((message) => (
@@ -64,7 +63,7 @@ const ChatContainer = () => {
                       : selectedUser.profilePic || "/avatar.png"
                   }
                   alt="profile pic"
-                  className="object-cover"
+                  className="object-cover w-full h-full"
                 />
               </div>
             </div>
@@ -73,7 +72,7 @@ const ChatContainer = () => {
                 {formatMessageTime(message.createdAt)}
               </time>
             </div>
-            <div className="chat-bubble flex flex-col">
+            <div className="chat-bubble flex flex-col bg-base-200">
               {message.image && (
                 <img
                   src={message.image}
