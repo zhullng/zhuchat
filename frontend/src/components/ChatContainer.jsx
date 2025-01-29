@@ -1,3 +1,4 @@
+// ChatContainer.jsx
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef } from "react";
 import ChatHeader from "./ChatHeader";
@@ -36,7 +37,7 @@ const ChatContainer = () => {
 
   if (isMessagesLoading) {
     return (
-      <div className="flex-1 flex flex-col overflow-auto">
+      <div className="flex-1 flex flex-col h-[calc(100vh-160px)] md:h-auto">
         <ChatHeader />
         <MessageSkeleton />
         <MessageInput />
@@ -45,9 +46,9 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
+    <div className="flex-1 flex flex-col h-[calc(100vh-160px)] md:h-auto">
       <ChatHeader />
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3">
         {messages.map((message) => (
           <div
             key={message._id}
@@ -55,7 +56,7 @@ const ChatContainer = () => {
             ref={messageEndRef}
           >
             <div className="chat-image avatar">
-              <div className="size-10 rounded-full border">
+              <div className="size-8 md:size-10 rounded-full border">
                 <img
                   src={
                     message.senderId === authUser._id
@@ -63,11 +64,12 @@ const ChatContainer = () => {
                       : selectedUser.profilePic || "/avatar.png"
                   }
                   alt="profile pic"
+                  className="object-cover"
                 />
               </div>
             </div>
             <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1">
+              <time className="text-xs opacity-50">
                 {formatMessageTime(message.createdAt)}
               </time>
             </div>
@@ -76,10 +78,10 @@ const ChatContainer = () => {
                 <img
                   src={message.image}
                   alt="Attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2"
+                  className="max-w-[150px] md:max-w-[200px] rounded-md mb-2"
                 />
               )}
-              {message.text && <p>{message.text}</p>}
+              {message.text && <p className="text-sm md:text-base">{message.text}</p>}
             </div>
           </div>
         ))}
