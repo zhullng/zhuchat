@@ -1,4 +1,3 @@
-// App.jsx
 import Navbar from "./components/Navbar";
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage";
@@ -13,30 +12,32 @@ import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 const App = () => {
-  const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
 
   useEffect(() => {
     checkAuth();
-  }, [checkAuth]);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [checkAuth, theme]);
 
-  if (isCheckingAuth && !authUser)
+  if (isCheckingAuth && !authUser) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Loader className="size-8 sm:size-10 animate-spin" />
+        <Loader className="size-8 sm:size-10 animate-spin text-primary" />
       </div>
     );
+  }
 
   return (
-    <div data-theme={theme} className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-base-100">
       <Navbar />
       
-      <main className="flex-1 pt-14 sm:pt-16">
+      <main className="flex-1 pt-14 sm:pt-16 relative overflow-hidden">
         <Routes>
           <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
           <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
           <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings" element={authUser ? <SettingsPage /> : <Navigate to="/login" />} />
           <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
         </Routes>
       </main>
@@ -44,7 +45,7 @@ const App = () => {
       <Toaster
         position="bottom-center"
         toastOptions={{
-          className: 'text-sm sm:text-base',
+          className: 'bg-base-200 text-base-content',
           duration: 4000,
         }}
       />

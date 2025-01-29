@@ -10,16 +10,16 @@ const HomePage = () => {
 
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = window.innerWidth < 1024;
+      const mobile = window.innerWidth <= 1024;
       setIsMobile(mobile);
-      // Atualiza o estado do layout imediatamente
-      if (selectedUser && mobile) {
-        document.body.classList.add('chat-open');
+      
+      if (mobile && selectedUser) {
+        document.body.classList.add('chat-active');
       } else {
-        document.body.classList.remove('chat-open');
+        document.body.classList.remove('chat-active');
       }
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -28,12 +28,12 @@ const HomePage = () => {
   return (
     <div className="flex h-[calc(100vh-4rem)] relative">
       {/* Sidebar */}
-      <div className={`${isMobile && selectedUser ? 'hidden' : 'block'} w-full lg:w-80`}>
+      <div className={`sidebar-container ${isMobile && selectedUser ? 'hidden' : 'block'} w-full lg:w-80`}>
         <Sidebar />
       </div>
 
       {/* Chat Container */}
-      <div className={`flex-1 ${!selectedUser ? 'hidden lg:block' : 'block'}`}>
+      <div className={`flex-1 ${!selectedUser ? 'hidden lg:block' : 'block'} chat-container ${selectedUser ? 'active' : ''}`}>
         {selectedUser ? <ChatContainer /> : <NoChatSelected />}
       </div>
     </div>
