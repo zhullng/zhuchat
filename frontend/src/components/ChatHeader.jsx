@@ -1,52 +1,37 @@
-// ChatHeader.jsx
-import { ArrowLeft } from "lucide-react";
-import { useChatStore } from "../store/useChatStore";
+import { X } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
+import { useChatStore } from "../store/useChatStore";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
   const { onlineUsers } = useAuthStore();
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   return (
-    <div className="p-4 border-b border-base-300 bg-base-100">
-      <div className="flex items-center gap-4">
-        {isMobile && (
-          <button
-            onClick={() => {
-              setSelectedUser(null);
-              document.body.classList.remove('chat-open');
-            }}
-            className="btn btn-ghost btn-circle"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
-        )}
-        <div className="avatar">
-          <div className="size-12 rounded-full border-2 border-primary">
-            <img 
-              src={selectedUser.profilePic || "/avatar.png"} 
-              alt={selectedUser.fullName}
-              className="object-cover"
-            />
+    <div className="p-2.5 border-b border-base-300">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <div className="avatar">
+            <div className="size-10 rounded-full relative">
+              <img src={selectedUser.profilePic || "/avatar.png"} alt={selectedUser.fullName} />
+            </div>
+          </div>
+
+          {/* User info */}
+          <div>
+            <h3 className="font-medium">{selectedUser.fullName}</h3>
+            <p className="text-sm text-base-content/70">
+              {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+            </p>
           </div>
         </div>
-        <div>
-          <h2 className="text-xl font-semibold">{selectedUser.fullName}</h2>
-          <p className="text-sm text-base-content/60">
-            {onlineUsers.includes(selectedUser._id) ? 'Online' : 'Offline'}
-          </p>
-        </div>
+
+        {/* Close button */}
+        <button onClick={() => setSelectedUser(null)}>
+          <X />
+        </button>
       </div>
     </div>
   );
 };
-
 export default ChatHeader;
