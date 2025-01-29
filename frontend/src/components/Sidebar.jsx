@@ -6,136 +6,104 @@ import { Users } from "lucide-react";
 import { debounce } from "lodash";
 
 const Sidebar = () => {
-  const {
-    getUsers,
-    users,
-    selectedUser,
-    setSelectedUser,
-    isUsersLoading
-  } = useChatStore();
-  
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
 
-  // Mobile detection and resize handler
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      
-      // Force UI update when resizing with selected user
-      if (selectedUser && mobile) {
-        document.body.classList.add('chat-active');
-      }
-    };
-
     getUsers();
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [getUsers, selectedUser]);
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [getUsers]);
 
-  // Search with debounce
-  const handleSearch = debounce((query) => {
-    setSearchQuery(query.toLowerCase());
+  const handleSearchChange = debounce((query) => {
+    setSearchQuery(query);
   }, 300);
 
-  // User selection handler
-  const selectUser = (user) => {
-    setSelectedUser(user);
-    if(isMobile) {
-      document.body.classList.add('chat-active');
-      document.body.classList.remove('sidebar-active');
-    }
-  };
-
-  // Filtered users list
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery) ||
-                         user.username?.toLowerCase().includes(searchQuery);
-    const isOnline = !showOnlineOnly || onlineUsers.includes(user._id);
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         user.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
     return matchesSearch && isOnline;
   });
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className={`sidebar-container w-full lg:w-80 h-full border-r border-base-300
+    <aside className={`h-full w-full lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200
       ${isMobile && selectedUser ? 'hidden' : 'block'}`}>
-
-      {/* Header Section */}
-      <div className="border-b border-base-300 p-4 space-y-3">
+      
+      <div className="border-b border-base-300 w-full p-3 lg:p-4">
         <div className="flex items-center gap-2">
-          <Users className="w-6 h-6 text-primary" />
-          <h1 className="text-lg font-semibold">Contacts</h1>
+          <Users className="size-6" />
+          <span className="font-medium hidden lg:block">Contacts</span>
         </div>
 
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Search..."
-          onChange={(e) => handleSearch(e.target.value)}
-          className="input input-bordered input-sm w-full bg-base-200"
-        />
+        <div className="mt-2 lg:mt-3 space-y-2">
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="input input-bordered input-sm w-full hidden lg:block"
+          />
 
-        {/* Online Filter */}
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showOnlineOnly}
-              onChange={(e) => setShowOnlineOnly(e.target.checked)}
-              className="toggle toggle-sm toggle-primary"
-            />
-            <span className="text-sm">Show online only</span>
-          </label>
-          <span className="badge badge-primary badge-sm">
-            {onlineUsers.length} online
-          </span>
+          <div className="flex items-center justify-between">
+            <label className="cursor-pointer flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showOnlineOnly}
+                onChange={(e) => setShowOnlineOnly(e.target.checked)}
+                className="toggle toggle-xs lg:toggle-sm"
+              />
+              <span className="text-xs lg:text-sm">Online only</span>
+            </label>
+            <span className="text-xs text-base-content/60">
+              {onlineUsers.length - 1} online
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Users List */}
-      <div className="overflow-y-auto flex-1 p-2">
-        {filteredUsers.map(user => (
+      <div className="overflow-y-auto flex-1 p-1 lg:p-2">
+        {filteredUsers.map((user) => (
           <button
             key={user._id}
-            onClick={() => selectUser(user)}
-            className={`flex items-center gap-3 w-full p-2 rounded-lg transition-colors
-              ${selectedUser?._id === user._id 
-                ? 'bg-base-300' 
-                : 'hover:bg-base-200'}`}
+            onClick={() => setSelectedUser(user)}
+            className={`
+              w-full flex items-center gap-2 lg:gap-3 p-2 lg:p-3 rounded-lg
+              transition-colors hover:bg-base-200
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+            `}
           >
-            {/* User Avatar */}
             <div className="relative">
               <img
                 src={user.profilePic || "/avatar.png"}
-                alt={user.fullName}
-                className="size-12 rounded-full object-cover border-2 border-primary"
+                alt={user.name}
+                className="size-10 lg:size-12 object-cover rounded-full border"
               />
               {onlineUsers.includes(user._id) && (
-                <div className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-base-100" />
+                <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
               )}
             </div>
 
-            {/* User Info */}
-            <div className="text-left flex-1">
-              <h3 className="font-medium truncate">{user.fullName}</h3>
-              <p className={`text-sm ${
-                onlineUsers.includes(user._id) 
-                  ? 'text-green-500' 
-                  : 'text-base-content/70'
-              }`}>
-                {onlineUsers.includes(user._id) ? 'Online' : 'Offline'}
-              </p>
+            <div className="hidden lg:block flex-1 text-left">
+              <div className="font-medium truncate">{user.fullName}</div>
+              <div className={`text-xs ${onlineUsers.includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
+                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+              </div>
             </div>
           </button>
         ))}
+
+        {filteredUsers.length === 0 && (
+          <div className="text-center text-base-content/60 p-4">
+            {showOnlineOnly ? "No online users" : "No contacts found"}
+          </div>
+        )}
       </div>
     </aside>
   );
