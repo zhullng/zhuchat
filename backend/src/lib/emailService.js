@@ -1,12 +1,12 @@
 import nodemailer from "nodemailer";
 
-// Crie uma conta em https://ethereal.email/
+// Configure o transporter com um serviço de e-mail real
 const transporter = nodemailer.createTransport({
-  host: "smtp.ethereal.email",
+  host: "smtp.ethereal.email", // Exemplo, use o host do serviço real de e-mail
   port: 587,
   auth: {
-    user: "seu-user@ethereal.email", // Gerado no site
-    pass: "sua-senha", // Gerado no site
+    user: "seu-user@ethereal.email", // Substitua pelo seu usuário de email real
+    pass: "sua-senha", // Substitua pela senha real
   },
 });
 
@@ -18,10 +18,6 @@ transporter.verify((error) => {
     console.log("Serviço de e-mail configurado!");
   }
 });
-
-export const sendTestEmail = async () => {
-    await sendPasswordResetEmail("joaozhu10@gmail.com", "https://zhuchat.onrender.com");
-  };
 
 export const sendPasswordResetEmail = async (email, resetUrl) => {
   const mailOptions = {

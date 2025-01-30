@@ -25,11 +25,11 @@ const ResetPasswordPage = () => {
 
       if (response.status === 200) {
         setSuccess("Senha redefinida com sucesso!");
-        setTimeout(() => navigate("/login"), 3000);
+        setTimeout(() => navigate("/login"), 3000); // Redireciona após 3 segundos
       }
     } catch (error) {
       console.error("Erro ao redefinir senha:", error);
-      setError("Erro ao redefinir senha. Tente novamente.");
+      setError(error.response?.data?.message || "Erro ao redefinir senha. Tente novamente.");
     }
   };
 
