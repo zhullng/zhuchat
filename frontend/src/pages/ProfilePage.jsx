@@ -260,7 +260,7 @@ const ProfilePage = () => {
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || ""}
+                  {authUser?.gender || "Não especificado"}
                 </p>
               )}
             </div>
