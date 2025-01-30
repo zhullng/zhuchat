@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit, Save, X } from "lucide-react";
+import { Camera, Mail, User, Edit, Save, X, Lock } from "lucide-react";
+import axiosInstance from "../config/axiosInstance"; // Certifique-se de importar sua instância do axios
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
@@ -16,19 +17,19 @@ const ProfilePage = () => {
     gender: "",
   });
   const [errors, setErrors] = useState({});
+  const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
+  const [resetEmailStatus, setResetEmailStatus] = useState("");
 
-  // Inicializa os dados do formulário com os valores do usuário autenticado
   useEffect(() => {
     if (authUser) {
       setFormData({
         fullName: authUser.fullName,
         email: authUser.email,
-        gender: authUser.gender || "", // Usa o valor do banco de dados ou vazio
+        gender: authUser.gender || "",
       });
     }
   }, [authUser]);
 
-  // Função para upload da imagem de perfil
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -43,16 +44,13 @@ const ProfilePage = () => {
     };
   };
 
-  // Função para atualizar os dados do perfil
   const handleUpdate = async (field) => {
     try {
-      // Verifica se o valor foi alterado
       if (formData[field] === authUser[field]) {
         setEditStates((prev) => ({ ...prev, [field]: false }));
         return;
       }
 
-      // Validação específica para o campo de email
       let error = null;
       if (field === "email" && !/\S+@\S+\.\S+/.test(formData.email)) {
         error = "Formato de email inválido";
@@ -63,7 +61,6 @@ const ProfilePage = () => {
         return;
       }
 
-      // Envia a atualização para o backend
       const result = await updateProfile({ [field]: formData[field] });
 
       if (result?.errors) {
@@ -77,7 +74,26 @@ const ProfilePage = () => {
     }
   };
 
-  // Função genérica para renderizar campos editáveis
+  const handleRequestPasswordReset = async () => {
+    setIsSendingResetEmail(true);
+    setResetEmailStatus("");
+
+    try {
+      const response = await axiosInstance.post("/auth/request-password-reset", {
+        email: authUser.email,
+      });
+
+      if (response.status === 200) {
+        setResetEmailStatus("E-mail de redefinição enviado com sucesso!");
+      }
+    } catch (error) {
+      console.error("Erro ao solicitar redefinição de senha:", error);
+      setResetEmailStatus("Erro ao enviar e-mail. Tente novamente.");
+    } finally {
+      setIsSendingResetEmail(false);
+    }
+  };
+
   const renderEditableField = (field, label, icon) => (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -134,7 +150,7 @@ const ProfilePage = () => {
         </div>
       ) : (
         <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
-          {authUser?.[field] || ""} {/* Exibe o valor do banco de dados ou vazio */}
+          {authUser?.[field] || ""}
         </p>
       )}
     </div>
@@ -149,7 +165,6 @@ const ProfilePage = () => {
             <p className="mt-2">Suas informações de perfil</p>
           </div>
 
-          {/* Seção da imagem de perfil */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <img
@@ -185,12 +200,10 @@ const ProfilePage = () => {
             </p>
           </div>
 
-          {/* Seção dos campos editáveis */}
           <div className="space-y-6">
             {renderEditableField("fullName", "Nome Completo", <User className="w-4 h-4" />)}
             {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
-            {/* Campo de gênero */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
@@ -239,13 +252,12 @@ const ProfilePage = () => {
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || "Não especificado"} {/* Exibe o valor do banco de dados ou vazio */}
+                  {authUser?.gender || "Não especificado"}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Seção de informações da conta */}
           <div className="mt-6 bg-base-300 rounded-xl p-6">
             <h2 className="text-lg font-medium mb-4">Informações da Conta</h2>
             <div className="space-y-3 text-sm">
@@ -257,6 +269,37 @@ const ProfilePage = () => {
                 <span>Status da Conta</span>
                 <span className="text-green-500">Ativa</span>
               </div>
+            </div>
+          </div>
+
+          {/* Nova seção para Redefinição de Senha */}
+          <div className="mt-6 bg-base-300 rounded-xl p-6">
+            <h2 className="text-lg font-medium mb-4">Segurança</h2>
+            <div className="space-y-3 text-sm">
+              <button
+                onClick={handleRequestPasswordReset}
+                disabled={isSendingResetEmail}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                {isSendingResetEmail ? (
+                  <>
+                    <Lock className="w-4 h-4 animate-spin" />
+                    Enviando e-mail...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Redefinir Senha
+                  </>
+                )}
+              </button>
+              {resetEmailStatus && (
+                <p className={`text-sm text-center mt-2 ${
+                  resetEmailStatus.includes("Erro") ? "text-red-500" : "text-green-500"
+                }`}>
+                  {resetEmailStatus}
+                </p>
+              )}
             </div>
           </div>
         </div>
