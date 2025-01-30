@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { Camera, Mail, User, Edit, Save, X, Lock } from "lucide-react";
-import axiosInstance from "../config/axiosInstance"; // Certifique-se de importar sua instância do axios
+import { axiosInstance } from "../lib/axios";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
@@ -20,6 +20,7 @@ const ProfilePage = () => {
   const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
   const [resetEmailStatus, setResetEmailStatus] = useState("");
 
+  // Inicializa os dados do formulário com os valores do usuário autenticado
   useEffect(() => {
     if (authUser) {
       setFormData({
@@ -30,6 +31,7 @@ const ProfilePage = () => {
     }
   }, [authUser]);
 
+  // Função para upload da imagem de perfil
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -44,6 +46,7 @@ const ProfilePage = () => {
     };
   };
 
+  // Função para atualizar os dados do perfil
   const handleUpdate = async (field) => {
     try {
       if (formData[field] === authUser[field]) {
@@ -74,6 +77,7 @@ const ProfilePage = () => {
     }
   };
 
+  // Função para solicitar redefinição de senha
   const handleRequestPasswordReset = async () => {
     setIsSendingResetEmail(true);
     setResetEmailStatus("");
@@ -88,12 +92,13 @@ const ProfilePage = () => {
       }
     } catch (error) {
       console.error("Erro ao solicitar redefinição de senha:", error);
-      setResetEmailStatus("Erro ao enviar e-mail. Tente novamente.");
+      setResetEmailStatus(error.response?.data?.message || "Erro ao enviar e-mail. Tente novamente.");
     } finally {
       setIsSendingResetEmail(false);
     }
   };
 
+  // Função genérica para renderizar campos editáveis
   const renderEditableField = (field, label, icon) => (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -165,6 +170,7 @@ const ProfilePage = () => {
             <p className="mt-2">Suas informações de perfil</p>
           </div>
 
+          {/* Seção da imagem de perfil */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <img
@@ -200,10 +206,12 @@ const ProfilePage = () => {
             </p>
           </div>
 
+          {/* Seção dos campos editáveis */}
           <div className="space-y-6">
             {renderEditableField("fullName", "Nome Completo", <User className="w-4 h-4" />)}
             {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
+            {/* Campo de gênero */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
@@ -252,34 +260,20 @@ const ProfilePage = () => {
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || "Não especificado"}
+                  {authUser?.gender || ""}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="mt-6 bg-base-300 rounded-xl p-6">
-            <h2 className="text-lg font-medium mb-4">Informações da Conta</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between py-2 border-b border-zinc-700">
-                <span>Membro desde</span>
-                <span>{new Date(authUser?.createdAt).toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span>Status da Conta</span>
-                <span className="text-green-500">Ativa</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Nova seção para Redefinição de Senha */}
+          {/* Seção de segurança */}
           <div className="mt-6 bg-base-300 rounded-xl p-6">
             <h2 className="text-lg font-medium mb-4">Segurança</h2>
             <div className="space-y-3 text-sm">
               <button
                 onClick={handleRequestPasswordReset}
                 disabled={isSendingResetEmail}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 {isSendingResetEmail ? (
                   <>
@@ -295,11 +289,28 @@ const ProfilePage = () => {
               </button>
               {resetEmailStatus && (
                 <p className={`text-sm text-center mt-2 ${
-                  resetEmailStatus.includes("Erro") ? "text-red-500" : "text-green-500"
+                  resetEmailStatus.includes("sucesso") 
+                    ? "text-green-500" 
+                    : "text-red-500"
                 }`}>
                   {resetEmailStatus}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Seção de informações da conta */}
+          <div className="mt-6 bg-base-300 rounded-xl p-6">
+            <h2 className="text-lg font-medium mb-4">Informações da Conta</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between py-2 border-b border-zinc-700">
+                <span>Membro desde</span>
+                <span>{new Date(authUser?.createdAt).toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span>Status da Conta</span>
+                <span className="text-green-500">Ativa</span>
+              </div>
             </div>
           </div>
         </div>
