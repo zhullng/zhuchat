@@ -4,45 +4,49 @@ import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js"; 
 
 export const signup = async (req, res) => {
-  const { fullName, email, password, gender } = req.body; // Adicionei gender
+  const { fullName, username, email, password, gender } = req.body; // Adicione username
+
   try {
-    if (!fullName || !email || !password) {
+    // Verificar campos obrigatórios
+    if (!fullName || !username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "Email already exists" });
+    // Verificar se username ou email já existem
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { username }] 
+    });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    if (existingUser) {
+      const errors = {};
+      if (existingUser.email === email) errors.email = "Email already exists";
+      if (existingUser.username === username) errors.username = "Username already exists";
+      return res.status(400).json({ errors });
+    }
 
+    // Resto do código de criação de usuário...
     const newUser = new User({
       fullName,
+      username, // Adicionar username
       email,
-      gender, // Novo campo
+      gender,
       password: hashedPassword,
     });
 
-    if (newUser) {
-      generateToken(newUser._id, res);
-      await newUser.save();
-
-      res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
-        gender: newUser.gender // Adicionado na resposta
-      });
-    } else {
-      res.status(400).json({ message: "Invalid user data" }); 
-    }
+    // Na resposta incluir o username
+    res.status(201).json({
+      _id: newUser._id,
+      username: newUser.username,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+      gender: newUser.gender
+    });
   } catch (error) {
     console.log("Error in signup controller", error.message);
-    res.status(500).json({ message: "Internal Server Error" }); 
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
 export const login = async (req, res) => {
   const { email, password } = req.body; // Recebe os dados de login
   try {
@@ -89,22 +93,20 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic, gender } = req.body; // Adicionei gender
-    const userId = req.user._id;
+    const { profilePic } = req.body; // Recebe o novo pfp (imagem)
+    const userId = req.user._id; // Recebe o ID do user autenticado
 
-    const updateData = {};
-    if (profilePic) {
-      const uploadResponse = await cloudinary.uploader.upload(profilePic);
-      updateData.profilePic = uploadResponse.secure_url;
-    }
-    if (gender) {
-      updateData.gender = gender; // Adicionei atualização de gênero
+    // Verifica se recebeu
+    if (!profilePic) {
+      return res.status(400).json({ message: "Profile pic is required" });
     }
 
+    // Faz o upload da imagem para o Cloudinary
+    const uploadResponse = await cloudinary.uploader.upload(profilePic);
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      updateData,
-      { new: true }
+      { profilePic: uploadResponse.secure_url }, // Atualiza a URL da imagem de perfil
+      { new: true } // Envia o user atualizado
     );
 
     res.status(200).json(updatedUser);

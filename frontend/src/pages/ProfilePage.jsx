@@ -129,8 +129,6 @@ const ProfilePage = () => {
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
-                  <option value="non-binary">Non-binary</option>
-                  <option value="prefer_not_to_say">Prefer not to say</option>
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
