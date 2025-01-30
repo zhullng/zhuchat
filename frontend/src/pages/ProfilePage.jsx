@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit, Save, X, Lock, VenusMars } from "lucide-react";
+import { Camera, Mail, User, Edit, Save, X, Lock, ShieldCheck } from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 
 const ProfilePage = () => {
@@ -209,14 +209,14 @@ const ProfilePage = () => {
 
           {/* Seção dos campos editáveis */}
           <div className="space-y-6">
-            {renderEditableField("fullName", "Nome Completo", <User className="w-4 h-4" />)}
+            {renderEditableField("fullName", "Nome Completo", <ShieldCheck className="w-4 h-4" />)}
             {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
             {/* Campo de género */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
-                  <VenusMars className="w-4 h-4" />
+                  <User className="w-4 h-4" />
                   Género
                 </div>
                 {!editStates.gender ? (
