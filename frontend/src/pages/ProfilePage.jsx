@@ -1,29 +1,32 @@
-import { useState } from "react"; // Importa o hook useState do React para gerir o estado local
-import { useAuthStore } from "../store/useAuthStore"; // Importa o estado da autenticação do user
-import { Camera, Mail, User } from "lucide-react"; // Importa os ícones
+import { useState } from "react";
+import { useAuthStore } from "../store/useAuthStore";
+import { Camera, Mail, User, Edit, Save, X } from "lucide-react";
 
 const ProfilePage = () => {
-  // Recebe os dados do user autenticado. se está a atualizar o perfil e a função para atualizar o perfil do store
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
-
-  // Estado local para armazenar a imagem selecionada para o perfil
   const [selectedImg, setSelectedImg] = useState(null);
+  const [isEditingGender, setIsEditingGender] = useState(false);
+  const [newGender, setNewGender] = useState(authUser?.gender || "");
 
-  // Função para o envio do ficheiro de imagem
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0]; // Obtém o primeiro ficheiro selecionado
-    if (!file) return; // Se não houver ficheiro selecionado, sai da função
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const reader = new FileReader(); // Cria uma nova instância de FileReader para ler o conteúdo do ficheiro
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
 
-    reader.readAsDataURL(file); // Lê o ficheiro como um URL de dados (base64)
-
-    // Quando o ficheiro for carregado com sucesso, atualiza a imagem do perfil
     reader.onload = async () => {
-      const base64Image = reader.result; // A imagem em base64
-      setSelectedImg(base64Image); // Atualiza a imagem selecionada no estado
-      await updateProfile({ profilePic: base64Image }); // Atualiza o perfil com a nova imagem
+      const base64Image = reader.result;
+      setSelectedImg(base64Image);
+      await updateProfile({ profilePic: base64Image });
     };
+  };
+
+  const handleGenderUpdate = async () => {
+    if (newGender !== authUser.gender) {
+      await updateProfile({ gender: newGender });
+    }
+    setIsEditingGender(false);
   };
 
   return (
@@ -31,20 +34,17 @@ const ProfilePage = () => {
       <div className="max-w-2xl mx-auto p-4 py-8">
         <div className="bg-base-300 rounded-xl p-6 space-y-8">
           <div className="text-center">
-            <h1 className="text-2xl font-semibold ">Profile</h1>
+            <h1 className="text-2xl font-semibold">Profile</h1>
             <p className="mt-2">Your profile information</p>
           </div>
 
-          {/* Secção para atualizar a foto de perfil */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              {/* Mostra a imagem de perfil, se existir, ou uma imagem padrão */}
               <img
-                src={selectedImg || authUser.profilePic || "/avatar.png"} 
+                src={selectedImg || authUser?.profilePic || "/avatar.png"}
                 alt="Profile"
-                className="size-32 rounded-full object-cover border-4 "
+                className="size-32 rounded-full object-cover border-4"
               />
-              {/* Botão para upload da imagem */}
               <label
                 htmlFor="avatar-upload"
                 className={`
@@ -59,10 +59,10 @@ const ProfilePage = () => {
                 <input
                   type="file"
                   id="avatar-upload"
-                  className="hidden" // Esconde o input de ficheiro
-                  accept="image/*" // Apenas permite imagens
-                  onChange={handleImageUpload} // Função chamada quando o user seleciona uma imagem
-                  disabled={isUpdatingProfile} // Desativa o botão enquanto está a ser feito o upload
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isUpdatingProfile}
                 />
               </label>
             </div>
@@ -71,7 +71,6 @@ const ProfilePage = () => {
             </p>
           </div>
 
-          {/* Informações do perfil */}
           <div className="space-y-6">
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
@@ -80,6 +79,7 @@ const ProfilePage = () => {
               </div>
               <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.fullName}</p>
             </div>
+
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
                 <Mail className="w-4 h-4" />
@@ -87,15 +87,69 @@ const ProfilePage = () => {
               </div>
               <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.email}</p>
             </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-zinc-400 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Gender
+                </div>
+                {!isEditingGender ? (
+                  <button
+                    onClick={() => setIsEditingGender(true)}
+                    className="text-sm text-primary flex items-center gap-1 hover:underline"
+                  >
+                    <Edit className="w-4 h-4" /> Edit
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGenderUpdate}
+                      className="text-sm text-green-500 flex items-center gap-1"
+                    >
+                      <Save className="w-4 h-4" /> Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingGender(false);
+                        setNewGender(authUser?.gender);
+                      }}
+                      className="text-sm text-red-500 flex items-center gap-1"
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+              {isEditingGender ? (
+                <select
+                  value={newGender}
+                  onChange={(e) => setNewGender(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-base-200 rounded-lg border"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non-binary">Non-binary</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              ) : (
+                <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
+                  {authUser?.gender ? (
+                    <span className="capitalize">{authUser.gender.replace(/_/g, ' ')}</span>
+                  ) : (
+                    'Not specified'
+                  )}
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Informações da conta */}
           <div className="mt-6 bg-base-300 rounded-xl p-6">
-            <h2 className="text-lg font-medium  mb-4">Account Information</h2>
+            <h2 className="text-lg font-medium mb-4">Account Information</h2>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between py-2 border-b border-zinc-700">
                 <span>Member Since</span>
-                <span>{authUser.createdAt?.split("T")[0]}</span>
+                <span>{new Date(authUser?.createdAt).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center justify-between py-2">
                 <span>Account Status</span>

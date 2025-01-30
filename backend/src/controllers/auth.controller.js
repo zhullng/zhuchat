@@ -4,44 +4,35 @@ import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js"; 
 
 export const signup = async (req, res) => {
-  const { fullName, email, password } = req.body; // Recebe os dados da requisição
+  const { fullName, email, password, gender } = req.body; // Adicionei gender
   try {
-    // Verifica se todos os campos foram fornecidos
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
-
-    // Verifica se o e-mail já existe na bd
     const user = await User.findOne({ email });
-
     if (user) return res.status(400).json({ message: "Email already exists" });
 
-    // Cria uma pass encriptada
-    const salt = await bcrypt.genSalt(10); // Cria o sal (valor único e aleatório)
-    const hashedPassword = await bcrypt.hash(password, salt); // Hash à pass
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Cria um novo user
     const newUser = new User({
       fullName,
       email,
-      password: hashedPassword, // Armazena a pass
+      gender, // Novo campo
+      password: hashedPassword,
     });
 
     if (newUser) {
-      // Cria o token JWT e envia na resposta
       generateToken(newUser._id, res);
-      await newUser.save(); // Guarda o novo user na bd
+      await newUser.save();
 
-      // Recebe os dados do user, exceto a pass
       res.status(201).json({
         _id: newUser._id,
         fullName: newUser.fullName,
         email: newUser.email,
         profilePic: newUser.profilePic,
+        gender: newUser.gender // Adicionado na resposta
       });
     } else {
       res.status(400).json({ message: "Invalid user data" }); 
@@ -98,20 +89,22 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body; // Recebe o novo pfp (imagem)
-    const userId = req.user._id; // Recebe o ID do user autenticado
+    const { profilePic, gender } = req.body; // Adicionei gender
+    const userId = req.user._id;
 
-    // Verifica se recebeu
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+    const updateData = {};
+    if (profilePic) {
+      const uploadResponse = await cloudinary.uploader.upload(profilePic);
+      updateData.profilePic = uploadResponse.secure_url;
+    }
+    if (gender) {
+      updateData.gender = gender; // Adicionei atualização de gênero
     }
 
-    // Faz o upload da imagem para o Cloudinary
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic: uploadResponse.secure_url }, // Atualiza a URL da imagem de perfil
-      { new: true } // Envia o user atualizado
+      updateData,
+      { new: true }
     );
 
     res.status(200).json(updatedUser);
