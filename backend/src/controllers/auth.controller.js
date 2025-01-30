@@ -1,52 +1,60 @@
-import { generateToken } from "../lib/utils.js"; // Função para gerar token JWT
+import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
-import bcrypt from "bcryptjs"; 
-import cloudinary from "../lib/cloudinary.js"; 
+import bcrypt from "bcryptjs";
+import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
-  const { fullName, username, email, password, gender } = req.body; // Adicione username
+  const { fullName, email, password, gender } = req.body; // Removi o username
 
   try {
-    // Verificar campos obrigatórios
-    if (!fullName || !username || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Verificação melhorada dos campos
+    if (!fullName?.trim() || !email?.trim() || !password || !gender?.trim()) {
+      return res.status(400).json({
+        message: "Todos os campos são obrigatórios",
+        requiredFields: ["fullName", "email", "password", "gender"],
+        received: req.body
+      });
     }
 
-    // Verificar se username ou email já existem
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
-    });
-
+    // Verificar se email já existe
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      const errors = {};
-      if (existingUser.email === email) errors.email = "Email already exists";
-      if (existingUser.username === username) errors.username = "Username already exists";
-      return res.status(400).json({ errors });
+      return res.status(400).json({
+        message: "Email já registado",
+        errorField: "email"
+      });
     }
 
-    // Resto do código de criação de usuário...
+    // Hash da password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Criar novo usuário
     const newUser = new User({
       fullName,
-      username, // Adicionar username
       email,
       gender,
       password: hashedPassword,
     });
 
-    // Na resposta incluir o username
+    // Salvar no banco de dados
+    await newUser.save();
+
+    // Resposta sem a password
     res.status(201).json({
       _id: newUser._id,
-      username: newUser.username,
       fullName: newUser.fullName,
       email: newUser.email,
       profilePic: newUser.profilePic,
       gender: newUser.gender
     });
+
   } catch (error) {
-    console.log("Error in signup controller", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.log("Erro no controlador de registo:", error.message);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };
+
 export const login = async (req, res) => {
   const { email, password } = req.body; // Recebe os dados de login
   try {
