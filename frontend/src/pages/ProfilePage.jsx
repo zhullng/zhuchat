@@ -8,25 +8,27 @@ const ProfilePage = () => {
   const [editStates, setEditStates] = useState({
     fullName: false,
     email: false,
-    gender: false
+    gender: false,
   });
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    gender: ""
+    gender: "",
   });
   const [errors, setErrors] = useState({});
 
+  // Inicializa os dados do formulário com os valores do usuário autenticado
   useEffect(() => {
     if (authUser) {
       setFormData({
         fullName: authUser.fullName,
         email: authUser.email,
-        gender: authUser.gender || ""
+        gender: authUser.gender || "", // Usa o valor do banco de dados ou vazio
       });
     }
   }, [authUser]);
 
+  // Função para upload da imagem de perfil
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -41,31 +43,33 @@ const ProfilePage = () => {
     };
   };
 
+  // Função para atualizar os dados do perfil
   const handleUpdate = async (field) => {
     try {
+      // Verifica se o valor foi alterado
       if (formData[field] === authUser[field]) {
-        setEditStates(prev => ({ ...prev, [field]: false }));
+        setEditStates((prev) => ({ ...prev, [field]: false }));
         return;
       }
 
+      // Validação específica para o campo de email
       let error = null;
-      if (field === 'email') {
-        if (!/\S+@\S+\.\S+/.test(formData.email)) {
-          error = "Formato de email inválido";
-        }
+      if (field === "email" && !/\S+@\S+\.\S+/.test(formData.email)) {
+        error = "Formato de email inválido";
       }
-      
+
       if (error) {
         setErrors({ [field]: error });
         return;
       }
 
+      // Envia a atualização para o backend
       const result = await updateProfile({ [field]: formData[field] });
-      
+
       if (result?.errors) {
         setErrors(result.errors);
       } else {
-        setEditStates(prev => ({ ...prev, [field]: false }));
+        setEditStates((prev) => ({ ...prev, [field]: false }));
         setErrors({});
       }
     } catch (error) {
@@ -73,6 +77,7 @@ const ProfilePage = () => {
     }
   };
 
+  // Função genérica para renderizar campos editáveis
   const renderEditableField = (field, label, icon) => (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -82,7 +87,7 @@ const ProfilePage = () => {
         </div>
         {!editStates[field] ? (
           <button
-            onClick={() => setEditStates(prev => ({ ...prev, [field]: true }))}
+            onClick={() => setEditStates((prev) => ({ ...prev, [field]: true }))}
             className="text-sm text-primary flex items-center gap-1 hover:underline"
           >
             <Edit className="w-4 h-4" /> Editar
@@ -97,8 +102,8 @@ const ProfilePage = () => {
             </button>
             <button
               onClick={() => {
-                setEditStates(prev => ({ ...prev, [field]: false }));
-                setFormData(prev => ({ ...prev, [field]: authUser[field] }));
+                setEditStates((prev) => ({ ...prev, [field]: false }));
+                setFormData((prev) => ({ ...prev, [field]: authUser[field] }));
                 setErrors({});
               }}
               className="text-sm text-red-500 flex items-center gap-1"
@@ -108,15 +113,17 @@ const ProfilePage = () => {
           </div>
         )}
       </div>
-      
+
       {editStates[field] ? (
         <div className="relative">
           <input
             type="text"
             value={formData[field]}
-            onChange={(e) => setFormData(prev => ({ ...prev, [field]: e.target.value }))}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, [field]: e.target.value }))
+            }
             className={`w-full px-4 py-2.5 bg-base-200 rounded-lg border ${
-              errors[field] ? 'border-red-500 pr-20' : ''
+              errors[field] ? "border-red-500 pr-20" : ""
             }`}
           />
           {errors[field] && (
@@ -127,7 +134,7 @@ const ProfilePage = () => {
         </div>
       ) : (
         <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
-          {authUser?.[field] || 'Não especificado'}
+          {authUser?.[field] || ""} {/* Exibe o valor do banco de dados ou vazio */}
         </p>
       )}
     </div>
@@ -142,6 +149,7 @@ const ProfilePage = () => {
             <p className="mt-2">Suas informações de perfil</p>
           </div>
 
+          {/* Seção da imagem de perfil */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <img
@@ -171,14 +179,18 @@ const ProfilePage = () => {
               </label>
             </div>
             <p className="text-sm text-zinc-400">
-              {isUpdatingProfile ? "Enviando..." : "Clique no ícone da câmera para atualizar sua foto"}
+              {isUpdatingProfile
+                ? "Enviando..."
+                : "Clique no ícone da câmera para atualizar sua foto"}
             </p>
           </div>
 
+          {/* Seção dos campos editáveis */}
           <div className="space-y-6">
-            {renderEditableField('fullName', 'Nome Completo', <User className="w-4 h-4" />)}
-            {renderEditableField('email', 'Endereço de Email', <Mail className="w-4 h-4" />)}
+            {renderEditableField("fullName", "Nome Completo", <User className="w-4 h-4" />)}
+            {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
+            {/* Campo de gênero */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
@@ -187,7 +199,7 @@ const ProfilePage = () => {
                 </div>
                 {!editStates.gender ? (
                   <button
-                    onClick={() => setEditStates(prev => ({ ...prev, gender: true }))}
+                    onClick={() => setEditStates((prev) => ({ ...prev, gender: true }))}
                     className="text-sm text-primary flex items-center gap-1 hover:underline"
                   >
                     <Edit className="w-4 h-4" /> Editar
@@ -195,15 +207,15 @@ const ProfilePage = () => {
                 ) : (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleUpdate('gender')}
+                      onClick={() => handleUpdate("gender")}
                       className="text-sm text-green-500 flex items-center gap-1"
                     >
                       <Save className="w-4 h-4" /> Salvar
                     </button>
                     <button
                       onClick={() => {
-                        setEditStates(prev => ({ ...prev, gender: false }));
-                        setFormData(prev => ({ ...prev, gender: authUser?.gender }));
+                        setEditStates((prev) => ({ ...prev, gender: false }));
+                        setFormData((prev) => ({ ...prev, gender: authUser?.gender }));
                       }}
                       className="text-sm text-red-500 flex items-center gap-1"
                     >
@@ -212,11 +224,13 @@ const ProfilePage = () => {
                   </div>
                 )}
               </div>
-              
+
               {editStates.gender ? (
                 <select
                   value={formData.gender}
-                  onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, gender: e.target.value }))
+                  }
                   className="w-full px-4 py-2.5 bg-base-200 rounded-lg border"
                 >
                   <option value="">Não especificado</option>
@@ -225,12 +239,13 @@ const ProfilePage = () => {
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || 'Não especificado'}
+                  {authUser?.gender || ""} {/* Exibe o valor do banco de dados ou vazio */}
                 </p>
               )}
             </div>
           </div>
 
+          {/* Seção de informações da conta */}
           <div className="mt-6 bg-base-300 rounded-xl p-6">
             <h2 className="text-lg font-medium mb-4">Informações da Conta</h2>
             <div className="space-y-3 text-sm">
