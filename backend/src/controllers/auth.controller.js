@@ -103,60 +103,29 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const updates = req.body;
-    const errors = {};
+    const { profilePic } = req.body; // Recebe o novo pfp (imagem)
+    const userId = req.user._id; // Recebe o ID do user autenticado
 
-    // Verifica se o email já existe (exceto para o próprio usuário)
-    if (updates.email) {
-      const emailExists = await User.findOne({
-        email: updates.email,
-        _id: { $ne: userId }, // Exclui o próprio usuário da verificação
-      });
-      if (emailExists) {
-        errors.email = "Email já está em uso";
-      }
+    // Verifica se recebeu
+    if (!profilePic) {
+      return res.status(400).json({ message: "Profile pic is required" });
     }
 
-    // Verifica se o fullName já existe (exceto para o próprio usuário)
-    if (updates.fullName) {
-      const fullNameExists = await User.findOne({
-        fullName: updates.fullName,
-        _id: { $ne: userId }, // Exclui o próprio usuário da verificação
-      });
-      if (fullNameExists) {
-        errors.fullName = "Nome completo já está em uso";
-      }
-    }
-
-    // Se houver erros, retorna os erros específicos
-    if (Object.keys(errors).length > 0) {
-      return res.status(400).json({ errors });
-    }
-
-    // Define os campos permitidos para atualização
-    const allowedUpdates = ["fullName", "email", "gender", "profilePic"];
-    const filteredUpdates = Object.keys(updates)
-      .filter((key) => allowedUpdates.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = updates[key];
-        return obj;
-      }, {});
-
-    // Atualiza o usuário no banco de dados
+    // Faz o upload da imagem para o Cloudinary
+    const uploadResponse = await cloudinary.uploader.upload(profilePic);
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      filteredUpdates,
-      { new: true } // Retorna o usuário atualizado
-    ).select("-password"); // Exclui a senha da resposta
+      { profilePic: uploadResponse.secure_url }, // Atualiza a URL da imagem de perfil
+      { new: true } // Envia o user atualizado
+    );
 
-    // Retorna o usuário atualizado
     res.status(200).json(updatedUser);
   } catch (error) {
-    console.log("Erro na atualização do perfil:", error);
-    res.status(500).json({ message: "Erro interno do servidor" });
+    console.log("error in update profile:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
+
 // Função para verificar se o user está autenticado
 export const checkAuth = (req, res) => {
   try {
