@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit, Save, X } from "lucide-react";
+import { Camera, Mail, User, Edit, Save, X, ShieldCheck } from "lucide-react";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
@@ -187,15 +187,15 @@ const ProfilePage = () => {
 
           {/* Seção dos campos editáveis */}
           <div className="space-y-6">
-            {renderEditableField("fullName", "Nome Completo", <User className="w-4 h-4" />)}
+            {renderEditableField("fullName", "Nome Completo", <ShieldCheck className="w-4 h-4" />)}
             {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
-            {/* Campo de gênero */}
+            {/* Campo de Género */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  Gênero
+                  Género
                 </div>
                 {!editStates.gender ? (
                   <button
@@ -239,7 +239,7 @@ const ProfilePage = () => {
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || ""} {/* Exibe o valor do banco de dados ou vazio */}
+                  {authUser?.gender || "Não especificado"} {/* Exibe o valor do banco de dados ou vazio */}
                 </p>
               )}
             </div>
