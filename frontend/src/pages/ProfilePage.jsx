@@ -239,7 +239,7 @@ const ProfilePage = () => {
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || ""} {/* Exibe o valor do banco de dados ou vazio */}
+                  {authUser?.gender || "Não especificado"} {/* Exibe o valor do banco de dados ou vazio */}
                 </p>
               )}
             </div>

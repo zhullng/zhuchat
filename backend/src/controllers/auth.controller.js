@@ -107,35 +107,51 @@ export const updateProfile = async (req, res) => {
     const updates = req.body;
     const errors = {};
 
+    // Verifica se o email já existe (exceto para o próprio usuário)
     if (updates.email) {
-      const emailExists = await User.findOne({ 
+      const emailExists = await User.findOne({
         email: updates.email,
-        _id: { $ne: userId }
+        _id: { $ne: userId }, // Exclui o próprio usuário da verificação
       });
-      if (emailExists) errors.email = "Email já está em uso";
+      if (emailExists) {
+        errors.email = "Email já está em uso";
+      }
     }
 
+    // Verifica se o fullName já existe (exceto para o próprio usuário)
+    if (updates.fullName) {
+      const fullNameExists = await User.findOne({
+        fullName: updates.fullName,
+        _id: { $ne: userId }, // Exclui o próprio usuário da verificação
+      });
+      if (fullNameExists) {
+        errors.fullName = "Nome completo já está em uso";
+      }
+    }
+
+    // Se houver erros, retorna os erros específicos
     if (Object.keys(errors).length > 0) {
       return res.status(400).json({ errors });
     }
 
-    // Atualiza os campos permitidos
-    const allowedUpdates = ['fullName', 'email', 'gender', 'profilePic'];
+    // Define os campos permitidos para atualização
+    const allowedUpdates = ["fullName", "email", "gender", "profilePic"];
     const filteredUpdates = Object.keys(updates)
-      .filter(key => allowedUpdates.includes(key))
+      .filter((key) => allowedUpdates.includes(key))
       .reduce((obj, key) => {
         obj[key] = updates[key];
         return obj;
       }, {});
 
+    // Atualiza o usuário no banco de dados
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       filteredUpdates,
-      { new: true }
-    ).select('-password');
+      { new: true } // Retorna o usuário atualizado
+    ).select("-password"); // Exclui a senha da resposta
 
+    // Retorna o usuário atualizado
     res.status(200).json(updatedUser);
-    
   } catch (error) {
     console.log("Erro na atualização do perfil:", error);
     res.status(500).json({ message: "Erro interno do servidor" });
