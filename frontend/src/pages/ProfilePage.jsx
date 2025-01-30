@@ -49,8 +49,10 @@ const ProfilePage = () => {
       }
 
       let error = null;
-      if (field === 'email' && !/\S+@\S+\.\S+/.test(formData.email)) {
-        error = "Formato de email inválido";
+      if (field === 'email') {
+        if (!/\S+@\S+\.\S+/.test(formData.email)) {
+          error = "Formato de email inválido";
+        }
       }
       
       if (error) {

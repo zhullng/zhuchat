@@ -103,29 +103,44 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body; // Recebe o novo pfp (imagem)
-    const userId = req.user._id; // Recebe o ID do user autenticado
+    const userId = req.user._id;
+    const updates = req.body;
+    const errors = {};
 
-    // Verifica se recebeu
-    /*if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
-    }*/
+    if (updates.email) {
+      const emailExists = await User.findOne({ 
+        email: updates.email,
+        _id: { $ne: userId }
+      });
+      if (emailExists) errors.email = "Email já está em uso";
+    }
 
-    // Faz o upload da imagem para o Cloudinary
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Atualiza os campos permitidos
+    const allowedUpdates = ['fullName', 'email', 'gender', 'profilePic'];
+    const filteredUpdates = Object.keys(updates)
+      .filter(key => allowedUpdates.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updates[key];
+        return obj;
+      }, {});
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic: uploadResponse.secure_url }, // Atualiza a URL da imagem de perfil
-      { new: true } // Envia o user atualizado
-    );
+      filteredUpdates,
+      { new: true }
+    ).select('-password');
 
     res.status(200).json(updatedUser);
+    
   } catch (error) {
-    console.log("error in update profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.log("Erro na atualização do perfil:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };
-
 // Função para verificar se o user está autenticado
 export const checkAuth = (req, res) => {
   try {
