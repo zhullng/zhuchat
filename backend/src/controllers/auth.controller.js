@@ -1,39 +1,7 @@
 import { generateToken } from "../lib/utils.js"; // Função para gerar token JWT
 import User from "../models/user.model.js";
-import crypto from "crypto";
-import { sendPasswordResetEmail } from "../lib/emailService.js"; // Serviço de e-mail
 import bcrypt from "bcryptjs"; 
 //import cloudinary from "../lib/cloudinary.js"; 
-
-export const requestPasswordReset = async (req, res) => {
-  const { email } = req.body;
-
-  try {
-    // Verifica se o e-mail existe
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "E-mail não encontrado" });
-    }
-
-    // Gera um token de redefinição de senha
-    const resetToken = crypto.randomBytes(20).toString("hex");
-    const resetTokenExpiry = Date.now() + 3600000; // 1 hora de validade
-
-    // Salva o token no banco de dados
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = resetTokenExpiry;
-    await user.save();
-
-    // Envia o e-mail com o link de redefinição
-    const resetUrl = `https://zhuchat.onrender.com//reset-password?token=${resetToken}`;
-    await sendPasswordResetEmail(user.email, resetUrl);
-
-    res.status(200).json({ message: "E-mail de redefinição enviado com sucesso" });
-  } catch (error) {
-    console.error("Erro ao solicitar redefinição de senha:", error);
-    res.status(500).json({ message: "Erro interno do servidor" });
-  }
-};
 
 export const signup = async (req, res) => {
   const { fullName, email, password, gender } = req.body; // Removi o username

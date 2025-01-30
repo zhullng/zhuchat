@@ -5,7 +5,6 @@ import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage"; 
 import SettingsPage from "./pages/SettingsPage"; 
 import ProfilePage from "./pages/ProfilePage"; 
-import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 import { Routes, Route, Navigate } from "react-router-dom"; // Gerir as rotas da aplicação.
 import { useAuthStore } from "./store/useAuthStore"; // Rstado de autenticação
@@ -58,9 +57,6 @@ const App = () => {
         <Route
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />} // Apenas para users autenticados
-        />
-         <Route
-          path="/reset-password" element={authUser ? <ResetPasswordPage /> : <Navigate to="/login" />} // Apenas para users autenticados
         />
       </Routes>
 
