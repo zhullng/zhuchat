@@ -212,7 +212,7 @@ const ProfilePage = () => {
             {renderEditableField("fullName", "Nome Completo", <User className="w-4 h-4" />)}
             {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
-            {/* Campo de gênero */}
+            {/* Campo de género */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
