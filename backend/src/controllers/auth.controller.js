@@ -4,37 +4,31 @@ import bcrypt from "bcryptjs";
 //import cloudinary from "../lib/cloudinary.js"; 
 
 export const signup = async (req, res) => {
-  const { fullName, email, password, gender } = req.body; // Removi o username
-
+  const { fullName, email, password } = req.body; // Recebe os dados da requisição
   try {
-    // Verificação melhorada dos campos
-    if (!fullName?.trim() || !email?.trim() || !password || !gender?.trim()) {
-      return res.status(400).json({
-        message: "Todos os campos são obrigatórios",
-        requiredFields: ["fullName", "email", "password", "gender"],
-        received: req.body
-      });
+    // Verifica se todos os campos foram fornecidos
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Verificar se email já existe
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        message: "Email já registado",
-        errorField: "email"
-      });
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // Hash da password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Verifica se o e-mail já existe na bd
+    const user = await User.findOne({ email });
 
-    // Criar novo usuário
+    if (user) return res.status(400).json({ message: "Email already exists" });
+
+    // Cria uma pass encriptada
+    const salt = await bcrypt.genSalt(10); // Cria o sal (valor único e aleatório)
+    const hashedPassword = await bcrypt.hash(password, salt); // Hash à pass
+
+    // Cria um novo user
     const newUser = new User({
       fullName,
       email,
-      gender,
-      password: hashedPassword,
+      password: hashedPassword, // Armazena a pass
     });
 
     if (newUser) {
@@ -42,18 +36,19 @@ export const signup = async (req, res) => {
       generateToken(newUser._id, res);
       await newUser.save(); // Guarda o novo user na bd
 
-    // Resposta sem a password
-    res.status(201).json({
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-      profilePic: newUser.profilePic,
-      gender: newUser.gender
-    });
-  }
+      // Recebe os dados do user, exceto a pass
+      res.status(201).json({
+        _id: newUser._id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        profilePic: newUser.profilePic,
+      });
+    } else {
+      res.status(400).json({ message: "Invalid user data" }); 
+    }
   } catch (error) {
-    console.log("Erro no controlador de registo:", error.message);
-    res.status(500).json({ message: "Erro interno do servidor" });
+    console.log("Error in signup controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" }); 
   }
 };
 
@@ -103,26 +98,34 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body; // Recebe o novo pfp (imagem)
-    const userId = req.user._id; // Recebe o ID do user autenticado
+    const userId = req.user._id;
+    const updates = req.body;
+    const errors = {};
 
-    // Verifica se recebeu
-    /*if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
-    }*/
+    // Verificar email único
+    if (updates.email) {
+      const emailExists = await User.findOne({ 
+        email: updates.email,
+        _id: { $ne: userId }
+      });
+      if (emailExists) errors.email = "Email já está em uso";
+    }
 
-    // Faz o upload da imagem para o Cloudinary
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ errors });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic: uploadResponse.secure_url }, // Atualiza a URL da imagem de perfil
-      { new: true } // Envia o user atualizado
-    );
+      updates,
+      { new: true }
+    ).select('-password');
 
     res.status(200).json(updatedUser);
+    
   } catch (error) {
-    console.log("error in update profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.log("Erro na atualização do perfil:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };
 
