@@ -34,30 +34,33 @@ export const resetPassword = async (req, res) => {
 
 export const requestPasswordReset = async (req, res) => {
   const { email } = req.body;
+  console.log("Solicitação de redefinição para:", email); // Log de depuração
 
   try {
-    // Verifica se o e-mail existe
     const user = await User.findOne({ email });
     if (!user) {
+      console.log("E-mail não encontrado:", email); // Log de depuração
       return res.status(404).json({ message: "E-mail não encontrado" });
     }
 
-    // Gera um token de redefinição de senha
+    // Gera o token
     const resetToken = crypto.randomBytes(20).toString("hex");
-    const resetTokenExpiry = Date.now() + 3600000; // 1 hora de validade
+    const resetTokenExpiry = Date.now() + 3600000;
 
-    // Salva o token no banco de dados
+    // Atualiza o usuário
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();
+    console.log("Token salvo para:", email); // Log de depuração
 
-    // Envia o e-mail com o link de redefinição
-    const resetUrl = `https://zhuchat.onrender.com/reset-password?token=${resetToken}`;
+    // Envia o e-mail
+    const resetUrl = `https://zhuchat.onrender.com//reset-password?token=${resetToken}`;
     await sendPasswordResetEmail(user.email, resetUrl);
+    console.log("E-mail enviado para:", email); // Log de depuração
 
     res.status(200).json({ message: "E-mail de redefinição enviado com sucesso" });
   } catch (error) {
-    console.error("Erro ao solicitar redefinição de senha:", error);
+    console.error("Erro no servidor:", error); // Log detalhado
     res.status(500).json({ message: "Erro interno do servidor" });
   }
 };

@@ -1,24 +1,32 @@
 import nodemailer from "nodemailer";
 
+// Crie uma conta em https://ethereal.email/
 const transporter = nodemailer.createTransport({
-  service: "Gmail", // Ou outro serviço de e-mail
+  host: "smtp.ethereal.email",
+  port: 587,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: "seu-usuario@ethereal.email", // Gerado no site
+    pass: "sua-senha", // Gerado no site
   },
+});
+
+// Função para verificar as credenciais
+transporter.verify((error) => {
+  if (error) {
+    console.error("Erro no serviço de e-mail:", error);
+  } else {
+    console.log("Serviço de e-mail configurado!");
+  }
 });
 
 export const sendPasswordResetEmail = async (email, resetUrl) => {
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: '"Seu App" <noreply@seusite.com>',
     to: email,
     subject: "Redefinição de Senha",
-    html: `
-      <p>Você solicitou a redefinição de senha. Clique no link abaixo para continuar:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-      <p>Se você não solicitou isso, ignore este e-mail.</p>
-    `,
+    html: `<p>Clique <a href="${resetUrl}">aqui</a> para redefinir sua senha.</p>`,
   };
 
-  await transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+  console.log("E-mail enviado:", info.messageId, info.envelope);
 };
