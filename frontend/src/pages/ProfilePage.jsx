@@ -81,19 +81,18 @@ const ProfilePage = () => {
   const handleRequestPasswordReset = async () => {
     setIsSendingResetEmail(true);
     setResetEmailStatus("");
-  
+
     try {
       const response = await axiosInstance.post("/auth/request-password-reset", {
         email: authUser.email,
       });
-  
+
       if (response.status === 200) {
         setResetEmailStatus("E-mail de redefinição enviado com sucesso!");
       }
     } catch (error) {
-      console.error("Erro completo:", error); // Log completo do erro
-      const errorMessage = error.response?.data?.message || "Erro ao enviar e-mail. Tente novamente.";
-      setResetEmailStatus(errorMessage);
+      console.error("Erro ao solicitar redefinição de senha:", error);
+      setResetEmailStatus(error.response?.data?.message || "Erro ao enviar e-mail. Tente novamente.");
     } finally {
       setIsSendingResetEmail(false);
     }
@@ -212,7 +211,7 @@ const ProfilePage = () => {
             {renderEditableField("fullName", "Nome Completo", <ShieldCheck className="w-4 h-4" />)}
             {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
 
-            {/* Campo de género */}
+            {/* Campo de Género */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
