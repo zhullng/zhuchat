@@ -1,7 +1,7 @@
-import { generateToken } from "../lib/utils.js";
+import { generateToken } from "../lib/utils.js"; // Função para gerar token JWT
 import User from "../models/user.model.js";
-import bcrypt from "bcryptjs";
-import cloudinary from "../lib/cloudinary.js";
+import bcrypt from "bcryptjs"; 
+import cloudinary from "../lib/cloudinary.js"; 
 
 export const signup = async (req, res) => {
   const { fullName, email, password, gender } = req.body; // Removi o username
@@ -37,8 +37,10 @@ export const signup = async (req, res) => {
       password: hashedPassword,
     });
 
-    // Salvar no banco de dados
-    await newUser.save();
+    if (newUser) {
+      // Cria o token JWT e envia na resposta
+      generateToken(newUser._id, res);
+      await newUser.save(); // Guarda o novo user na bd
 
     // Resposta sem a password
     res.status(201).json({
@@ -48,7 +50,7 @@ export const signup = async (req, res) => {
       profilePic: newUser.profilePic,
       gender: newUser.gender
     });
-
+  }
   } catch (error) {
     console.log("Erro no controlador de registo:", error.message);
     res.status(500).json({ message: "Erro interno do servidor" });
