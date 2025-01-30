@@ -1,29 +1,29 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit, Save, X, AtSign } from "lucide-react";
+import { Camera, Mail, User, Edit, Save, X } from "lucide-react";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
   const [editStates, setEditStates] = useState({
-    gender: false,
+    fullName: false,
     email: false,
-    username: false
+    gender: false
   });
   const [formData, setFormData] = useState({
-    gender: "",
+    fullName: "",
     email: "",
-    username: ""
+    gender: ""
   });
   const [errors, setErrors] = useState({});
 
-  // Inicializar os dados do formulário quando o authUser é carregado
+  // Inicializar os dados quando o authUser é carregado
   useEffect(() => {
     if (authUser) {
       setFormData({
-        gender: authUser.gender || "",
-        email: authUser.email || "",
-        username: authUser.username || ""
+        fullName: authUser.fullName,
+        email: authUser.email,
+        gender: authUser.gender || ""
       });
     }
   }, [authUser]);
@@ -44,8 +44,25 @@ const ProfilePage = () => {
 
   const handleUpdate = async (field) => {
     try {
-      const payload = { [field]: formData[field] };
-      const result = await updateProfile(payload);
+      // Verificar se o valor foi alterado
+      if (formData[field] === authUser[field]) {
+        setEditStates(prev => ({ ...prev, [field]: false }));
+        return;
+      }
+
+      // Validação específica para cada campo
+      let error = null;
+      if (field === 'email' && !/\S+@\S+\.\S+/.test(formData.email)) {
+        error = "Invalid email format";
+      }
+      
+      if (error) {
+        setErrors({ [field]: error });
+        return;
+      }
+
+      // Fazer o update
+      const result = await updateProfile({ [field]: formData[field] });
       
       if (result?.errors) {
         setErrors(result.errors);
@@ -100,7 +117,9 @@ const ProfilePage = () => {
             type="text"
             value={formData[field]}
             onChange={(e) => setFormData(prev => ({ ...prev, [field]: e.target.value }))}
-            className="w-full px-4 py-2.5 bg-base-200 rounded-lg border pr-20"
+            className={`w-full px-4 py-2.5 bg-base-200 rounded-lg border ${
+              errors[field] ? 'border-red-500 pr-20' : ''
+            }`}
           />
           {errors[field] && (
             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 text-sm">
@@ -123,20 +142,11 @@ const ProfilePage = () => {
           {/* ... Seção da imagem de perfil ... */}
 
           <div className="space-y-6">
-            {/* Campo Full Name (não editável) */}
-            <div className="space-y-1.5">
-              <div className="text-sm text-zinc-400 flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Full Name
-              </div>
-              <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.fullName}</p>
-            </div>
+            {/* Campo Full Name editável */}
+            {renderEditableField('fullName', 'Full Name', <User className="w-4 h-4" />)}
 
             {/* Campo Email editável */}
             {renderEditableField('email', 'Email Address', <Mail className="w-4 h-4" />)}
-
-            {/* Campo Username editável */}
-            {renderEditableField('username', 'Username', <AtSign className="w-4 h-4" />)}
 
             {/* Campo Gender editável */}
             <div className="space-y-1.5">
