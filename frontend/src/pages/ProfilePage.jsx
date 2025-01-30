@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit, Save, X, Lock } from "lucide-react";
+import { Camera, Mail, User, Edit, Save, X, Lock, VenusMars } from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 
 const ProfilePage = () => {
@@ -216,8 +216,8 @@ const ProfilePage = () => {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Gênero
+                  <VenusMars className="w-4 h-4" />
+                  Género
                 </div>
                 {!editStates.gender ? (
                   <button

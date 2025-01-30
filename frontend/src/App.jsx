@@ -60,7 +60,7 @@ const App = () => {
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />} // Apenas para users autenticados
         />
          <Route
-          path="/reset-password" element={<ResetPasswordPage />} // Apenas para users autenticados
+          path="/reset-password" element={authUser ? <ResetPasswordPage /> : <Navigate to="/login" />} // Apenas para users autenticados
         />
       </Routes>
 
