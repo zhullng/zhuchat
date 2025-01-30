@@ -17,7 +17,6 @@ const ProfilePage = () => {
   });
   const [errors, setErrors] = useState({});
 
-  // Inicializar os dados quando o authUser é carregado
   useEffect(() => {
     if (authUser) {
       setFormData({
@@ -44,16 +43,14 @@ const ProfilePage = () => {
 
   const handleUpdate = async (field) => {
     try {
-      // Verificar se o valor foi alterado
       if (formData[field] === authUser[field]) {
         setEditStates(prev => ({ ...prev, [field]: false }));
         return;
       }
 
-      // Validação específica para cada campo
       let error = null;
       if (field === 'email' && !/\S+@\S+\.\S+/.test(formData.email)) {
-        error = "Invalid email format";
+        error = "Formato de email inválido";
       }
       
       if (error) {
@@ -61,7 +58,6 @@ const ProfilePage = () => {
         return;
       }
 
-      // Fazer o update
       const result = await updateProfile({ [field]: formData[field] });
       
       if (result?.errors) {
@@ -71,7 +67,7 @@ const ProfilePage = () => {
         setErrors({});
       }
     } catch (error) {
-      console.error("Update error:", error);
+      console.error("Erro na atualização:", error);
     }
   };
 
@@ -87,7 +83,7 @@ const ProfilePage = () => {
             onClick={() => setEditStates(prev => ({ ...prev, [field]: true }))}
             className="text-sm text-primary flex items-center gap-1 hover:underline"
           >
-            <Edit className="w-4 h-4" /> Edit
+            <Edit className="w-4 h-4" /> Editar
           </button>
         ) : (
           <div className="flex gap-2">
@@ -95,7 +91,7 @@ const ProfilePage = () => {
               onClick={() => handleUpdate(field)}
               className="text-sm text-green-500 flex items-center gap-1"
             >
-              <Save className="w-4 h-4" /> Save
+              <Save className="w-4 h-4" /> Salvar
             </button>
             <button
               onClick={() => {
@@ -105,7 +101,7 @@ const ProfilePage = () => {
               }}
               className="text-sm text-red-500 flex items-center gap-1"
             >
-              <X className="w-4 h-4" /> Cancel
+              <X className="w-4 h-4" /> Cancelar
             </button>
           </div>
         )}
@@ -129,7 +125,7 @@ const ProfilePage = () => {
         </div>
       ) : (
         <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
-          {authUser?.[field] || 'Not specified'}
+          {authUser?.[field] || 'Não especificado'}
         </p>
       )}
     </div>
@@ -139,28 +135,60 @@ const ProfilePage = () => {
     <div className="h-screen pt-20">
       <div className="max-w-2xl mx-auto p-4 py-8">
         <div className="bg-base-300 rounded-xl p-6 space-y-8">
-          {/* ... Seção da imagem de perfil ... */}
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold">Perfil</h1>
+            <p className="mt-2">Suas informações de perfil</p>
+          </div>
+
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <img
+                src={selectedImg || authUser?.profilePic || "/avatar.png"}
+                alt="Profile"
+                className="size-32 rounded-full object-cover border-4"
+              />
+              <label
+                htmlFor="avatar-upload"
+                className={`
+                  absolute bottom-0 right-0 
+                  bg-base-content hover:scale-105
+                  p-2 rounded-full cursor-pointer 
+                  transition-all duration-200
+                  ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""}
+                `}
+              >
+                <Camera className="w-5 h-5 text-base-200" />
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isUpdatingProfile}
+                />
+              </label>
+            </div>
+            <p className="text-sm text-zinc-400">
+              {isUpdatingProfile ? "Enviando..." : "Clique no ícone da câmera para atualizar sua foto"}
+            </p>
+          </div>
 
           <div className="space-y-6">
-            {/* Campo Full Name editável */}
-            {renderEditableField('fullName', 'Full Name', <User className="w-4 h-4" />)}
+            {renderEditableField('fullName', 'Nome Completo', <User className="w-4 h-4" />)}
+            {renderEditableField('email', 'Endereço de Email', <Mail className="w-4 h-4" />)}
 
-            {/* Campo Email editável */}
-            {renderEditableField('email', 'Email Address', <Mail className="w-4 h-4" />)}
-
-            {/* Campo Gender editável */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-400 flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  Gender
+                  Gênero
                 </div>
                 {!editStates.gender ? (
                   <button
                     onClick={() => setEditStates(prev => ({ ...prev, gender: true }))}
                     className="text-sm text-primary flex items-center gap-1 hover:underline"
                   >
-                    <Edit className="w-4 h-4" /> Edit
+                    <Edit className="w-4 h-4" /> Editar
                   </button>
                 ) : (
                   <div className="flex gap-2">
@@ -168,7 +196,7 @@ const ProfilePage = () => {
                       onClick={() => handleUpdate('gender')}
                       className="text-sm text-green-500 flex items-center gap-1"
                     >
-                      <Save className="w-4 h-4" /> Save
+                      <Save className="w-4 h-4" /> Salvar
                     </button>
                     <button
                       onClick={() => {
@@ -177,7 +205,7 @@ const ProfilePage = () => {
                       }}
                       className="text-sm text-red-500 flex items-center gap-1"
                     >
-                      <X className="w-4 h-4" /> Cancel
+                      <X className="w-4 h-4" /> Cancelar
                     </button>
                   </div>
                 )}
@@ -189,28 +217,28 @@ const ProfilePage = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
                   className="w-full px-4 py-2.5 bg-base-200 rounded-lg border"
                 >
-                  <option value="">Not specified</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="">Não especificado</option>
+                  <option value="male">Masculino</option>
+                  <option value="female">Feminino</option>
                 </select>
               ) : (
                 <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || 'Not specified'}
+                  {authUser?.gender || 'Não especificado'}
                 </p>
               )}
             </div>
           </div>
 
           <div className="mt-6 bg-base-300 rounded-xl p-6">
-            <h2 className="text-lg font-medium mb-4">Account Information</h2>
+            <h2 className="text-lg font-medium mb-4">Informações da Conta</h2>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between py-2 border-b border-zinc-700">
-                <span>Member Since</span>
+                <span>Membro desde</span>
                 <span>{new Date(authUser?.createdAt).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span>Account Status</span>
-                <span className="text-green-500">Active</span>
+                <span>Status da Conta</span>
+                <span className="text-green-500">Ativa</span>
               </div>
             </div>
           </div>
