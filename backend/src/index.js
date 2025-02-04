@@ -35,7 +35,7 @@ const aiLimiter = rateLimit({
 
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiLimiter);
+app.use("/api/ai", aiRoutes, aiLimiter);
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
