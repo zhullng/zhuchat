@@ -1,4 +1,5 @@
 import Navbar from "./components/Navbar";
+import AIChat from './components/AIChat';
 
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage"; 
@@ -58,6 +59,7 @@ const App = () => {
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />} // Apenas para users autenticados
         />
+        <Route path="/ai-chat" element={<AIChat />} />
       </Routes>
 
       <Toaster /> {/* Componente para mostrar notificações */}
