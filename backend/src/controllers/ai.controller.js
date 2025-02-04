@@ -1,6 +1,9 @@
 // controllers/ai.controller.js
 import { OpenAI } from 'openai';
+import { config } from "dotenv";
 
+// Carrega as variáveis de ambiente do ficheiro .env
+config();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
