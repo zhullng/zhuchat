@@ -1,10 +1,10 @@
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Substitua pela sua chave de API
+  apiKey: process.env.OPENAI_API_KEY, // Certifique-se de definir essa variável de ambiente
 });
 
-export const getAIResponse = async (req, res) => {
+export const generateAIResponse = async (req, res) => {
   try {
     const { message } = req.body;
 
@@ -12,10 +12,11 @@ export const getAIResponse = async (req, res) => {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
+    // Chamada para a API da OpenAI
     const response = await openai.chat.completions.create({
       model: "gpt-4",
-      messages: [{ role: "user", content: userInput }],
-    });    
+      messages: [{ role: "user", content: message }], // Usando 'message' corretamente
+    });
 
     console.log("OpenAI Response:", response);
 
