@@ -1,8 +1,9 @@
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 
-const openai = new OpenAIApi(
-  new Configuration({ apiKey: process.env.OPENAI_API_KEY })
-);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Substitua pela sua chave de API
+});
+
 
 export const generateAIResponse = async (req, res) => {
   try {
@@ -12,10 +13,10 @@ export const generateAIResponse = async (req, res) => {
       return res.status(400).json({ error: "Mensagem não pode estar vazia." });
     }
 
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-4",
-      messages: [{ role: "user", content: message }],
-    });
+      messages: [{ role: "user", content: userInput }],
+    });    
 
     res.json({ response: response.data.choices[0].message.content });
   } catch (error) {
