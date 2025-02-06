@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Confirme que está configurado
+  apiKey: process.env.OPENAI_API_KEY, // Substitua pela sua chave de API
 });
 
 export const getAIResponse = async (req, res) => {
@@ -13,9 +13,9 @@ export const getAIResponse = async (req, res) => {
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4", // Confirme que este modelo está correto
-      messages: [{ role: "user", content: message }],
-    });
+      model: "gpt-4",
+      messages: [{ role: "user", content: userInput }],
+    });    
 
     console.log("OpenAI Response:", response);
 
