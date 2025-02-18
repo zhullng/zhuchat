@@ -35,7 +35,7 @@ const aiLimiter = rateLimit({
 
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiRoutes);
+app.use("/api/ai", aiRoutes); // Isso significa que a rota correta é /api/ai/chat
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
