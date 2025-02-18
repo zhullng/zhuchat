@@ -22,22 +22,35 @@ const AIChat = () => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    // Adicionando a mensagem do usuário no estado
     setMessages((prev) => [
       ...prev,
       { content: input, isAI: false, timestamp: new Date() },
     ]);
-
+    
     setInput("");
     setIsLoading(true);
 
     try {
+      // Fazendo a requisição à API de IA
+      console.log("Enviando requisição para a IA...");
       const response = await getAIResponse(input);
+      console.log("Resposta recebida:", response);
 
+      // Verifica se a resposta é válida
+      if (!response || !response.trim()) {
+        throw new Error("Resposta da IA inválida");
+      }
+
+      // Adiciona a resposta da IA no estado
       setMessages((prev) => [
         ...prev,
         { content: response, isAI: true, timestamp: new Date() },
       ]);
     } catch (error) {
+      console.error("Erro ao obter resposta da IA:", error);
+
+      // Se ocorrer erro, adiciona uma mensagem de erro
       setMessages((prev) => [
         ...prev,
         {
