@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 export const generateAIResponse = async (req, res) => {
   try {
@@ -14,7 +14,9 @@ export const generateAIResponse = async (req, res) => {
       return res.status(500).json({ error: "Chave de API não fornecida" });
     }
 
-    const response = await axios.post('https://api-inference.huggingface.co/models/distilbert-base-uncased', // Usando o modelo distilgpt2
+    // Requisição para o modelo distilgpt2
+    const response = await axios.post(
+      'https://api-inference.huggingface.co/models/distilgpt2', 
       { inputs: message },
       {
         headers: {
@@ -26,11 +28,12 @@ export const generateAIResponse = async (req, res) => {
     if (response.data && response.data[0] && response.data[0].generated_text) {
       return res.json({ response: response.data[0].generated_text });
     } else {
+      console.error("Resposta inesperada:", response.data);
       return res.status(500).json({ error: "Resposta inválida da IA" });
     }
 
   } catch (error) {
-    console.error("Erro na API Hugging Face:", error);
+    console.error("Erro na API Hugging Face:", error.response?.data || error.message || error);
     return res.status(500).json({ error: "Erro ao processar a resposta da IA" });
   }
 };
