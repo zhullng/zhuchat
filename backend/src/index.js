@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
 
 import path from "path"; 
 
-import { connectDB } from "./lib/db.js"; // Função para conectar a bd
+import { connectDB } from "./lib/db.js"; // Função para conectar ao banco de dados
 
 import aiRoutes from './routes/ai.route.js';
 import authRoutes from "./routes/auth.route.js"; 
@@ -15,8 +15,8 @@ import { app, server } from "./lib/socket.js"; // Inicializa app e server de soc
 
 dotenv.config(); // Carrega variáveis de ambiente
 
-const PORT = process.env.PORT; // Define a porta
-const __dirname = path.resolve(); // Retorna o caminho absoluto do diretório (para casos de mudanças de pastas)
+const PORT = process.env.PORT; // Define a porta do servidor
+const __dirname = path.resolve(); // Caminho absoluto do diretório (para mudanças de pastas)
 
 app.use(express.json()); // Middleware para tratar JSON
 app.use(cookieParser()); // Middleware para tratar cookies
@@ -35,17 +35,17 @@ const aiLimiter = rateLimit({
 
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiRoutes, aiLimiter); // Isso significa que a rota correta é /api/ai/chat
+app.use("/api/ai", aiRoutes, aiLimiter); // Limita as requisições de IA
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
 
-  app.get("*", (req, res) => { // Receber o index para todas as outras rotas
+  app.get("*", (req, res) => { // Rota para receber index.html
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
 
-server.listen(PORT, () => { // Inicia o server na porta especificada
+server.listen(PORT, () => { // Inicia o servidor na porta especificada
   console.log("server is running on PORT:" + PORT);
-  connectDB(); 
+  connectDB(); // Conecta ao banco de dados
 });

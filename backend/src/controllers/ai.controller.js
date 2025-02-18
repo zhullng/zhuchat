@@ -2,7 +2,7 @@ import axios from "axios"; // Certifique-se de importar o axios corretamente
 
 export const generateAIResponse = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message } = req.body; // A mensagem que vem do corpo da requisição
 
     if (!message) {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
@@ -10,18 +10,18 @@ export const generateAIResponse = async (req, res) => {
 
     // Chamada para a API da Hugging Face
     const response = await axios.post(
-      "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1", 
-      { inputs: message }, // Passando a mensagem do usuário
+      "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1",
+      { inputs: message }, // Use a variável message aqui, que é a entrada que você recebeu
       {
         headers: {
-          "Authorization": `Bearer ${process.env.AI_API_KEY}`, // Certifique-se de configurar sua chave de API da Hugging Face
+          "Authorization": `Bearer ` + process.env.AI_API_KEY, // Substitua com a sua chave de API
         },
       }
     );
 
     console.log("Hugging Face Response:", response.data);
 
-    // Aqui, você precisa adaptar dependendo da resposta da Hugging Face
+    // Verifique a estrutura da resposta e extraia o texto gerado, caso esteja presente
     if (response.data && response.data[0] && response.data[0].generated_text) {
       return res.json({ response: response.data[0].generated_text });
     } else {

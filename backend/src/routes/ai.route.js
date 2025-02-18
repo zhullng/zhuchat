@@ -3,6 +3,6 @@ import { generateAIResponse } from '../controllers/ai.controller.js';
 
 const router = express.Router();
 
-router.post('/chat', generateAIResponse); // Verifique se a rota está correta
+router.post('/chat', generateAIResponse); // A rota correta para a interação com a IA
 
 export default router;

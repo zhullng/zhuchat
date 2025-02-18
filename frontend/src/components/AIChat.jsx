@@ -71,9 +71,7 @@ const AIChat = () => {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex items-start ${
-              message.isAI ? "justify-start" : "justify-end"
-            }`}
+            className={`flex items-start ${message.isAI ? "justify-start" : "justify-end"}`}
           >
             {/* Avatar */}
             {message.isAI ? (
@@ -91,11 +89,9 @@ const AIChat = () => {
 
             {/* Mensagem */}
             <div
-              className={`max-w-[75%] rounded-xl p-3 shadow ${
-                message.isAI
-                  ? "bg-white border border-gray-200 text-gray-800"
-                  : "bg-primary text-white"
-              }`}
+              className={`max-w-[75%] rounded-xl p-3 shadow ${message.isAI
+                ? "bg-white border border-gray-200 text-gray-800"
+                : "bg-primary text-white"}`}
             >
               <p className="whitespace-pre-wrap">{message.content}</p>
               <p className="text-xs mt-1 text-gray-500 text-right">
