@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { getAIResponse } from "../lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot } from "lucide-react";
+import { getAIResponse } from "../lib/ai"; // Função para fazer a requisição à IA
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
@@ -156,3 +156,4 @@ const AIChat = () => {
 };
 
 export default AIChat;
+  

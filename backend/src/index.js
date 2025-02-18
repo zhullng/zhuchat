@@ -3,9 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import cors from "cors"; 
 import rateLimit from 'express-rate-limit';
-
 import path from "path"; 
-
 import { connectDB } from "./lib/db.js"; // Função para conectar ao banco de dados
 
 import aiRoutes from './routes/ai.route.js';
