@@ -22,8 +22,8 @@ app.use(express.json()); // Middleware para tratar JSON
 app.use(cookieParser()); // Middleware para tratar cookies
 app.use(
   cors({
-    origin: "http://localhost:5173", // Permite requisições ao server
-    credentials: true, // Permite o envio de cookies e credenciais com a requisição (como sessões ou autenticação)
+    origin: "*", // Permite requisições de qualquer origem (apenas para testes)
+    credentials: true,
   })
 );
 
@@ -35,7 +35,7 @@ const aiLimiter = rateLimit({
 
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiRoutes, aiLimiter);
+app.use("/api/ai", aiRoutes);
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
