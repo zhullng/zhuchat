@@ -1,20 +1,21 @@
-import axios from 'axios';
+const axios = require('axios');
 
 export const generateAIResponse = async (req, res) => {
   try {
     const { message } = req.body;
-    
+
     if (!message) {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
+    // Verifica se a chave da API está presente
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "Chave de API não fornecida" });
     }
 
     const response = await axios.post(
-      "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1",
+      "https://api-inference.huggingface.co/models/distilgpt2", // Usando o modelo distilgpt2
       { inputs: message },
       {
         headers: {

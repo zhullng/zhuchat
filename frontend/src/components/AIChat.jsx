@@ -27,17 +27,13 @@ const AIChat = () => {
       ...prev,
       { content: input, isAI: false, timestamp: new Date() },
     ]);
-    
-    setInput("");
-    setIsLoading(true);
+    setInput("");  // Limpar campo de entrada
 
+    setIsLoading(true);
     try {
       // Fazendo a requisição à API de IA
-      console.log("Enviando requisição para a IA...");
       const response = await getAIResponse(input);
-      console.log("Resposta recebida:", response);
-
-      // Verifica se a resposta é válida
+      
       if (!response || !response.trim()) {
         throw new Error("Resposta da IA inválida");
       }
