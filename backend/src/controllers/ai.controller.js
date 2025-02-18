@@ -1,3 +1,14 @@
+import axios from 'axios';
+
+// Criando uma instância personalizada do axios
+const axiosInstance = axios.create({
+  baseURL: 'https://api-inference.huggingface.co',  // Base URL
+  headers: {
+    // Aqui você pode colocar headers padrão, mas a chave será sobrescrita pela do req.headers caso necessário
+    'Authorization': `Bearer ${process.env.AI_API_KEY}`,
+  }
+});
+
 export const generateAIResponse = async (req, res) => {
   try {
     const { message } = req.body;
@@ -12,14 +23,10 @@ export const generateAIResponse = async (req, res) => {
       return res.status(500).json({ error: "Chave de API não fornecida" });
     }
 
+    // Usando a instância personalizada do axios
     const response = await axiosInstance.post(
-      "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1",
-      { inputs: message },
-      {
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-        },
-      }
+      "/models/deepseek-ai/DeepSeek-R1",  // O baseURL já foi configurado na instância
+      { inputs: message }
     );
 
     if (response.data && response.data[0] && response.data[0].generated_text) {
