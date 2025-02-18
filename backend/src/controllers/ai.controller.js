@@ -14,9 +14,9 @@ export const generateAIResponse = async (req, res) => {
       return res.status(500).json({ error: "Chave de API não fornecida" });
     }
 
-    // Requisição para o modelo distilgpt2
+    // Requisição para o modelo DialoGPT-medium
     const response = await axios.post(
-      'https://api-inference.huggingface.co/models/distilgpt2', 
+      'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
       { inputs: message },
       {
         headers: {
