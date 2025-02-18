@@ -1,27 +1,27 @@
-import axios from "axios"; // Importa a biblioteca Axios diretamente no backend
-
 export const generateAIResponse = async (req, res) => {
   try {
-    const { message } = req.body; // A mensagem que vem do corpo da requisição
+    const { message } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
-    // Chamada para a API da Hugging Face usando o Axios
-    const response = await axios.post(
+    // Verifica se a chave da API está presente
+    const apiKey = process.env.AI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Chave de API não fornecida" });
+    }
+
+    const response = await axiosInstance.post(
       "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1",
-      { inputs: message }, // Passa a mensagem recebida na requisição
+      { inputs: message },
       {
         headers: {
-          "Authorization": `Bearer ${process.env.AI_API_KEY}`, // Chave da API
+          "Authorization": `Bearer ${apiKey}`,
         },
       }
     );
 
-    console.log("Hugging Face Response:", response.data);
-
-    // Verifique a estrutura da resposta e extraia o texto gerado, caso esteja presente
     if (response.data && response.data[0] && response.data[0].generated_text) {
       return res.json({ response: response.data[0].generated_text });
     } else {
