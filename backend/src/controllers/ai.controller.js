@@ -1,4 +1,4 @@
-import axios from "axios"; // Certifique-se de importar o axios corretamente
+import { axiosInstance } from "../lib/axios"; // Importa a instância personalizada do axios
 
 export const generateAIResponse = async (req, res) => {
   try {
@@ -8,10 +8,10 @@ export const generateAIResponse = async (req, res) => {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
-    // Chamada para a API da Hugging Face
-    const response = await axios.post(
+    // Chamada para a API da Hugging Face usando a instância personalizada do axios
+    const response = await axiosInstance.post(
       "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1",
-      { inputs: message }, // Use a variável message aqui, que é a entrada que você recebeu
+      { inputs: message }, // Passa a mensagem recebida na requisição
       {
         headers: {
           "Authorization": `Bearer ` + process.env.AI_API_KEY, // Substitua com a sua chave de API
