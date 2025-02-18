@@ -1,8 +1,4 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Certifique-se de definir essa variável de ambiente
-});
+import axios from "axios"; // Certifique-se de importar o axios corretamente
 
 export const generateAIResponse = async (req, res) => {
   try {
@@ -12,18 +8,28 @@ export const generateAIResponse = async (req, res) => {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
-    // Chamada para a API da OpenAI
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: message }], // Usando 'message' corretamente
-    });
+    // Chamada para a API da Hugging Face
+    const response = await axios.post(
+      "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1", 
+      { inputs: message }, // Passando a mensagem do usuário
+      {
+        headers: {
+          "Authorization": `Bearer ${process.env.AI_API_KEY}`, // Certifique-se de configurar sua chave de API da Hugging Face
+        },
+      }
+    );
 
-    console.log("OpenAI Response:", response);
+    console.log("Hugging Face Response:", response.data);
 
-    res.json({ response: response.choices[0].message.content });
+    // Aqui, você precisa adaptar dependendo da resposta da Hugging Face
+    if (response.data && response.data[0] && response.data[0].generated_text) {
+      return res.json({ response: response.data[0].generated_text });
+    } else {
+      return res.status(500).json({ error: "Resposta inválida da IA" });
+    }
+
   } catch (error) {
-    console.error("Erro na API OpenAI:", error);
-
-    res.status(500).json({ error: "Erro ao processar a resposta da IA" });
+    console.error("Erro na API Hugging Face:", error);
+    return res.status(500).json({ error: "Erro ao processar a resposta da IA" });
   }
 };
