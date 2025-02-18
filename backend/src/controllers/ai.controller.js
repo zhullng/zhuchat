@@ -1,9 +1,9 @@
-const axios = require('axios');
+import axios from 'axios';
 
 export const generateAIResponse = async (req, res) => {
   try {
     const { message } = req.body;
-
+    
     if (!message) {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
@@ -14,7 +14,7 @@ export const generateAIResponse = async (req, res) => {
     }
 
     const response = await axios.post(
-      "https://api-inference.huggingface.co/models/gpt2",  // Alterado para um modelo de exemplo
+      "https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1",
       { inputs: message },
       {
         headers: {
