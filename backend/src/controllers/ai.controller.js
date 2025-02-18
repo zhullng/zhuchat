@@ -37,6 +37,7 @@ export const generateAIResponse = async (req, res) => {
 
   } catch (error) {
     console.error("Erro na API Hugging Face:", error);
-    return res.status(500).json({ error: "Erro ao processar a resposta da IA" });
+    
+    return res.status(500).json({ error });
   }
 };
