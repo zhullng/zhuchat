@@ -1,4 +1,4 @@
-import { axiosInstance } from "../lib/axios"; // Importa a instância personalizada do axios
+import { axiosInstance } from "../../../frontend/src/lib/axios"; // Importa a instância personalizada do axios
 
 export const generateAIResponse = async (req, res) => {
   try {
