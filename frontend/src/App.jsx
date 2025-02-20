@@ -1,5 +1,5 @@
 import Navbar from "./components/Navbar";
-import AIChat from './components/AIChat';
+import AIChat from './pages/AIChat';
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage"; 
 import LoginPage from "./pages/LoginPage"; 

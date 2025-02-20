@@ -6,10 +6,10 @@ import { formatMessageTime } from "../lib/utils";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 
 const AIChat = () => {
+  const { authUser } = useAuthStore() || { authUser: {} }; // Evita null
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const { authUser } = useAuthStore();
 
   useEffect(() => {
     if (messagesEndRef.current) {
