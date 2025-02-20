@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import ChatHeader from "./ChatHeader";
-import MessageInput from "./MessageInput";
+import ChatHeader from "../components/ChatHeader";
+import MessageInput from "../components/MessageInput";
 import { formatMessageTime } from "../lib/utils";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 
