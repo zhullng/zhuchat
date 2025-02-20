@@ -8,31 +8,32 @@ export const generateAIResponse = async (req, res) => {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
-    // Verifica se a chave da API está presente
-    const apiKey = process.env.AI_API_KEY; // Sua chave da API Claude
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "Chave de API não fornecida" });
     }
 
-    // Requisição para o modelo Claude
     const response = await axios.post(
-      'https://api.anthropic.com/v1/claude', // Endpoint da API Claude (verifique a URL correta)
+      'https://api.anthropic.com/v1/messages',
       {
-        model: "claude-v1",  // O nome do modelo que você quer usar
-        prompt: message,     // A mensagem que você quer enviar ao modelo
-        max_tokens: 1000,    // Limite de tokens (ajuste conforme necessário)
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: message
+        }]
       },
       {
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
         },
       }
     );
 
-    // Se a resposta contiver a chave esperada
-    if (response.data && response.data.choices && response.data.choices[0].text) {
-      return res.json({ response: response.data.choices[0].text });
+    if (response.data && response.data.content && response.data.content[0].text) {
+      return res.json({ response: response.data.content[0].text });
     } else {
       console.error("Resposta inesperada:", response.data);
       return res.status(500).json({ error: "Resposta inválida da IA" });
@@ -40,6 +41,9 @@ export const generateAIResponse = async (req, res) => {
 
   } catch (error) {
     console.error("Erro na API Claude:", error.response?.data || error.message || error);
-    return res.status(500).json({ error: "Erro ao processar a resposta da IA" });
+    return res.status(500).json({ 
+      error: "Erro ao processar a resposta da IA",
+      details: error.response?.data?.error?.message || error.message
+    });
   }
 };
