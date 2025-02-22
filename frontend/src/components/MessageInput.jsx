@@ -7,7 +7,9 @@ const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, selectedUser } = useChatStore();
+
+  const isAI = selectedUser?.isAI;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -74,31 +76,36 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder="Type a message..."
+            placeholder={isAI ? "Aguarde enquanto o assistente responde..." : "Digite uma mensagem..."}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            disabled={isAI} // Desabilita o campo de input se for AI
           />
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-          />
+          {!isAI && (
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleImageChange}
+            />
+          )}
 
-          <button
-            type="button"
-            className={`flex btn btn-circle
+          {!isAI && (
+            <button
+              type="button"
+              className={`flex btn btn-circle
                      ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Image size={20} />
-          </button>
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Image size={20} />
+            </button>
+          )}
         </div>
         <button
           type="submit"
           className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !imagePreview}
+          disabled={!text.trim() && !imagePreview || isAI}
         >
           <Send size={22} />
         </button>
