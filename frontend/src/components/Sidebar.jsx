@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
-import { Users } from "lucide-react";
+import { Users, Bot } from "lucide-react";
 import { debounce } from "lodash";
 
 const Sidebar = () => {
@@ -11,6 +11,13 @@ const Sidebar = () => {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+
+  // AI Assistant object
+  const aiAssistant = {
+    _id: 'ai-assistant',
+    fullName: 'AI Assistant',
+    isAI: true,
+  };
 
   useEffect(() => {
     getUsers();
@@ -69,6 +76,36 @@ const Sidebar = () => {
       </div>
 
       <div className="overflow-y-auto flex-1 p-1 lg:p-2">
+        {/* AI Assistant */}
+        <button
+          onClick={() => setSelectedUser(aiAssistant)}
+          className={`
+            w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
+            transition-colors hover:bg-base-200 mb-2
+            ${selectedUser?.isAI ? "bg-base-300 ring-1 ring-base-300" : "bg-blue-50 hover:bg-blue-100"}
+          `}
+        >
+          <div className="relative">
+            <div className="size-10 lg:size-12 rounded-full border bg-blue-100 flex items-center justify-center">
+              <Bot className="text-blue-600 size-6" />
+            </div>
+            <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
+          </div>
+
+          <div className="flex-1 text-left">
+            <div className="font-medium truncate text-sm lg:text-base">
+              AI Assistant
+            </div>
+            <div className="text-xs text-green-500">
+              Always Online
+            </div>
+          </div>
+        </button>
+
+        {/* Separator */}
+        <div className="h-px bg-base-200 my-2" />
+
+        {/* User List */}
         {filteredUsers.map((user) => (
           <button
             key={user._id}
@@ -90,7 +127,6 @@ const Sidebar = () => {
               )}
             </div>
 
-            {/* Informações sempre visíveis */}
             <div className="flex-1 text-left">
               <div className="font-medium truncate text-sm lg:text-base">
                 {user.fullName}
