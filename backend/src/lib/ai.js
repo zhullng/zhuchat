@@ -2,17 +2,11 @@ import axios from 'axios';
 
 export const getAIResponse = async (message) => {
   try {
-    // Obtenha o token armazenado
-    const token = localStorage.getItem('authToken') || ''; // Certifique-se de que o token esteja armazenado
-
-    // Enviar o token na requisição
+    // Enviar a requisição com os cookies automaticamente (sem necessidade de passar o token manualmente)
     const response = await axios.post('/api/ai/chat', { 
       message 
     }, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : '', // Adiciona o token no cabeçalho se disponível
-      },
-      withCredentials: true, // Caso você esteja usando cookies para autenticação
+      withCredentials: true, // Garante que os cookies são enviados na requisição
     });
 
     if (!response.data || !response.data.response) {
