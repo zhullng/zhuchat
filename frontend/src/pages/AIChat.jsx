@@ -1,3 +1,53 @@
+import express from "express";
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import rateLimit from 'express-rate-limit';
+import path from "path";
+import { connectDB } from "./lib/db.js";
+
+import aiRoutes from './routes/ai.route.js';
+import authRoutes from "./routes/auth.route.js";
+import messageRoutes from "./routes/message.route.js";
+import { app, server } from "./lib/socket.js";
+
+dotenv.config();
+
+const PORT = process.env.PORT || 5000;
+const __dirname = path.resolve();
+
+app.use(express.json());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
+
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+
+app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/ai", aiRoutes, aiLimiter);
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+  });
+}
+
+server.listen(PORT, () => {
+  console.log("server is running on PORT:" + PORT);
+  connectDB();
+});
+
 import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import ChatHeader from "../components/ChatHeader";
@@ -6,7 +56,7 @@ import { formatMessageTime } from "../lib/utils";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 
 const AIChat = () => {
-  const { authUser } = useAuthStore() || {}; // Garante que authUser não é null
+  const { authUser } = useAuthStore() || { authUser: {} };
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -58,10 +108,6 @@ const AIChat = () => {
     }
   };
 
-  if (!authUser) {
-    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
-  }
-
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
@@ -79,7 +125,7 @@ const AIChat = () => {
                   src={
                     message.isAI
                       ? "/bot-avatar.png"
-                      : authUser?.profilePic || "/avatar.png" // Usa fallback seguro
+                      : authUser?.profilePic || "/avatar.png"
                   }
                   alt="profile pic"
                 />
