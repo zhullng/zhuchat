@@ -2,14 +2,15 @@ import axios from 'axios';
 
 export const getAIResponse = async (message) => {
   try {
-    // Obtenha o token armazenado (se estiver usando JWT, por exemplo)
-    const token = localStorage.getItem('authToken') || ''; // Ou de onde estiver armazenado
+    // Obtenha o token armazenado
+    const token = localStorage.getItem('authToken') || ''; // Certifique-se de que o token esteja armazenado
 
+    // Enviar o token na requisição
     const response = await axios.post('/api/ai/chat', { 
       message 
     }, {
       headers: {
-        Authorization: token ? `Bearer ${token}` : '', // Adicionando o token no cabeçalho
+        Authorization: token ? `Bearer ${token}` : '', // Adiciona o token no cabeçalho se disponível
       },
       withCredentials: true, // Caso você esteja usando cookies para autenticação
     });
