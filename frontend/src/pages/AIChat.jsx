@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getAIResponse } from "../lib/ai";
+import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot } from "lucide-react";
 
