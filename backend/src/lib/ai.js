@@ -1,12 +1,22 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 export const getAIResponse = async (message) => {
   try {
-    // Enviar a requisição com os cookies automaticamente (sem necessidade de passar o token manualmente)
+    // Obtendo o token do cookie
+    const token = Cookies.get('authToken'); // Supondo que o cookie se chama 'authToken'
+
+    if (!token) {
+      throw new Error('Token não encontrado. Por favor, faça login novamente.');
+    }
+
     const response = await axios.post('/api/ai/chat', { 
       message 
     }, {
-      withCredentials: true, // Garante que os cookies são enviados na requisição
+      headers: {
+        Authorization: `Bearer ${token}`, // Adiciona o token no cabeçalho
+      },
+      withCredentials: true, // Envia cookies, caso necessário
     });
 
     if (!response.data || !response.data.response) {
