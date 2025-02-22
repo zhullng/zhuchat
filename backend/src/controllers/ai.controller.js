@@ -8,7 +8,7 @@ export const generateAIResponse = async (req, res) => {
       return res.status(400).json({ error: "Mensagem não pode estar vazia" });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "Chave de API não fornecida" });
     }
