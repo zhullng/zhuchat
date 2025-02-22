@@ -75,7 +75,7 @@ const AIChat = () => {
                   src={
                     message.isAI
                       ? "/bot-avatar.png"
-                      : authUser?.profilePic || "/avatar.png"
+                      : authUser.profilePic || "/avatar.png"
                   }
                   alt="profile pic"
                 />
