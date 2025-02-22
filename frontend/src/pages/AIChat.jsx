@@ -12,9 +12,9 @@ const AIChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Verificando se o authUser está carregado
+  // Verificando se o authUser está carregado ou se o usuário não está autenticado
   if (!authUser || !authUser._id) {
-    return <div>Carregando... ou redirecionando para login...</div>;  // Exibir mensagem de carregamento ou redirecionar
+    return <div>Carregando...</div>;  // Exibir mensagem de carregamento ou redirecionando
   }
 
   useEffect(() => {
