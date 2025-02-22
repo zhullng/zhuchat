@@ -63,11 +63,9 @@ const AIChat = () => {
     }
   };
 
-  // Helper function to get profile picture URL
-  const getProfilePicture = (isAI, user) => {
-    if (isAI) return "/bot-avatar.png"; // Avatar para IA
-    if (!user || !user.profilePic) return "/avatar.png"; // Avatar padrão se não houver profilePic
-    return user.profilePic; // Caso contrário, usa o profilePic do user
+  // Helper function to get avatar URL (just the bot avatar or default one)
+  const getAvatar = (isAI) => {
+    return isAI ? "/bot-avatar.png" : "/avatar.png"; // Bot ou imagem padrão
   };
 
   return (
@@ -83,7 +81,7 @@ const AIChat = () => {
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
-                  src={getProfilePicture(message.isAI, authUser)} // Usa a função de verificação de imagem
+                  src={getAvatar(message.isAI)} // Usa o avatar do bot ou imagem padrão
                   alt={message.isAI ? "AI Avatar" : "User Avatar"}
                 />
               </div>
