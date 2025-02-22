@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot } from "lucide-react";
+import { Bot, Send } from "lucide-react";
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
@@ -32,7 +32,6 @@ const AIChat = () => {
 
     try {
       const response = await getAIResponse(input);
-
       setMessages((prev) => [
         ...prev,
         { content: response, isAI: true, timestamp: new Date() },
@@ -52,69 +51,74 @@ const AIChat = () => {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto border rounded-lg shadow-md bg-base-100">
-      {/* Cabeçalho do Chat */}
-      <div className="border-b p-4 flex items-center gap-3 bg-base-200">
-        <div className="p-2 bg-primary/10 rounded-full">
-          <Bot className="text-primary" size={24} />
+    <div className="flex flex-col h-full max-w-3xl mx-auto rounded-xl shadow-lg bg-gradient-to-b from-gray-50 to-white">
+      {/* Chat Header */}
+      <div className="px-6 py-4 border-b flex items-center gap-4 bg-white rounded-t-xl">
+        <div className="p-2.5 bg-blue-100 rounded-xl">
+          <Bot className="text-blue-600" size={24} />
         </div>
-        <div>
-          <h2 className="font-semibold text-gray-800">Assistente Virtual</h2>
-          <p className="text-sm text-gray-500">
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold text-gray-800">Assistente Virtual</h2>
+          <p className="text-sm text-gray-500 flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
             {isLoading ? "Digitando..." : "Online"}
           </p>
         </div>
       </div>
 
-      {/* Área de Mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-200">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex items-start ${message.isAI ? "justify-start" : "justify-end"}`}
+            className={`flex items-start gap-3 ${message.isAI ? "justify-start" : "justify-end"}`}
           >
-            {/* Avatar */}
-            {message.isAI ? (
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                <Bot className="text-gray-600" size={20} />
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-full overflow-hidden border ml-2">
-                <img
-                  src={authUser?.profilePic || "/avatar.png"} // Fallback para avatar padrão
-                  alt="User Avatar"
-                  className="object-cover"
-                />
+            {message.isAI && (
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Bot className="text-blue-600" size={20} />
               </div>
             )}
 
-            {/* Mensagem */}
             <div
-              className={`max-w-[75%] rounded-xl p-3 shadow ${
+              className={`max-w-[80%] rounded-2xl p-4 ${
                 message.isAI
-                  ? "bg-white border border-gray-200 text-gray-800"
-                  : "bg-primary text-white"
+                  ? "bg-white shadow-md border border-gray-100"
+                  : "bg-blue-600 text-white"
               }`}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
-              <p className="text-xs mt-1 text-gray-500 text-right">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                {message.content}
+              </p>
+              <p className={`text-xs mt-2 ${message.isAI ? 'text-gray-400' : 'text-blue-200'}`}>
                 {message.timestamp.toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
               </p>
             </div>
+
+            {!message.isAI && (
+              <div className="w-10 h-10 rounded-xl overflow-hidden border flex-shrink-0">
+                <img
+                  src={authUser?.profilePic || "/avatar.png"}
+                  alt="User Avatar"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
           </div>
         ))}
 
-        {/* Animação de Digitação */}
+        {/* Typing Indicator */}
         {isLoading && (
-          <div className="flex items-center gap-2 text-gray-500 ml-2">
-            <Bot size={16} />
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></div>
-              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+              <Bot className="text-blue-600" size={20} />
+            </div>
+            <div className="bg-white p-4 rounded-2xl shadow-md inline-flex gap-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
             </div>
           </div>
         )}
@@ -122,22 +126,22 @@ const AIChat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input de Mensagem */}
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-base-100">
-        <div className="relative">
+      {/* Message Input */}
+      <form onSubmit={handleSubmit} className="p-4 bg-white border-t">
+        <div className="relative flex items-center">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Digite sua mensagem..."
-            className="w-full p-3 pr-16 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary bg-base-200"
+            className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="absolute right-2 top-2 px-4 py-1.5 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+            className="absolute right-2 p-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors"
           >
-            {isLoading ? "Enviando..." : "Enviar"}
+            <Send size={20} />
           </button>
         </div>
       </form>

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, User, Bot } from "lucide-react";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
@@ -33,7 +33,7 @@ const Navbar = () => {
               
               `}
             >
-              <Settings className="w-4 h-4" />
+              <Bot className="w-4 h-4" />
               <span className="hidden sm:inline">Assistente AI</span>
             </Link>
             <Link
