@@ -56,7 +56,10 @@ const App = () => {
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />} // Apenas para usuários autenticados
         />
-        <Route path="/chat" element={<AIChat />} />
+        <Route
+          path="/chat"
+          element={authUser ? <AIChat /> : <Navigate to="/login" />} // Apenas para usuários autenticados
+        />
       </Routes>
 
       <Toaster /> {/* Componente para mostrar notificações */}

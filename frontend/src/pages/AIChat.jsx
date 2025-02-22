@@ -6,22 +6,21 @@ import { formatMessageTime } from "../lib/utils";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 
 const AIChat = () => {
-  // Obtendo o usuário autenticado da store
-  const { authUser } = useAuthStore() || { authUser: {} };
+  const { authUser } = useAuthStore();
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-
-  // Verificando se o authUser está carregado ou se o usuário não está autenticado
-  if (!authUser || !authUser._id) {
-    return <div>Carregando...</div>;  // Exibir mensagem de carregamento ou redirecionando
-  }
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // Early return for loading state
+  if (!authUser) {
+    return <div className="flex-1 flex items-center justify-center">Carregando...</div>;
+  }
 
   const handleSendMessage = async (input) => {
     if (!input.trim() || isLoading) return;
@@ -64,6 +63,13 @@ const AIChat = () => {
     }
   };
 
+  // Helper function to get profile picture URL
+  const getProfilePicture = (isAI, user) => {
+    if (isAI) return "/bot-avatar.png";
+    if (!user) return "/avatar.png";
+    return user.profilePic || "/avatar.png";
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
@@ -73,19 +79,12 @@ const AIChat = () => {
           <div
             key={index}
             className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
-            ref={messagesEndRef}
           >
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
-                  src={
-                    message.isAI
-                      ? "/bot-avatar.png" // Avatar para IA
-                      : authUser && authUser.profilePic // Verifica se authUser existe
-                      ? authUser.profilePic // Se o authUser tiver profilePic, usa ele
-                      : "/avatar.png" // Senão, usa imagem padrão
-                  }
-                  alt="profile pic"
+                  src={getProfilePicture(message.isAI, authUser)}
+                  alt={message.isAI ? "AI Avatar" : "User Avatar"}
                 />
               </div>
             </div>
@@ -100,6 +99,7 @@ const AIChat = () => {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       <MessageInput onSendMessage={handleSendMessage} isLoading={isLoading} />
