@@ -52,9 +52,9 @@ const AIChat = () => {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto border rounded-lg shadow-md bg-white">
+    <div className="flex flex-col h-full max-w-2xl mx-auto border rounded-lg shadow-md bg-base-100">
       {/* Cabeçalho do Chat */}
-      <div className="border-b p-4 flex items-center gap-3 bg-gray-100">
+      <div className="border-b p-4 flex items-center gap-3 bg-base-200">
         <div className="p-2 bg-primary/10 rounded-full">
           <Bot className="text-primary" size={24} />
         </div>
@@ -67,13 +67,11 @@ const AIChat = () => {
       </div>
 
       {/* Área de Mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-200">
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex items-start ${
-              message.isAI ? "justify-start" : "justify-end"
-            }`}
+            className={`flex items-start ${message.isAI ? "justify-start" : "justify-end"}`}
           >
             {/* Avatar */}
             {message.isAI ? (
@@ -125,13 +123,13 @@ const AIChat = () => {
       </div>
 
       {/* Input de Mensagem */}
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-white">
+      <form onSubmit={handleSubmit} className="border-t p-4 bg-base-100">
         <div className="relative">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Digite sua mensagem..."
-            className="w-full p-3 pr-16 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary bg-gray-100"
+            className="w-full p-3 pr-16 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary bg-base-200"
             disabled={isLoading}
           />
           <button
