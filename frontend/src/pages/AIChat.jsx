@@ -6,10 +6,16 @@ import { formatMessageTime } from "../lib/utils";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 
 const AIChat = () => {
+  // Obtendo o usuário autenticado da store
   const { authUser } = useAuthStore() || { authUser: {} };
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Verificando se o authUser está carregado
+  if (!authUser || !authUser._id) {
+    return <div>Carregando... ou redirecionando para login...</div>;  // Exibir mensagem de carregamento ou redirecionar
+  }
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -74,8 +80,10 @@ const AIChat = () => {
                 <img
                   src={
                     message.isAI
-                      ? "/bot-avatar.png"
-                      : authUser.profilePic || "/avatar.png"
+                      ? "/bot-avatar.png" // Avatar para IA
+                      : authUser && authUser.profilePic // Verifica se authUser existe
+                      ? authUser.profilePic // Se o authUser tiver profilePic, usa ele
+                      : "/avatar.png" // Senão, usa imagem padrão
                   }
                   alt="profile pic"
                 />
