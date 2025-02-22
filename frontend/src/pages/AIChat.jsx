@@ -6,7 +6,7 @@ import { formatMessageTime } from "../lib/utils";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 
 const AIChat = () => {
-  const { authUser } = useAuthStore() || { authUser: {} }; // Evita null
+  const { authUser } = useAuthStore() || {}; // Garante que authUser não é null
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -58,6 +58,10 @@ const AIChat = () => {
     }
   };
 
+  if (!authUser) {
+    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
@@ -69,20 +73,18 @@ const AIChat = () => {
             className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
             ref={messagesEndRef}
           >
-          <div className="chat-image avatar">
-            <div className="size-10 rounded-full border">
-              <img
-                src={
-                  message.isAI
-                    ? "/bot-avatar.png"
-                    : authUser && authUser.profilePic
-                    ? authUser.profilePic
-                    : "/avatar.png" // Usa uma imagem padrão se authUser não existir ou não tiver profilePic
-                }
-                alt="profile pic"
-              />
+            <div className="chat-image avatar">
+              <div className="size-10 rounded-full border">
+                <img
+                  src={
+                    message.isAI
+                      ? "/bot-avatar.png"
+                      : authUser?.profilePic || "/avatar.png" // Usa fallback seguro
+                  }
+                  alt="profile pic"
+                />
+              </div>
             </div>
-          </div>
 
             <div className="chat-header mb-1">
               <time className="text-xs opacity-50 ml-1">
