@@ -71,7 +71,7 @@ const ChatContainer = () => {
               {/* Para o usuário logado (authUser), o nome estará à direita e o horário à esquerda */}
               {message.senderId === authUser._id ? (
                 <>
-                  <time className="text-xs opacity-50 mr-2">
+                  <time className="text-xs opacity-50">
                     {formatMessageTime(message.createdAt)}
                   </time>
                   <span className="font-semibold text-sm ml-2">
@@ -81,7 +81,7 @@ const ChatContainer = () => {
               ) : (
                 // Para o outro usuário (selectedUser), o nome estará à esquerda e o horário à direita
                 <>
-                  <span className="font-semibold text-sm mr-2">
+                  <span className="font-semibold text-sm">
                     {selectedUser?.fullName || 'Nome Desconhecido'}
                   </span>
                   <time className="text-xs opacity-50 ml-2">
