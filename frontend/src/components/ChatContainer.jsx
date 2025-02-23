@@ -83,7 +83,7 @@ const ChatContainer = () => {
   if (isMessagesLoading && !selectedUser?.isAI) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
-        <div className="border-b p-4 flex items-center justify-between md:flex-row md:items-center">
+        <div className="flex items-center justify-between md:flex-row md:items-center">
           <ChatHeader />
         </div>
         <MessageSkeleton />
@@ -95,7 +95,7 @@ const ChatContainer = () => {
   // Renderização para o AI Assistant
   const renderAIChat = () => (
     <div className="flex flex-col h-screen">
-      <div className="border-b p-4 flex items-center justify-between md:flex-row md:items-center bg-base-100">
+      <div className="flex items-center justify-between md:flex-row md:items-center bg-base-100">
         <ChatHeader />
       </div>
 
@@ -164,7 +164,7 @@ const ChatContainer = () => {
         <div ref={messageEndRef} />
       </div>
 
-      <div className="sticky bottom-0 w-full bg-base-100 border-t">
+      <div className="sticky bottom-0 w-full">
         <form onSubmit={handleSubmit} className="p-4">
           <MessageInput
             input={input}
@@ -180,7 +180,7 @@ const ChatContainer = () => {
   // Renderização para um usuário real
   const renderUserChat = () => (
     <div className="flex-1 flex flex-col overflow-auto">
-      <div className="border-b p-4 flex items-center justify-between md:flex-row md:items-center">
+      <div className="flex items-center justify-between md:flex-row md:items-center">
         <ChatHeader />
       </div>
 
