@@ -1,13 +1,40 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
-const MessageInput = () => {
+const MessageInput = ({ setIsKeyboardOpen }) => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  const inputRef = useRef(null);
   const { sendMessage } = useChatStore();
+
+  useEffect(() => {
+    const handleFocus = () => {
+      setIsKeyboardOpen(true);
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 200);
+    };
+
+    const handleBlur = () => {
+      setIsKeyboardOpen(false);
+    };
+
+    const inputEl = inputRef.current;
+    if (inputEl) {
+      inputEl.addEventListener("focus", handleFocus);
+      inputEl.addEventListener("blur", handleBlur);
+    }
+
+    return () => {
+      if (inputEl) {
+        inputEl.removeEventListener("focus", handleFocus);
+        inputEl.removeEventListener("blur", handleBlur);
+      }
+    };
+  }, [setIsKeyboardOpen]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -38,7 +65,6 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -48,7 +74,7 @@ const MessageInput = () => {
   };
 
   return (
-    <div className="p-4 w-full">
+    <div className="p-4 w-full bg-white">
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -72,6 +98,7 @@ const MessageInput = () => {
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="flex-1 flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
             placeholder="Type a message..."
@@ -106,4 +133,5 @@ const MessageInput = () => {
     </div>
   );
 };
+
 export default MessageInput;
