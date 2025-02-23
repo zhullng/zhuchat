@@ -68,9 +68,10 @@ const ChatContainer = () => {
             <div className="chat-header mb-1">
               <div className="flex items-center">
                 <span className="font-semibold text-sm">
+                  {/* Exibe o nome baseado no senderId */}
                   {message.senderId === authUser._id
                     ? authUser.name
-                    : selectedUser.name}
+                    : selectedUser?.name || 'Nome Desconhecido'}
                 </span>
                 <time className="text-xs opacity-50 ml-2">
                   {formatMessageTime(message.createdAt)}
@@ -89,6 +90,8 @@ const ChatContainer = () => {
             </div>
           </div>
         ))}
+        {/* Referência para o final da lista de mensagens */}
+        <div ref={messageEndRef}></div>
       </div>
       <MessageInput />
     </div>
