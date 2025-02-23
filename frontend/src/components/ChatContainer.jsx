@@ -18,8 +18,8 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 
-  // Detect if the browser is Safari
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  // Detect if the browser is Safari (modified version)
+  const isSafari = navigator.userAgent.toLowerCase().indexOf('safari/') > -1 && navigator.userAgent.toLowerCase().indexOf('chrome') === -1;
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -44,7 +44,7 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className={`flex-1 flex flex-col overflow-auto`}>
+    <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
