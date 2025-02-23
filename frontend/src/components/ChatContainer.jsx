@@ -6,6 +6,8 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { formatMessageTime } from "../lib/utils";
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); // Detecta Mobile
+
 const ChatContainer = () => {
   const {
     messages,
@@ -32,16 +34,18 @@ const ChatContainer = () => {
   }, [messages]);
 
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden transition-transform duration-300
-      ${isKeyboardOpen ? "-translate-y-32" : ""}`} // Move o chat para cima
-    >
+    <div className="flex-1 flex flex-col h-screen">
       {/* ChatHeader sempre fixo */}
       <div className="sticky top-0 w-full z-10 bg-white shadow">
         <ChatHeader />
       </div>
 
-      {/* Mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Mensagens ajustadas */}
+      <div
+        className={`flex-1 overflow-y-auto p-4 space-y-4 transition-transform duration-300
+        ${isMobile && isKeyboardOpen ? "translate-y-[-30vh]" : ""}`} // Sobe só no mobile
+        style={{ paddingBottom: "80px" }} // Evita que mensagens fiquem escondidas
+      >
         {isMessagesLoading ? (
           <MessageSkeleton />
         ) : (
@@ -84,7 +88,9 @@ const ChatContainer = () => {
       </div>
 
       {/* MessageInput */}
-      <MessageInput setIsKeyboardOpen={setIsKeyboardOpen} />
+      <div className="fixed bottom-0 w-full bg-white shadow-md">
+        <MessageInput setIsKeyboardOpen={setIsKeyboardOpen} />
+      </div>
     </div>
   );
 };
