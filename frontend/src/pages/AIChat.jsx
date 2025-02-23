@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot, Send } from "lucide-react";
+import MessageSkeleton from "../components/skeletons/MessageSkeleton";  // Supondo que o componente esteja em um arquivo separado
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
@@ -53,13 +54,13 @@ const AIChat = () => {
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       {/* Chat Header */}
-      <div className="border-b p-4 flex items-center gap-3">
+      <div className="border-b border-base-300 p-4 flex items-center gap-3">
         <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
           <Bot className="text-blue-600" size={24} />
         </div>
         <div>
           <h2 className="font-semibold">Assistente Virtual</h2>
-          <p className="text-sm text-gray-500 flex items-center gap-2">
+          <p className="text-sm flex items-center gap-2">
             <span
               className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}
             ></span>
@@ -70,81 +71,69 @@ const AIChat = () => {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
-            ref={messagesEndRef}
-          >
-            {/* Avatar */}
-            <div className="chat-image avatar">
-              <div className="size-10 rounded-full border">
-                {message.isAI ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Bot className="text-blue-600" size={20} />
-                  </div>
-                ) : (
-                  <img
-                    src={authUser?.profilePic || "/avatar.png"}
-                    alt="User Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Message Content */}
-            <div className="chat-bubble flex flex-col">
-              {/* Timestamp */}
-              <div className="chat-header mb-1">
-                <time className="text-xs opacity-50 ml-1">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </time>
+        {isLoading ? (
+          // Loading Skeleton
+          <MessageSkeleton />
+        ) : (
+          messages.map((message, index) => (
+            <div
+              key={index}
+              className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
+              ref={messagesEndRef}
+            >
+              {/* Avatar */}
+              <div className="chat-image avatar">
+                <div className="size-10 rounded-full border overflow-hidden">
+                  {message.isAI ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Bot className="text-blue-600" size={20} />
+                    </div>
+                  ) : (
+                    <img
+                      src={authUser?.profilePic || "/avatar.png"}
+                      alt="User Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
               </div>
 
-              {/* Image Attachment */}
-              {message.image && (
-                <img
-                  src={message.image}
-                  alt="Attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2"
-                />
-              )}
+              {/* Message Content */}
+              <div className="flex flex-col">
+                {/* Timestamp outside of message bubble */}
+                <div className="chat-header mb-1">
+                  <time className="text-xs opacity-50 ml-1">
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                </div>
 
-              {/* Message Text */}
-              {message.content && <p>{message.content}</p>}
-            </div>
-          </div>
-        ))}
+                {/* Message Bubble */}
+                <div className="chat-bubble flex flex-col">
+                  {/* Image Attachment */}
+                  {message.image && (
+                    <img
+                      src={message.image}
+                      alt="Attachment"
+                      className="sm:max-w-[200px] rounded-md mb-2"
+                    />
+                  )}
 
-        {/* Typing Indicator */}
-        {isLoading && (
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <div className="size-10 rounded-full border overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center">
-                  <Bot className="text-blue-600" size={20} />
+                  {/* Message Text */}
+                  {message.content && <p>{message.content}</p>}
                 </div>
               </div>
             </div>
-            <div className="p-3 rounded-2xl border border-gray-200 shadow-sm">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 rounded-full animate-bounce delay-200"></div>
-              </div>
-            </div>
-          </div>
+          ))
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input */}
-      <div className="sticky bottom-0 w-full border-t">
+      <div className="sticky bottom-0 w-full">
         <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
           <div className="flex-1 flex gap-2">
             <input
