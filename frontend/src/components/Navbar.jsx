@@ -15,25 +15,22 @@ const Navbar = () => {
             <Link to="/" className="btn btn-circle btn-ghost btn-lg">
               <MessageCircle className="size-6" />
             </Link>
-
           </div>
         </div>
 
         {/* Bottom section */}
         <div className="flex flex-col gap-4">
-
           {authUser && (
             <>
               <Link to="/settings" className="btn btn-circle btn-ghost btn-lg">
                 <Settings className="size-6" />
               </Link>
               
-              <Link to="/profile" className="btn btn-circle btn-ghost btn-lg overflow-hidden">
-                {/* Profile image - replace src with actual user profile image */}
-              <img
+              <Link to="/profile" className="btn btn-circle btn-ghost btn-lg">
+                <img
                   src={authUser.profilePic || "/avatar.png"}
                   alt="Profile"
-                  className="w-8 h-8 rounded-full object-cover border-2 border-base-200"
+                  className="size-12 rounded-full object-cover"
                 />
               </Link>
 
