@@ -52,87 +52,118 @@ const AIChat = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
-    {/* Chat Header */}
-    <div className="border-b p-4 flex items-center gap-3">
-      <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
-        <Bot className="text-blue-600" size={24} />
+      {/* Chat Header */}
+      <div className="border-b p-4 flex items-center gap-3">
+        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
+          <Bot className="text-blue-600" size={24} />
+        </div>
+        <div>
+          <h2 className="font-semibold">Assistente Virtual</h2>
+          <p className="text-sm text-gray-500 flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
+            {isLoading ? "Digitando..." : "Online"}
+          </p>
+        </div>
       </div>
-      <div>
-        <h2 className="font-semibold">Assistente Virtual</h2>
-        <p className="text-sm text-gray-500 flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
-          {isLoading ? "Digitando..." : "Online"}
-        </p>
-      </div>
-    </div>
 
-    {/* Messages Area */}
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {/* Aqui seria onde você renderiza as mensagens (código omitido para clareza) */}
-    </div>
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex items-start gap-3 ${message.isAI ? "flex-row" : "flex-row-reverse"}`}
+          >
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              <div className="size-10 rounded-full border overflow-hidden">
+                {message.isAI ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Bot className="text-blue-600" size={20} />
+                  </div>
+                ) : (
+                  <img
+                    src={authUser?.profilePic || "/avatar.png"}
+                    alt="User Avatar"gap-3
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+            </div>
 
-    {/* Message Input */}
-    <div className="sticky bottom-0 w-full border-t">
-      <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
-        {/* Preview da Imagem */}
-        {imagePreview && (
-          <div className="p-4 w-full mb-3 flex items-center gap-2">
-            <div className="relative">
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
-              />
-              <button
-                onClick={removeImage}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
-                type="button"
+            {/* Message Content */}
+            <div
+              className={`flex flex-col max-w-[70%] ${
+                message.isAI ? "items-start" : "items-end"
+              }`}
+            >
+              {/* Timestamp */}
+              <div className="text-xs mb-1 px-1">
+                {message.timestamp.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </div>
+
+              {/* Message Bubble */}
+              <div
+                className={`rounded-2xl p-3 ${
+                  message.isAI
+                    ? "bg-white border border-gray-200 shadow-sm"
+                    : ""
+                }`}
               >
-                <X className="size-3" />
-              </button>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Typing Indicator */}
+        {isLoading && (
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="size-10 rounded-full border overflow-hidden">
+                <div className="w-full h-full flex items-center justify-center">
+                  <Bot className="text-blue-600" size={20} />
+                </div>
+              </div>
+            </div>
+            <div className="p-3 rounded-2xl border border-gray-200 shadow-sm">
+              <div className="flex gap-1">
+                <div className="w-2 h-2rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 rounded-full animate-bounce delay-100"></div>
+                <div className="w-2 h-2 rounded-full animate-bounce delay-200"></div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Input and File Attachment */}
-        <div className="flex-1 flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Digite sua mensagem..."
-            className="w-full input input-bordered rounded-lg input-md"
-            disabled={isLoading}
-          />
+        <div ref={messagesEndRef} />
+      </div>
 
-          {/* Botão para abrir o seletor de arquivos */}
-          <button
-            type="button"
-            className={`flex btn btn-circle ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Image size={20} />
-          </button>
+    {/* Message Input */}
+    <div className="sticky bottom-0 w-full border-t">
+      <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
+      <div className="flex-1 flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Digite sua mensagem..."
+          className="w-full input input-bordered rounded-lg input-md"
+          disabled={isLoading}
+        />
 
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-          />
-        </div>
-
-        {/* Botão de envio */}
         <button
           type="submit"
-          className="btn btn-sm btn-circle"
-          disabled={!input.trim() && !imagePreview} // Desabilita o botão se nada for digitado e não houver imagem
+          className="btn btn-sm btn-circle mt-2"
+          disabled={!input.trim()} // Corrigido para verificar o estado correto
         >
           <Send size={22} />
         </button>
+        </div>
       </form>
     </div>
-  </div>
+    </div>
   );
 };
 
