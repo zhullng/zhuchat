@@ -30,16 +30,11 @@ const ChatContainer = () => {
 
   useEffect(() => {
     getMessages(selectedUser._id);
+
     subscribeToMessages();
 
     return () => unsubscribeFromMessages();
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
-
-  useEffect(() => {
-    if (messageEndRef.current && isAtBottom) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isAtBottom]);
 
   useEffect(() => {
     const chatContainer = chatContainerRef.current;
@@ -53,6 +48,12 @@ const ChatContainer = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (messageEndRef.current && isAtBottom) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isAtBottom]);
 
   if (isMessagesLoading) {
     return (
