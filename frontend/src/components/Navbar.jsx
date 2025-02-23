@@ -9,18 +9,17 @@ const Navbar = () => {
 
   return (
     <header
-      className="bg-base-100 border-b border-base-300 fixed w-full top-0 z-40 
-      backdrop-blur-lg bg-base-100/80"
+      className="border-l fixed top-0 right-0 z-40 w-16 h-full flex flex-col items-center"
     >
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-all">
-          <div className="size-10 rounded-lg bg-white flex items-center justify-center overflow-hidden">
-            <img src="/logoZhuChat.svg" alt="ZhuChat Logo" className="w-20 h-20" />
+      <div className="flex flex-col items-center justify-between p-4 w-full h-full">
+        <Link to="/" className="flex flex-col items-center gap-2.5 hover:opacity-80 transition-all">
+          <div className="size-10 rounded-lg flex items-center justify-center overflow-hidden">
+            <img src="/logoZhuChat.svg" alt="ZhuChat Logo" className="w-12 h-12" />
           </div>
-          <h1 className="text-lg font-bold">ZhuChat</h1>
+          <h1 className="text-xs font-bold text-center">ZhuChat</h1>
         </Link>
 
-        <div className="relative">
+        <div className="relative mt-6">
           <button
             className="btn btn-sm gap-2"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -29,7 +28,7 @@ const Navbar = () => {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg p-2">
+            <div className="absolute top-10 right-0 mt-2 w-48 shadow-lg rounded-lg p-2">
               <Link to="/settings" className="flex items-center gap-2 p-2 hover:bg-gray-200 rounded">
                 <Settings className="w-4 h-4" />
                 <span>Settings</span>
