@@ -5,7 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage"; 
 import ProfilePage from "./pages/ProfilePage"; 
 import TransfersPage from './pages/TransfersPage'; 
-import CreateTransfersPage from './pages/CreateTransfersPage';
+import CreateTransfersPage from './pages/CreateTransferPage';
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
