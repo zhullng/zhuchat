@@ -7,14 +7,12 @@ const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
-  const { sendMessage, selectedUser } = useChatStore();
-
-  const isAI = selectedUser?.isAI;
+  const { sendMessage } = useChatStore();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione um arquivo de imagem.");
+      toast.error("Please select an image file");
       return;
     }
 
@@ -40,12 +38,12 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Limpar campos
+      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
+      console.error("Failed to send message:", error);
     }
   };
 
@@ -61,7 +59,7 @@ const MessageInput = () => {
             />
             <button
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-200
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
               flex items-center justify-center"
               type="button"
             >
@@ -76,32 +74,27 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder="Digite uma mensagem..."
+            placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          
-          {!isAI && (  // O botão de imagem será renderizado somente se não for AI
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-            />
-          )}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+          />
 
-          {!isAI && (  // O botão de imagem aparece somente para usuários reais
-            <button
-              type="button"
-              className={`flex btn btn-circle ${imagePreview ? "text-success" : "text-zinc-400"}`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Image size={20} />
-            </button>
-          )}
+          <button
+            type="button"
+            className={`flex btn btn-circle
+                     ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Image size={20} />
+          </button>
         </div>
-        
         <button
           type="submit"
           className="btn btn-sm btn-circle"
@@ -113,5 +106,4 @@ const MessageInput = () => {
     </div>
   );
 };
-
 export default MessageInput;
