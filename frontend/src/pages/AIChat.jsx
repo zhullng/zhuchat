@@ -2,12 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot, Send } from "lucide-react";
-import MessageSkeleton from "../components/skeletons/MessageSkeleton"; 
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const { authUser } = useAuthStore();
 
@@ -19,7 +17,7 @@ const AIChat = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
     const newMessage = {
       content: input,
@@ -29,7 +27,6 @@ const AIChat = () => {
 
     setMessages((prev) => [...prev, newMessage]);
     setInput("");
-    setIsLoading(true);
 
     try {
       const response = await getAIResponse(input);
@@ -46,8 +43,6 @@ const AIChat = () => {
           timestamp: new Date(),
         },
       ]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -60,60 +55,54 @@ const AIChat = () => {
         </div>
         <div>
           <h2 className="font-semibold">Assistente Virtual</h2>
-          <p className="text-sm flex items-center gap-2">
-            Online
-          </p>
+          <p className="text-sm flex items-center gap-2">Online</p>
         </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isLoading ? (
-          <MessageSkeleton />
-        ) : (
-          messages.map((message, index) => (
-            <div
-              key={index}
-              className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
-              ref={messagesEndRef}
-            >
-              {/* Avatar */}
-              <div className="chat-image avatar">
-                <div className="size-10 rounded-full border overflow-hidden">
-                  {message.isAI ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Bot className="text-blue-600" size={20} />
-                    </div>
-                  ) : (
-                    <img
-                      src={authUser?.profilePic || "/avatar.png"}
-                      alt="User Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Message Content */}
-              <div className="flex flex-col">
-                {/* Timestamp outside of message bubble */}
-                <div className="chat-header mb-1">
-                  <time className="text-xs opacity-50 ml-1">
-                    {new Date(message.timestamp).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </div>
-
-                {/* Message Bubble */}
-                <div className="chat-bubble bg-blue-500 text-white px-4 py-2 rounded-lg max-w-xs sm:max-w-md break-words text-sm">
-                  {message.content}
-                </div>
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
+            ref={messagesEndRef}
+          >
+            {/* Avatar */}
+            <div className="chat-image avatar">
+              <div className="size-10 rounded-full border overflow-hidden">
+                {message.isAI ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Bot className="text-blue-600" size={20} />
+                  </div>
+                ) : (
+                  <img
+                    src={authUser?.profilePic || "/avatar.png"}
+                    alt="User Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
             </div>
-          ))
-        )}
+
+            {/* Message Content */}
+            <div className="flex flex-col">
+              {/* Timestamp above the message */}
+              <div className="chat-header mb-1">
+                <time className="text-xs opacity-50 ml-1">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
+              </div>
+
+              {/* Message Text */}
+              <div className="chat-bubble px-4 py-2 rounded-lg max-w-xs sm:max-w-md break-words">
+                {message.content}
+              </div>
+            </div>
+          </div>
+        ))}
 
         <div ref={messagesEndRef} />
       </div>
@@ -127,7 +116,6 @@ const AIChat = () => {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Digite sua mensagem..."
               className="w-full input input-bordered rounded-lg input-md"
-              disabled={isLoading}
             />
 
             <button
