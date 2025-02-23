@@ -1,5 +1,6 @@
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState } from "react";
+
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
@@ -27,6 +28,7 @@ const ChatContainer = () => {
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   useEffect(() => {
+    // Só faz o scroll se houver mensagens e se a referência do final da mensagem estiver acessível
     if (messageEndRef.current && messages.length > 0) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -102,6 +104,7 @@ const ChatContainer = () => {
             </div>
           );
         })}
+        {/* Referência para a última mensagem */}
         <div ref={messageEndRef} />
       </div>
       <MessageInput />
