@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot } from "lucide-react";
-import ChatHeader from "./ChatHeader"; // Importar ChatHeader
+import ChatHeader from "../components/ChatHeader"; // Importar ChatHeader
 import MessageInput from "./MessageInput"; // Usar MessageInput
 import MessageSkeleton from "./skeletons/MessageSkeleton"; // Incluir MessageSkeleton para carregamento
 import { formatMessageTime } from "../lib/utils";
