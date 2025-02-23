@@ -122,7 +122,7 @@ const ProfilePage = () => {
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, [field]: e.target.value }))
             }
-            className={`w-full px-4 py-2.5 bg-base-200 rounded-lg border ${
+            className={`w-full px-4 py-2 sm:py-2 md:py-3 bg-base-200 rounded-lg border ${
               errors[field] ? "border-red-500 pr-20" : ""
             }`}
           />
@@ -164,8 +164,7 @@ const ProfilePage = () => {
                   bg-base-content hover:scale-105
                   p-2 rounded-full cursor-pointer 
                   transition-all duration-200
-                  ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""}
-                `}
+                  ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""}`}
               >
                 <Camera className="w-5 h-5 text-base-200" />
                 <input
