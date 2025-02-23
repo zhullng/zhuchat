@@ -64,16 +64,15 @@ const Sidebar = () => {
                 type="checkbox"
                 checked={showOnlineOnly}
                 onChange={(e) => setShowOnlineOnly(e.target.checked)}
-                className="toggle toggle-lg lg:toggle-xl" // Slightly larger checkbox size
+                className="toggle toggle-sm lg:toggle-md"
               />
-              <span className="text-sm lg:text-base">Online only</span> {/* Label size adjusted */}
+              <span className="text-sm lg:text-md">Online only</span>
             </label>
-            <span className="text-base lg:text-lg text-base-content/60"> {/* Adjusted font size for online count */}
+            <span className="text-md text-base-content/60">
               {onlineUsers.length - 1} online
             </span>
           </div>
-</div>
-
+        </div>
       </div>
 
       <div className="overflow-y-auto flex-1 p-1 lg:p-2">
