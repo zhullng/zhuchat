@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send, X } from "lucide-react";
-import MessageSkeleton from "../components/skeletons/MessageSkeleton";  // Supondo que o componente esteja em um arquivo separado
+import { Bot, Send } from "lucide-react";
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const { authUser } = useAuthStore();
 
@@ -19,7 +17,7 @@ const AIChat = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
     const newMessage = {
       content: input,
@@ -29,7 +27,6 @@ const AIChat = () => {
 
     setMessages((prev) => [...prev, newMessage]);
     setInput("");
-    setIsLoading(true);
 
     try {
       const response = await getAIResponse(input);
@@ -46,8 +43,6 @@ const AIChat = () => {
           timestamp: new Date(),
         },
       ]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -60,77 +55,64 @@ const AIChat = () => {
         </div>
         <div>
           <h2 className="font-semibold">Assistente Virtual</h2>
-          <p className="text-sm flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}
-            ></span>
-            {isLoading ? "Digitando..." : "Online"}
-          </p>
+          <p className="text-sm text-gray-500">Online</p>
         </div>
-        <button onClick={() => setSelectedUser(null)} className="ml-auto">
-          <X />
-        </button>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isLoading ? (
-          // Loading Skeleton
-          <MessageSkeleton />
-        ) : (
-          messages.map((message, index) => (
-            <div
-              key={index}
-              className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
-              ref={messagesEndRef}
-            >
-              {/* Avatar */}
-              <div className="chat-image avatar">
-                <div className="size-10 rounded-full border overflow-hidden">
-                  {message.isAI ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Bot className="text-blue-600" size={20} />
-                    </div>
-                  ) : (
-                    <img
-                      src={authUser?.profilePic || "/avatar.png"}
-                      alt="User Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Message Content */}
-              <div className="flex flex-col">
-                {/* Timestamp outside of message bubble */}
-                <div className="chat-header mb-1">
-                  <time className="text-xs opacity-50 ml-1">
-                    {message.timestamp.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </div>
-
-                {/* Message Bubble */}
-                <div className="chat-bubble flex flex-col">
-                  {/* Image Attachment */}
-                  {message.image && (
-                    <img
-                      src={message.image}
-                      alt="Attachment"
-                      className="sm:max-w-[200px] rounded-md mb-2"
-                    />
-                  )}
-
-                  {/* Message Text */}
-                  {message.content && <p>{message.content}</p>}
-                </div>
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
+            ref={messagesEndRef}
+          >
+            {/* Avatar */}
+            <div className="chat-image avatar">
+              <div className="size-10 rounded-full border overflow-hidden">
+                {message.isAI ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Bot className="text-blue-600" size={20} />
+                  </div>
+                ) : (
+                  <img
+                    src={authUser?.profilePic || "/avatar.png"}
+                    alt="User Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
             </div>
-          ))
-        )}
+
+            {/* Message Content */}
+            <div className="flex flex-col">
+              {/* Timestamp outside of message bubble */}
+              <div className="chat-header mb-1">
+                <time className="text-xs opacity-50 ml-1">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
+              </div>
+
+              {/* Message Bubble */}
+              <div className="chat-bubble flex flex-col">
+                {/* Image Attachment */}
+                {message.image && (
+                  <img
+                    src={message.image}
+                    alt="Attachment"
+                    className="sm:max-w-[200px] rounded-md mb-2"
+                  />
+                )}
+
+                {/* Message Text */}
+                {message.content && <p>{message.content}</p>}
+              </div>
+            </div>
+          </div>
+        ))}
 
         <div ref={messagesEndRef} />
       </div>
@@ -144,7 +126,6 @@ const AIChat = () => {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Digite sua mensagem..."
               className="w-full input input-bordered rounded-lg input-md"
-              disabled={isLoading}
             />
 
             <button
