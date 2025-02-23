@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 import AIChat from './pages/AIChat';
 import HomePage from "./pages/HomePage";
@@ -7,9 +6,10 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage"; 
 import ProfilePage from "./pages/ProfilePage"; 
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom"; // Adicionei useLocation
 import { useAuthStore } from "./store/useAuthStore"; 
 import { useThemeStore } from "./store/useThemeStore"; 
+import { useEffect } from "react"; 
 
 import { Loader } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; 
@@ -17,23 +17,13 @@ import { Toaster } from "react-hot-toast";
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
   const { theme } = useThemeStore();
+  const location = useLocation(); // Hook para acessar a localização atual
 
   console.log({ onlineUsers });
 
   useEffect(() => {
-    checkAuth();
+    checkAuth(); 
   }, [checkAuth]);
-
-  useEffect(() => {
-    function setHeight() {
-      document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
-    }
-    
-    setHeight();
-    window.addEventListener("resize", setHeight);
-    
-    return () => window.removeEventListener("resize", setHeight);
-  }, []);
 
   console.log({ authUser });
 
@@ -45,9 +35,13 @@ const App = () => {
     );
   }
 
+  // Verifica se a rota atual é login ou signup
+  const isLoginOrSignupPage = location.pathname === "/login" || location.pathname === "/signup";
+
   return (
-    <div data-theme={theme} style={{ height: "var(--app-height)" }}> 
-      <Navbar />
+    <div data-theme={theme}> 
+      {/* Renderiza a Navbar apenas se não for a página de login ou signup */}
+      {!isLoginOrSignupPage && <Navbar />}
 
       <Routes>
         <Route
@@ -73,7 +67,7 @@ const App = () => {
         />
       </Routes>
 
-      <Toaster />
+      <Toaster /> 
     </div>
   );
 };
