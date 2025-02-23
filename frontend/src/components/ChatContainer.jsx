@@ -69,8 +69,8 @@ const ChatContainer = () => {
             {/* Alteração do layout do cabeçalho para a posição do nome */}
             <div className={`chat-header mb-1 flex ${message.senderId === authUser._id ? "justify-end" : "justify-start"}`}>
               <div className="flex items-center">
+                {/* O nome ficará à direita para o usuário logado, à esquerda para o outro */}
                 <span className="font-semibold text-sm">
-                  {/* Usando fullName para exibir o nome do usuário */}
                   {message.senderId === authUser._id
                     ? authUser.fullName || 'Nome Desconhecido'
                     : selectedUser?.fullName || 'Nome Desconhecido'}
