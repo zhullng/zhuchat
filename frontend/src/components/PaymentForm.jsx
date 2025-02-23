@@ -3,7 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useState } from 'react';
 
 // Carregar a chave pública do Stripe
-const stripePromise = loadStripe('YOUR_PUBLIC_STRIPE_KEY');
+const stripePromise = loadStripe('pk_test_51QvlRaRvfvZ3znJngic0rL0b7HirA98kuLD76gYQwuzDpYXzFDRatUxtF2NpEftRlTpAvgnHL8s2apILeFBHZ50700Kwq0rsfu');
 
 const PaymentForm = ({ onTokenReceived }) => {
   const [tokenId, setTokenId] = useState('');
