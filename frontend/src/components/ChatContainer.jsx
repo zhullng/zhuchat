@@ -44,7 +44,7 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className={`flex-1 flex flex-col overflow-auto ${isSafari ? 'safari-padding' : ''}`}> {/* Add class if Safari */}
+    <div className={`flex-1 flex flex-col overflow-auto`}>
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -85,7 +85,7 @@ const ChatContainer = () => {
         ))}
       </div>
 
-      <div className="pt-2 pb-2">
+      <div className={`pt-2 ${isSafari ? 'safari-padding' : 'pb-2'}`}>
         <MessageInput />
       </div>
     </div>
