@@ -20,4 +20,5 @@ const chargeCustomer = async (req, res) => {
   }
 };
 
-export default { chargeCustomer };
+// Usando export default
+export default chargeCustomer;
