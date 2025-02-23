@@ -34,19 +34,28 @@ const ChatContainer = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    // Atualiza a última data exibida com base nas mensagens
+    if (messages.length > 0) {
+      const firstMessageDate = new Date(messages[0].createdAt);
+      setLastMessageDate(formatMessageDate(firstMessageDate));  // Inicializa a data da primeira mensagem
+    }
+  }, [messages]); // Este efeito será chamado sempre que a lista de mensagens mudar.
+
   const renderMessageDate = (messageDate) => {
-    const formattedDate = formatMessageDate(messageDate); // Includes day, month, and year
-    const isSameDay = lastMessageDate === formattedDate;
+    const formattedDate = formatMessageDate(messageDate); // Formata a data para "DD de Mês de YYYY"
+    const isSameDay = lastMessageDate === formattedDate;  // Compara se a data atual é a mesma da última exibida
     
+    // Se a data for diferente da última exibida, exibe a nova data
     if (!isSameDay) {
-      setLastMessageDate(formattedDate);  // Update the last shown date
+      setLastMessageDate(formattedDate);  // Atualiza a data exibida
       return (
         <div className="text-center text-xs text-gray-500 my-2">
-          <span>{formattedDate}</span>
+          <span>{formattedDate}</span> {/* Exibe a data no formato "DD de Mês de YYYY" */}
         </div>
       );
     }
-    return null;
+    return null;  // Não exibe a data se for o mesmo dia
   };
 
   if (isMessagesLoading) {
