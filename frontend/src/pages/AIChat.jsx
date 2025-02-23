@@ -4,7 +4,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import { Bot } from "lucide-react";
 import ChatHeader from "../components/ChatHeader"; // Importar ChatHeader
 import MessageInput from "../components/MessageInput"; // Usar MessageInput
-import MessageSkeleton from "./skeletons/MessageSkeleton"; // Incluir MessageSkeleton para carregamento
+import MessageSkeleton from "../components/skeletons/MessageSkeleton"; // Incluir MessageSkeleton para carregamento
 import { formatMessageTime } from "../lib/utils";
 
 const AIChat = () => {
@@ -86,9 +86,7 @@ const AIChat = () => {
             </div>
 
             {/* Message Content */}
-            <div
-              className={`flex flex-col max-w-[70%] ${message.isAI ? "items-start" : "items-end"}`}
-            >
+            <div className={`flex flex-col max-w-[70%] ${message.isAI ? "items-start" : "items-end"}`}>
               {/* Timestamp */}
               <div className="text-xs text-base-content mb-1 px-1">
                 {formatMessageTime(message.timestamp)}
@@ -108,7 +106,7 @@ const AIChat = () => {
           </div>
         ))}
 
-        {/* Typing Indicator */}
+        {/* Typing Indicator or Loading Skeleton */}
         {isLoading && (
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
@@ -124,6 +122,20 @@ const AIChat = () => {
                 <div className="w-2 h-2 bg-base-300 rounded-full animate-bounce delay-100"></div>
                 <div className="w-2 h-2 bg-base-300 rounded-full animate-bounce delay-200"></div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Use MessageSkeleton when AI is typing */}
+        {isLoading && (
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="size-10 rounded-full border overflow-hidden">
+                <MessageSkeleton />
+              </div>
+            </div>
+            <div className="bg-base-100 p-3 rounded-2xl border border-base-200 shadow-sm">
+              <MessageSkeleton />
             </div>
           </div>
         )}
