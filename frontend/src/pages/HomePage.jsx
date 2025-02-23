@@ -10,11 +10,18 @@ const HomePage = () => {
   const isAI = selectedUser?.isAI;
 
   useEffect(() => {
-    // Impede o scroll na página
+    // Impede qualquer rolagem
+    const preventScroll = (e) => e.preventDefault();
+    
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    window.addEventListener("touchmove", preventScroll, { passive: false });
 
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+      window.removeEventListener("touchmove", preventScroll);
     };
   }, []);
 
