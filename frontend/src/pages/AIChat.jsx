@@ -3,7 +3,7 @@ import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot, Send, X } from "lucide-react"; // Importe o ícone X para o botão de voltar
 
-const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
+const AIChat = ({ setSelectedUser }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -47,9 +47,9 @@ const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
   };
 
   return (
-    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col">
+    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] w-full flex flex-col">
       {/* Chat Header */}
-      <div className="border-b border-base-300 p-4 flex items-center gap-3">
+      <div className="border-b border-base-300 p-4 flex items-center gap-3 w-full">
         <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
           <Bot className="text-blue-600" size={24} />
         </div>
@@ -67,7 +67,7 @@ const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 w-full">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -116,8 +116,8 @@ const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
 
       {/* Message Input */}
       <div className="sticky bottom-0 w-full">
-        <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
-          <div className="flex-1 flex gap-2">
+        <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2 w-full">
+          <div className="flex-1 flex gap-2 w-full">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

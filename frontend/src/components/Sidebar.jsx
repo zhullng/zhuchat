@@ -28,7 +28,7 @@ const Sidebar = () => {
 
   const handleSearchChange = debounce((query) => {
     setSearchQuery(query);
-  }, 300);
+  }, 300); 
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -37,9 +37,8 @@ const Sidebar = () => {
     return matchesSearch && isOnline;
   });
 
-
   return (
-    <aside className={`h-full w-full lg:w-[30%] border-r border-base-300 flex flex-col transition-all duration-200
+    <aside className={`h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] w-full lg:w-[30%] border-r border-base-300 flex flex-col transition-all duration-200
       ${isMobile && selectedUser ? 'hidden' : 'block'}`}>
       
       <div className="border-b border-base-300 w-full p-3 lg:p-4">
@@ -70,7 +69,7 @@ const Sidebar = () => {
               {onlineUsers.length - 1} online
             </span>
           </div>
-</div>
+        </div>
 
       </div>
 
