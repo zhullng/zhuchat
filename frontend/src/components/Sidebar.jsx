@@ -86,7 +86,7 @@ const Sidebar = () => {
           `}
         >
           <div className="relative">
-            <div className="size-10 lg:size-12 rounded-full borderflex items-center justify-center">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-full border border-base-300">
               <Bot className="size-6" />
             </div>
             <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
@@ -101,6 +101,7 @@ const Sidebar = () => {
             </div>
           </div>
         </button>
+
 
         {/* Separator */}
         <div className="h-px bg-base-200 my-2" />

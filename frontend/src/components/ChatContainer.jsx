@@ -106,7 +106,7 @@ const ChatContainer = () => {
             className={`flex items-start gap-3 ${message.isAI ? "flex-row" : "flex-row-reverse"}`}
           >
             <div className="flex-shrink-0">
-              <div className="size-10 rounded-full border overflow-hidden">
+              <div className="size-10 rounded-full overflow-hidden border-none">
                 {message.isAI ? (
                   <div className="w-full h-full bg-primary/10 flex items-center justify-center">
                     <Bot className="text-primary" size={20} />
@@ -145,7 +145,7 @@ const ChatContainer = () => {
         {isLoading && (
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
-              <div className="size-10 rounded-full border overflow-hidden">
+              <div className="size-10 rounded-full overflow-hidden border-none">
                 <div className="w-full h-full bg-primary/10 flex items-center justify-center">
                   <Bot className="text-primary" size={20} />
                 </div>

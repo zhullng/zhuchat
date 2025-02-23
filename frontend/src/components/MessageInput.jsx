@@ -105,7 +105,7 @@ const MessageInput = () => {
         <button
           type="submit"
           className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !imagePreview || isAI}  // Desabilitar se for AI
+          disabled={!text.trim() && !imagePreview}
         >
           <Send size={22} />
         </button>
