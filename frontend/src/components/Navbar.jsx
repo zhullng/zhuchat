@@ -7,7 +7,7 @@ const Navbar = () => {
   const { logout, authUser } = useAuthStore();
 
   return (
-    <header className="border-r fixed top-0 left-0 z-40 w-20 h-full bg-base-200">
+    <header className="border-r fixed top-0 left-0 z-40 w-16 sm:w-20 md:w-20 h-full bg-base-200">
       <div className="flex flex-col items-center justify-between p-4 h-full">
         {/* Top section */}
         <div className="flex flex-col items-center gap-6">

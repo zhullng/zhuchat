@@ -10,7 +10,7 @@ const HomePage = () => {
 
   return (
     <div className="h-screen bg-base-200">
-      <div className="flex h-full pl-20"> {/* Added pl-20 to account for navbar width */}
+      <div className="flex h-full pl-16 sm:pl-20">  {/* Added pl-20 to account for navbar width */}
         <div className="flex w-full">
           <Sidebar />
           
