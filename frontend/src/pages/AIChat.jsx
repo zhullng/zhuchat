@@ -61,10 +61,7 @@ const AIChat = () => {
         <div>
           <h2 className="font-semibold">Assistente Virtual</h2>
           <p className="text-sm flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}
-            ></span>
-            {isLoading ? "Digitando..." : "Online"}
+            Online
           </p>
         </div>
       </div>
