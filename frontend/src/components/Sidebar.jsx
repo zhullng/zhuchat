@@ -47,7 +47,7 @@ const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
   };
 
   return (
-    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex-1 flex flex-col overflow-auto">
+    <div className="flex-1 flex flex-col overflow-auto">
       {/* Chat Header */}
       <div className="border-b border-base-300 p-4 flex items-center gap-3">
         <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
