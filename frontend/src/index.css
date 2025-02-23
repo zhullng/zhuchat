@@ -14,14 +14,3 @@ header {
 body {
   overflow: hidden;
 }
-/* Ajusta a altura mínima para 100vh com as áreas seguras (para navegadores principais) */
-.min-safe-h-screen {
-  min-height: calc(100vh - env(safe-area-inset-bottom, 0) - env(safe-area-inset-top, 0));
-}
-
-/* Para Safari no iOS, aplica a altura disponível (fixa a altura corretamente) */
-@supports (-webkit-touch-callout: none) {
-  .min-safe-h-screen {
-    min-height: -webkit-fill-available;
-  }
-}

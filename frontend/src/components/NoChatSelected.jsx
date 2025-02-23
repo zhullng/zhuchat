@@ -4,11 +4,9 @@ const NoChatSelected = () => {
       <div className="max-w-md text-center space-y-6">
         <div className="flex justify-center gap-4 mb-4">
           <div className="relative">
-          <div
-                className="w-16 h-16 rounded-xl flex items-center justify-center animate-bounce"
-              >
-                <img src="/logoZhuChat.png" alt="Logo" className="w-12 h-12" />
-              </div>
+          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center animate-bounce">
+              <img src="/logoZhuChat.png" alt="Logo" className="w-12 h-12 rounded-full" />
+            </div>
           </div>
         </div>
         <h2 className="text-2xl font-bold">Welcome to ZhuChat!</h2>
