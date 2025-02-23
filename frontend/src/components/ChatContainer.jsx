@@ -68,10 +68,10 @@ const ChatContainer = () => {
             <div className="chat-header mb-1">
               <div className="flex items-center">
                 <span className="font-semibold text-sm">
-                  {/* Exibe o nome baseado no senderId */}
+                  {/* Usando fullName para exibir o nome do usuário */}
                   {message.senderId === authUser._id
-                    ? authUser.name
-                    : selectedUser?.name || 'Nome Desconhecido'}
+                    ? authUser.fullName || 'Nome Desconhecido'
+                    : selectedUser?.fullName || 'Nome Desconhecido'}
                 </span>
                 <time className="text-xs opacity-50 ml-2">
                   {formatMessageTime(message.createdAt)}
