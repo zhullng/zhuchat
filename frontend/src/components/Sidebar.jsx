@@ -1,141 +1,150 @@
-import { useState, useEffect, useRef } from "react";
-import { getAIResponse } from "../../../backend/src/lib/ai";
+import { useEffect, useState } from "react";
+import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send, X } from "lucide-react"; // Importe o ícone X para o botão de voltar
+import { Users, Bot } from "lucide-react";
+import { debounce } from "lodash";
 
-const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const messagesEndRef = useRef(null);
-  const { authUser } = useAuthStore();
+const Sidebar = () => {
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
+  const { onlineUsers } = useAuthStore();
+  const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    const newMessage = {
-      content: input,
-      isAI: false,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInput("");
-
-    try {
-      const response = await getAIResponse(input);
-      setMessages((prev) => [
-        ...prev,
-        { content: response, isAI: true, timestamp: new Date() },
-      ]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "Desculpe, ocorreu um erro. Tente novamente.",
-          isAI: true,
-          timestamp: new Date(),
-        },
-      ]);
-    }
+  // AI Assistant object
+  const aiAssistant = {
+    _id: 'ai-assistant',
+    fullName: 'AI Assistant',
+    isAI: true,
   };
 
+  useEffect(() => {
+    getUsers();
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [getUsers]);
+
+  const handleSearchChange = debounce((query) => {
+    setSearchQuery(query);
+  }, 300);
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         user.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
+    return matchesSearch && isOnline;
+  });
+
+
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
-      {/* Chat Header */}
-      <div className="border-b border-base-300 p-4 flex items-center gap-3">
-        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
-          <Bot className="text-blue-600" size={24} />
+    <aside className={`h-full w-full lg:w-[30%] border-r border-base-300 flex flex-col transition-all duration-200
+      ${isMobile && selectedUser ? 'hidden' : 'block'}`}>
+      
+      <div className="border-b border-base-300 w-full p-3 lg:p-4">
+        <div className="flex items-center gap-2">
+          <Users className="size-6" />
+          <span className="font-medium">Contacts</span>
         </div>
-        <div>
-          <h2 className="font-semibold">Assistente Virtual</h2>
-          <p className="text-sm flex items-center gap-2">Online</p>
-        </div>
-        {/* Botão de voltar */}
-        <button
-          onClick={() => setSelectedUser(null)} // Chama a função para desmarcar o usuário selecionado
-          className="ml-auto"
-        >
-          <X size={24} />
-        </button>
+
+        <div className="mt-2 lg:mt-3 space-y-2">
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="input input-bordered input-sm w-full"
+          />
+
+          <div className="flex items-center justify-between">
+            <label className="cursor-pointer flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={showOnlineOnly}
+                onChange={(e) => setShowOnlineOnly(e.target.checked)}
+                className="toggle toggle-sm lg:toggle-md" // Slightly larger checkbox size
+              />
+              <span className="text-sm lg:text-base">Online only</span> {/* Label size adjusted */}
+            </label>
+            <span className="text-xs lg:text-md text-base-content/60"> {/* Adjusted font size for online count */}
+              {onlineUsers.length - 1} online
+            </span>
+          </div>
+</div>
+
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
-            ref={messagesEndRef}
-          >
-            {/* Avatar */}
-            <div className="chat-image avatar">
-              <div className="size-10 rounded-full border overflow-hidden">
-                {message.isAI ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Bot className="text-blue-600" size={20} />
-                  </div>
-                ) : (
-                  <img
-                    src={authUser?.profilePic || "/avatar.png"}
-                    alt="User Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
+      <div className="overflow-y-auto flex-1 p-1 lg:p-2">
+        {/* AI Assistant */}
+        <button
+          onClick={() => setSelectedUser(aiAssistant)}
+          className={`
+            w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
+            transition-colors hover:bg-base-200 mb-2
+            ${selectedUser?.isAI ? "bg-base-300 ring-1 ring-base-300" : "hover:bg-base-200"}
+          `}
+        >
+          <div className="relative">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-full border border-base-300">
+              <Bot className="size-6" />
             </div>
+            <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
+          </div>
 
-            {/* Message Content */}
-            <div className="flex flex-col">
-              {/* Timestamp above the message */}
-              <div className="chat-header mb-1">
-                <time className="text-xs opacity-50 ml-1">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </time>
-              </div>
-
-              {/* Message Text */}
-              <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md break-words">
-                {message.content}
-              </div>
+          <div className="flex-1 text-left">
+            <div className="font-medium truncate text-sm lg:text-base">
+              AI Assistant
+            </div>
+            <div className="text-xs text-green-500">
+              Always Online
             </div>
           </div>
+        </button>
+
+        {/* Separator */}
+        <div className="h-px bg-base-200 my-2" />
+
+        {/* User List */}
+        {filteredUsers.map((user) => (
+          <button
+            key={user._id}
+            onClick={() => setSelectedUser(user)}
+            className={`
+              w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
+              transition-colors hover:bg-base-200
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""} 
+            `}
+          >
+            <div className="relative">
+              <img
+                src={user.profilePic || "/avatar.png"}
+                alt={user.name}
+                className="size-10 lg:size-12 object-cover rounded-full border"
+              />
+              {onlineUsers.includes(user._id) && (
+                <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
+              )}
+            </div>
+
+            <div className="flex-1 text-left">
+              <div className="font-medium truncate text-sm lg:text-base">
+                {user.fullName}
+              </div>
+              <div className={`text-xs ${onlineUsers.includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
+                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+              </div>
+            </div>
+          </button>
         ))}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Message Input */}
-      <div className="sticky bottom-0 w-full">
-        <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
-          <div className="flex-1 flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua mensagem..."
-              className="w-full input input-bordered rounded-lg input-md"
-            />
-            <button
-              type="submit"
-              className="btn btn-sm btn-circle mt-2"
-              disabled={!input.trim()}
-            >
-              <Send size={22} />
-            </button>
+        {filteredUsers.length === 0 && (
+          <div className="text-center text-base-content/60 p-4">
+            {showOnlineOnly ? "No online users" : "No contacts found"}
           </div>
-        </form>
+        )}
       </div>
-    </div>
+    </aside>
   );
 };
 
-export default AIChat;
+export default Sidebar;
