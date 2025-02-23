@@ -67,18 +67,28 @@ const ChatContainer = () => {
             </div>
 
             {/* Alteração do layout do cabeçalho para a posição do nome */}
-            <div className={`chat-header mb-1 flex ${message.senderId === authUser._id ? "justify-end" : "justify-start"}`}>
-              <div className="flex items-center">
-                {/* O nome ficará à direita para o usuário logado, à esquerda para o outro */}
-                <span className="font-semibold text-sm">
-                  {message.senderId === authUser._id
-                    ? authUser.fullName || 'Nome Desconhecido'
-                    : selectedUser?.fullName || 'Nome Desconhecido'}
-                </span>
-                <time className="text-xs opacity-50 ml-2">
-                  {formatMessageTime(message.createdAt)}
-                </time>
-              </div>
+            <div className={`chat-header mb-1 flex items-center ${message.senderId === authUser._id ? "justify-end" : "justify-start"}`}>
+              {/* Para o usuário logado (authUser), o nome estará à direita e o horário à esquerda */}
+              {message.senderId === authUser._id ? (
+                <>
+                  <span className="font-semibold text-sm ml-2">
+                    {authUser.fullName || 'Nome Desconhecido'}
+                  </span>
+                  <time className="text-xs opacity-50 mr-2">
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </>
+              ) : (
+                // Para o outro usuário (selectedUser), o nome estará à esquerda e o horário à direita
+                <>
+                  <span className="font-semibold text-sm mr-2">
+                    {selectedUser?.fullName || 'Nome Desconhecido'}
+                  </span>
+                  <time className="text-xs opacity-50 ml-2">
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </>
+              )}
             </div>
 
             <div className="chat-bubble flex flex-col">
