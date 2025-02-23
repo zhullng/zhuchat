@@ -44,10 +44,10 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto pb-5">
+    <div className="flex-1 flex flex-col overflow-auto pb-5 h-full">
       <ChatHeader />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 h-full">
         {messages.map((message) => (
           <div
             key={message._id}
