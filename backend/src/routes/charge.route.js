@@ -1,7 +1,9 @@
-const express = require('express');
-const { chargeCustomer } = require('../controllers/charge.controller');
+import express from 'express';
+import { chargeCustomer } from '../controllers/charge.controller.js';
+
 const router = express.Router();
 
+// Rota para realizar o pagamento
 router.post('/charge', chargeCustomer);
 
-module.exports = router;
+export default router;
