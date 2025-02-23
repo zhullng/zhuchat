@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send, X } from "lucide-react"; // Importe o ícone X para o botão de voltar
+import { Bot, Send, X } from "lucide-react";
 
-const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
+const AIChat = ({ setSelectedUser }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -58,10 +58,7 @@ const AIChat = ({ setSelectedUser }) => { // Recebe setSelectedUser como prop
           <p className="text-sm flex items-center gap-2">Online</p>
         </div>
         {/* Botão de voltar */}
-        <button
-          onClick={() => setSelectedUser(null)} // Chama a função para desmarcar o usuário selecionado
-          className="ml-auto"
-        >
+        <button onClick={() => setSelectedUser(null)} className="ml-auto">
           <X size={24} />
         </button>
       </div>
