@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users, Bot } from "lucide-react";
 import { debounce } from "lodash";
 
@@ -38,7 +37,6 @@ const Sidebar = () => {
     return matchesSearch && isOnline;
   });
 
-  if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
     <aside className={`h-full w-full lg:w-[30%] border-r border-base-300 flex flex-col transition-all duration-200
