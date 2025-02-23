@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send } from "lucide-react";
+import { Bot, Send, X } from "lucide-react";
 import MessageSkeleton from "../components/skeletons/MessageSkeleton";  // Supondo que o componente esteja em um arquivo separado
 
 const AIChat = () => {
@@ -67,6 +67,9 @@ const AIChat = () => {
             {isLoading ? "Digitando..." : "Online"}
           </p>
         </div>
+        <button onClick={() => setSelectedUser(null)} className="ml-auto">
+          <X />
+        </button>
       </div>
 
       {/* Messages Area */}
