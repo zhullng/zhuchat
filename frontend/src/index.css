@@ -2,16 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Garante a altura correta, especialmente para o Safari */
+/* Ajusta a altura para 90dvh e largura total */
 @supports (-webkit-touch-callout: none) {
-  .h-dvh {
-    height: 100dvh; /* Para corrigir a altura da viewport no Safari */
+  .h-[90dvh] {
+    height: 90dvh;
   }
 }
 
-/* Alternativa, se o Tailwind não tiver h-dvh */
+/* Fallback para navegadores antigos */
 @supports not (-webkit-touch-callout: none) {
-  .h-dvh {
-    height: 100vh;
+  .h-[90dvh] {
+    height: 90vh; /* Caso o dvh não seja suportado */
   }
 }

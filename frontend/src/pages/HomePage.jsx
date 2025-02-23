@@ -26,9 +26,9 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div className="h-dvh bg-base-200"> {/* Usando h-dvh para corrigir a altura */}
+    <div className="h-[90dvh] w-full bg-base-200"> {/* 90dvh de altura e full width */}
       <div className="flex items-center justify-center pt-20 px-4">
-        <div className="bg-base-100 rounded-lg shadow-cl w-full max-w-6xl h-[calc(100vh-8rem)]">
+        <div className="bg-base-100 rounded-lg shadow-cl w-full max-w-6xl h-full">
           <div className="flex h-full rounded-lg overflow-hidden">
             <Sidebar />
             {isAI ? <AIChat /> : !selectedUser ? <NoChatSelected /> : <ChatContainer />}
