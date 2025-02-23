@@ -8,6 +8,7 @@ import { connectDB } from "./lib/db.js"; // Função para conectar ao banco de d
 import aiRoutes from './routes/ai.route.js';
 import authRoutes from "./routes/auth.route.js"; 
 import messageRoutes from "./routes/message.route.js";
+import transferRoutes from "./routes/transfer.route.js"; // ✅ Nova rota para transferências
 import { app, server } from "./lib/socket.js"; // Inicializa app e server de socket
 
 dotenv.config(); // Carrega variáveis de ambiente
@@ -22,12 +23,12 @@ app.use(
     origin: "*", // Permite requisições de qualquer origem (apenas para testes)
     credentials: true,
   })
-);
-
+);  
 
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes); 
+app.use("/api/transfer", transferRoutes); // ✅ Nova rota para transferências
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
