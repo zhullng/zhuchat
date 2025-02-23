@@ -60,7 +60,9 @@ const AIChat = () => {
         <div>
           <h2 className="font-semibold">Assistente Virtual</h2>
           <p className="text-sm text-gray-500 flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
+            <span
+              className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}
+            ></span>
             {isLoading ? "Digitando..." : "Online"}
           </p>
         </div>
@@ -71,11 +73,12 @@ const AIChat = () => {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex items-start gap-3 ${message.isAI ? "flex-row" : "flex-row-reverse"}`}
+            className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
+            ref={messagesEndRef}
           >
             {/* Avatar */}
-            <div className="flex-shrink-0">
-              <div className="size-10 rounded-full border overflow-hidden">
+            <div className="chat-image avatar">
+              <div className="size-10 rounded-full border">
                 {message.isAI ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <Bot className="text-blue-600" size={20} />
@@ -83,7 +86,7 @@ const AIChat = () => {
                 ) : (
                   <img
                     src={authUser?.profilePic || "/avatar.png"}
-                    alt="User Avatar"gap-3
+                    alt="User Avatar"
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -91,29 +94,28 @@ const AIChat = () => {
             </div>
 
             {/* Message Content */}
-            <div
-              className={`flex flex-col max-w-[70%] ${
-                message.isAI ? "items-start" : "items-end"
-              }`}
-            >
+            <div className="chat-bubble flex flex-col">
               {/* Timestamp */}
-              <div className="text-xs mb-1 px-1">
-                {message.timestamp.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+              <div className="chat-header mb-1">
+                <time className="text-xs opacity-50 ml-1">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
               </div>
 
-              {/* Message Bubble */}
-              <div
-                className={`rounded-2xl p-3 ${
-                  message.isAI
-                    ? "border border-gray-200 shadow-sm"
-                    : ""
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              </div>
+              {/* Image Attachment */}
+              {message.image && (
+                <img
+                  src={message.image}
+                  alt="Attachment"
+                  className="sm:max-w-[200px] rounded-md mb-2"
+                />
+              )}
+
+              {/* Message Text */}
+              {message.content && <p>{message.content}</p>}
             </div>
           </div>
         ))}
@@ -130,7 +132,7 @@ const AIChat = () => {
             </div>
             <div className="p-3 rounded-2xl border border-gray-200 shadow-sm">
               <div className="flex gap-1">
-                <div className="w-2 h-2rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 rounded-full animate-bounce delay-100"></div>
                 <div className="w-2 h-2 rounded-full animate-bounce delay-200"></div>
               </div>
@@ -141,28 +143,28 @@ const AIChat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-    {/* Message Input */}
-    <div className="sticky bottom-0 w-full border-t">
-      <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
-      <div className="flex-1 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Digite sua mensagem..."
-          className="w-full input input-bordered rounded-lg input-md"
-          disabled={isLoading}
-        />
+      {/* Message Input */}
+      <div className="sticky bottom-0 w-full border-t">
+        <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
+          <div className="flex-1 flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Digite sua mensagem..."
+              className="w-full input input-bordered rounded-lg input-md"
+              disabled={isLoading}
+            />
 
-        <button
-          type="submit"
-          className="btn btn-sm btn-circle mt-2"
-          disabled={!input.trim()} // Corrigido para verificar o estado correto
-        >
-          <Send size={22} />
-        </button>
-        </div>
-      </form>
-    </div>
+            <button
+              type="submit"
+              className="btn btn-sm btn-circle mt-2"
+              disabled={!input.trim()} // Corrigido para verificar o estado correto
+            >
+              <Send size={22} />
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
