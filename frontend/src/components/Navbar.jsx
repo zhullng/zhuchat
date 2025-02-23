@@ -1,54 +1,56 @@
+import React from 'react';
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, Settings, User, Menu } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Settings, User, MessageCircle, Repeat, Smartphone } from "lucide-react";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header
-      className="border-l fixed top-0 right-0 z-40 w-16 h-full flex flex-col items-center"
-    >
-      <div className="flex flex-col items-center justify-between p-4 w-full h-full">
-        <Link to="/" className="flex flex-col items-center gap-2.5 hover:opacity-80 transition-all">
-          <div className="size-10 rounded-lg flex items-center justify-center overflow-hidden">
-            <img src="/logoZhuChat.svg" alt="ZhuChat Logo" className="w-12 h-12" />
-          </div>
-          <h1 className="text-xs font-bold text-center">ZhuChat</h1>
-        </Link>
+    <header className="border-l fixed top-0 right-0 z-40 w-16 h-full bg-[#18191B]">
+      <div className="flex flex-col items-center justify-between p-4 h-full">
+        {/* Top section */}
+        <div className="flex flex-col items-center gap-6">
+          <Link to="/" className="flex items-center justify-center hover:opacity-80 transition-all">
+            <div className="size-10 rounded-full bg-white flex items-center justify-center overflow-hidden">
+              <img src="/logoZhuChat.svg" alt="Logo" className="w-6 h-6" />
+            </div>
+          </Link>
 
-        <div className="relative mt-6">
-          <button
-            className="btn btn-sm gap-2"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            <Menu className="size-5" />
+          <div className="flex flex-col gap-4">
+            <button className="size-10 rounded-full bg-[#2D2E35] flex items-center justify-center text-white hover:bg-[#3D3E45] transition-all">
+              <MessageCircle className="size-5" />
+            </button>
+            
+            <button className="size-10 rounded-full bg-[#2D2E35] flex items-center justify-center text-white hover:bg-[#3D3E35] transition-all">
+              <Repeat className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom section */}
+        <div className="flex flex-col gap-4">
+          <button className="size-10 rounded-full bg-[#2D2E35] flex items-center justify-center text-white hover:bg-[#3D3E45] transition-all">
+            <Smartphone className="size-5" />
           </button>
 
-          {menuOpen && (
-            <div className="absolute top-10 right-0 mt-2 w-48 shadow-lg rounded-lg p-2">
-              <Link to="/settings" className="flex items-center gap-2 p-2 hover:bg-gray-200 rounded">
-                <Settings className="w-4 h-4" />
-                <span>Settings</span>
+          {authUser && (
+            <>
+              <Link to="/settings" className="size-10 rounded-full bg-[#2D2E35] flex items-center justify-center text-white hover:bg-[#3D3E45] transition-all">
+                <Settings className="size-5" />
               </Link>
-              {authUser && (
-                <>
-                  <Link to="/profile" className="flex items-center gap-2 p-2 hover:bg-gray-200 rounded">
-                    <User className="size-5" />
-                    <span>Profile</span>
-                  </Link>
-                  <button
-                    className="flex items-center gap-2 p-2 w-full text-left hover:bg-gray-200 rounded"
-                    onClick={logout}
-                  >
-                    <LogOut className="size-5" />
-                    <span>Logout</span>
-                  </button>
-                </>
-              )}
-            </div>
+              
+              <Link to="/profile" className="size-10 rounded-full bg-[#2D2E35] flex items-center justify-center text-white hover:bg-[#3D3E45] transition-all">
+                <User className="size-5" />
+              </Link>
+
+              <button 
+                onClick={logout}
+                className="size-10 rounded-full bg-[#2D2E35] flex items-center justify-center text-white hover:bg-[#3D3E45] transition-all"
+              >
+                <LogOut className="size-5" />
+              </button>
+            </>
           )}
         </div>
       </div>
