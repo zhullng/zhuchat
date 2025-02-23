@@ -48,6 +48,7 @@ const App = () => {
         <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
+        <Route path="/payment" element={authUser ? <PaymentPage /> : <Navigate to="/login" />} />
         <Route path="/chat" element={authUser ? <AIChat /> : <Navigate to="/login" />} />
       </Routes>
 

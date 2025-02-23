@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, Settings, MessageCircle } from "lucide-react";
+import { LogOut, Settings, MessageCircle, CreditCard } from "lucide-react"; // Importando o ícone de cartão de crédito
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
@@ -22,10 +22,17 @@ const Navbar = () => {
         <div className="flex flex-col gap-4">
           {authUser && (
             <>
+              {/* Novo botão de pagamento */}
+              <Link to="/payment" className="btn btn-circle btn-ghost btn-lg">
+                <CreditCard className="size-6" /> {/* Ícone de pagamento */}
+              </Link>
+
+              {/* Botão de configurações */}
               <Link to="/settings" className="btn btn-circle btn-ghost btn-lg">
                 <Settings className="size-6" />
               </Link>
-              
+
+              {/* Perfil do usuário */}
               <Link to="/profile" className="btn btn-circle btn-ghost btn-lg">
                 <img
                   src={authUser.profilePic || "/avatar.png"}
@@ -34,6 +41,7 @@ const Navbar = () => {
                 />
               </Link>
 
+              {/* Botão de logout */}
               <button 
                 onClick={logout}
                 className="btn btn-circle btn-ghost btn-lg"
