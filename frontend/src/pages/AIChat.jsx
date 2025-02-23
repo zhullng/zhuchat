@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot } from "lucide-react";
+import { Bot, Send } from "lucide-react";
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
@@ -51,10 +51,10 @@ const AIChat = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex-1 flex flex-col">
       {/* Chat Header */}
-      <div className="border-b p-4 flex items-center gap-3 bg-white">
-        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center bg-blue-100">
+      <div className="border-b p-4 flex items-center gap-">
+        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
           <Bot className="text-blue-600" size={24} />
         </div>
         <div>
@@ -77,7 +77,7 @@ const AIChat = () => {
             <div className="flex-shrink-0">
               <div className="size-10 rounded-full border overflow-hidden">
                 {message.isAI ? (
-                  <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                  <div className="w-full h-full flex items-center justify-center">
                     <Bot className="text-blue-600" size={20} />
                   </div>
                 ) : (
@@ -123,16 +123,16 @@ const AIChat = () => {
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               <div className="size-10 rounded-full border overflow-hidden">
-                <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-center">
                   <Bot className="text-blue-600" size={20} />
                 </div>
               </div>
             </div>
-            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-3 rounded-2xl border border-gray-200 shadow-sm">
               <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                <div className="w-2 h-2rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 rounded-full animate-bounce delay-100"></div>
+                <div className="w-2 h-2 rounded-full animate-bounce delay-200"></div>
               </div>
             </div>
           </div>
@@ -141,18 +141,28 @@ const AIChat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
-      <div className="sticky bottom-0 w-full bg-white border-t">
-        <form onSubmit={handleSubmit} className="p-4">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Digite sua mensagem..."
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-            disabled={isLoading}
-          />
-        </form>
-      </div>
+    {/* Message Input */}
+    <div className="sticky bottom-0 w-full border-t">
+      <form onSubmit={handleSubmit} className="p-4 flex items-center gap-2">
+      <div className="flex-1 flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Digite sua mensagem..."
+          className="w-full input input-bordered rounded-lg input-md"
+          disabled={isLoading}
+        />
+
+        <button
+          type="submit"
+          className="btn btn-sm btn-circle"
+          disabled={!input.trim()} // Corrigido para verificar o estado correto
+        >
+          <Send size={22} />
+        </button>
+        </div>
+      </form>
+    </div>
     </div>
   );
 };
