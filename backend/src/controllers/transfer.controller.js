@@ -1,5 +1,5 @@
-import User from "../models/User.js";
-import Transfer from "../models/Transfer.js";
+import User from "../models/user.model.js";
+import Transfer from "../models/transfer.model.js";
 
 // Função para realizar a transferência
 export const makeTransfer = async (req, res) => {
