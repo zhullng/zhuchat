@@ -13,33 +13,26 @@ header {
   z-index: 1000;
 }
 
-/* Desabilitar a rolagem do corpo, mas em partes específicas da página */
+/* Desabilitar rolagem no body */
 body {
-  /* Aqui removi overflow: hidden, pois ele pode impedir rolagem em toda a página */
+  overflow: hidden; /* Impede a rolagem global */
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh; /* Definindo altura 100vh por padrão */
 }
 
-/* Configurações de altura da aplicação */
+/* Variável para definir a altura da janela */
 :root {
   --app-height: 100%;
 }
 
 html, body {
-  height: var(--app-height); /* Usando a variável para altura */
-  width: 100vw; /* Certificando-se de que a largura seja 100% */
+  height: var(--app-height); /* Aplica a altura definida pela variável */
+  width: 100vw;
   padding: 0;
   margin: 0;
-  overflow: hidden; /* Impede rolagem global */
 }
 
-/* Classe para conteúdo que precisa de rolagem */
-.content {
-  overflow-y: auto; /* Permite rolagem vertical */
-  flex-grow: 1; /* Faz com que o conteúdo ocupe o espaço restante */
-  height: calc(var(--app-height) - 60px); /* Ajusta a altura do conteúdo subtraindo a altura do cabeçalho (ajuste conforme necessário) */
+/* Conteúdo rolável (fora do cabeçalho fixo) */
+.main-content {
+  height: calc(var(--app-height) - 60px); /* Ajuste a altura subtraindo a altura do cabeçalho */
 }
-
-/* Você pode querer adicionar mais estilos personalizados para garantir que o conteúdo seja visualizado corretamente */
