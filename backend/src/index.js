@@ -2,7 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import cors from "cors"; 
-import rateLimit from 'express-rate-limit';
 import path from "path"; 
 import { connectDB } from "./lib/db.js"; // Função para conectar ao banco de dados
 
@@ -25,15 +24,10 @@ app.use(
   })
 );
 
-const aiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Limite de 100 requisições por IP
-  message: 'Too many requests from this IP, please try again after 15 minutes'
-});
 
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiRoutes, aiLimiter); // Limita as requisições de IA
+app.use("/api/ai", aiRoutes); 
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
