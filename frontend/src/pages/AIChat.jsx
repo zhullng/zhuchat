@@ -122,7 +122,7 @@ const AIChat = ({ setSelectedUser }) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Digite sua mensagem..."
-              className="w-full input input-bordered rounded-ful input-md"
+              className="w-full input input-bordered rounded-full input-md"
             />
             <button
               type="submit"
