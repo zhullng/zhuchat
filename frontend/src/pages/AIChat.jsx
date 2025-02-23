@@ -53,7 +53,7 @@ const AIChat = () => {
   return (
     <div className="flex-1 flex flex-col overflow-auto">
       {/* Chat Header */}
-      <div className="border-b p-4 flex items-center gap-1">
+      <div className="border-b p-4 flex items-center gap-3">
         <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
           <Bot className="text-blue-600" size={24} />
         </div>
