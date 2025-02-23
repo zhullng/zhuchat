@@ -2,16 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ajusta a altura para 90dvh e largura total */
+/* Ajusta a altura para 90dvh e largura total no Safari e outros navegadores */
 @supports (-webkit-touch-callout: none) {
-  .h-[90dvh] {
-    height: 90dvh;
+  .h-90dvh {
+    height: 90dvh; /* Se dvh for suportado */
   }
 }
 
 /* Fallback para navegadores antigos */
 @supports not (-webkit-touch-callout: none) {
-  .h-[90dvh] {
+  .h-90dvh {
     height: 90vh; /* Caso o dvh não seja suportado */
   }
 }
