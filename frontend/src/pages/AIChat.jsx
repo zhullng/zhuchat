@@ -2,10 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
 import { Bot } from "lucide-react";
-import ChatHeader from "../components/ChatHeader"; // Importar ChatHeader
-import MessageInput from "../components/MessageInput"; // Usar MessageInput
-import MessageSkeleton from "../components/skeletons/MessageSkeleton"; // Incluir MessageSkeleton para carregamento
-import { formatMessageTime } from "../lib/utils";
 
 const AIChat = () => {
   const [messages, setMessages] = useState([]);
@@ -57,8 +53,17 @@ const AIChat = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Chat Header */}
-      <div className="flex items-center justify-between md:flex-row md:items-center bg-base-100">
-        <ChatHeader />
+      <div className="border-b p-4 flex items-center gap-3 bg-white">
+        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center bg-blue-100">
+          <Bot className="text-blue-600" size={24} />
+        </div>
+        <div>
+          <h2 className="font-semibold text-gray-800">Assistente Virtual</h2>
+          <p className="text-sm text-gray-500 flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
+            {isLoading ? "Digitando..." : "Online"}
+          </p>
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -72,8 +77,8 @@ const AIChat = () => {
             <div className="flex-shrink-0">
               <div className="size-10 rounded-full border overflow-hidden">
                 {message.isAI ? (
-                  <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="text-primary" size={20} />
+                  <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                    <Bot className="text-blue-600" size={20} />
                   </div>
                 ) : (
                   <img
@@ -86,18 +91,25 @@ const AIChat = () => {
             </div>
 
             {/* Message Content */}
-            <div className={`flex flex-col max-w-[70%] ${message.isAI ? "items-start" : "items-end"}`}>
+            <div
+              className={`flex flex-col max-w-[70%] ${
+                message.isAI ? "items-start" : "items-end"
+              }`}
+            >
               {/* Timestamp */}
-              <div className="text-xs text-base-content mb-1 px-1">
-                {formatMessageTime(message.timestamp)}
+              <div className="text-xs text-gray-500 mb-1 px-1">
+                {message.timestamp.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
 
               {/* Message Bubble */}
               <div
                 className={`rounded-2xl p-3 ${
                   message.isAI
-                    ? "bg-base-100 border border-base-200 shadow-sm"
-                    : "bg-primary text-base-100"
+                    ? "bg-white border border-gray-200 shadow-sm"
+                    : "bg-blue-600 text-white"
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -106,36 +118,22 @@ const AIChat = () => {
           </div>
         ))}
 
-        {/* Typing Indicator or Loading Skeleton */}
+        {/* Typing Indicator */}
         {isLoading && (
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               <div className="size-10 rounded-full border overflow-hidden">
-                <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                  <Bot className="text-primary" size={20} />
+                <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                  <Bot className="text-blue-600" size={20} />
                 </div>
               </div>
             </div>
-            <div className="bg-base-100 p-3 rounded-2xl border border-base-200 shadow-sm">
+            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
               <div className="flex gap-1">
-                <div className="w-2 h-2 bg-base-300 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-base-300 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-base-300 rounded-full animate-bounce delay-200"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Use MessageSkeleton when AI is typing */}
-        {isLoading && (
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <div className="size-10 rounded-full border overflow-hidden">
-                <MessageSkeleton />
-              </div>
-            </div>
-            <div className="bg-base-100 p-3 rounded-2xl border border-base-200 shadow-sm">
-              <MessageSkeleton />
             </div>
           </div>
         )}
@@ -144,13 +142,14 @@ const AIChat = () => {
       </div>
 
       {/* Message Input */}
-      <div className="sticky bottom-0 w-full bg-base-100 border-t">
+      <div className="sticky bottom-0 w-full bg-white border-t">
         <form onSubmit={handleSubmit} className="p-4">
-          <MessageInput
-            input={input}
-            setInput={setInput}
-            isLoading={isLoading}
-            handleSubmit={handleSubmit}
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Digite sua mensagem..."
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+            disabled={isLoading}
           />
         </form>
       </div>
