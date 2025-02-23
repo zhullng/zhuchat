@@ -5,7 +5,7 @@ import cors from "cors";
 import path from "path"; 
 import { connectDB } from "./lib/db.js"; // Função para conectar ao banco de dados
 
-import chargeRoutes from './routes/charge.route.js';
+import transferRoutes from './routes/transfer.route.js';
 import aiRoutes from './routes/ai.route.js';
 import authRoutes from "./routes/auth.route.js"; 
 import messageRoutes from "./routes/message.route.js";
@@ -29,7 +29,7 @@ app.use(
 app.use("/api/auth", authRoutes); 
 app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes);   
-app.use('/api/charge', chargeRoutes);
+app.use('/api', transferRoutes);
 
 if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
   app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos

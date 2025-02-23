@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       minlength: 3,
-      maxlength: 20
+      maxlength: 20,
     },
     password: {
       type: String,
@@ -26,8 +26,12 @@ const userSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ['male', 'female'],
-      default: ''
+      enum: ["male", "female"],
+      default: "",
+    },
+    balance: {
+      type: Number,
+      default: 0, // Campo que representa o saldo do usuário, começando com 0
     },
   },
   { timestamps: true }
