@@ -2,17 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  overflow: hidden;
-  height: 100%;
-  touch-action: none; /* Evita rolagem acidental */
-  -webkit-overflow-scrolling: touch;
+/* Garante a altura correta, especialmente para o Safari */
+@supports (-webkit-touch-callout: none) {
+  .h-dvh {
+    height: 100dvh; /* Para corrigir a altura da viewport no Safari */
+  }
 }
 
-/* Corrige a altura no Safari */
-@supports (-webkit-touch-callout: none) {
-  .h-screen {
+/* Alternativa, se o Tailwind não tiver h-dvh */
+@supports not (-webkit-touch-callout: none) {
+  .h-dvh {
     height: 100vh;
-    min-height: -webkit-fill-available;
   }
 }

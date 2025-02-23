@@ -10,15 +10,15 @@ const HomePage = () => {
   const isAI = selectedUser?.isAI;
 
   useEffect(() => {
-    // Impede qualquer rolagem
-    const preventScroll = (e) => e.preventDefault();
-    
+    // Impede o scroll apenas nesta página
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
 
+    const preventScroll = (e) => e.preventDefault();
     window.addEventListener("touchmove", preventScroll, { passive: false });
 
     return () => {
+      // Remove o bloqueio ao sair da página
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
       window.removeEventListener("touchmove", preventScroll);
@@ -26,7 +26,7 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div className="h-screen bg-base-200">
+    <div className="h-dvh bg-base-200"> {/* Usando h-dvh para corrigir a altura */}
       <div className="flex items-center justify-center pt-20 px-4">
         <div className="bg-base-100 rounded-lg shadow-cl w-full max-w-6xl h-[calc(100vh-8rem)]">
           <div className="flex h-full rounded-lg overflow-hidden">
