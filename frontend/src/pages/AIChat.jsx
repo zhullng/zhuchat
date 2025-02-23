@@ -108,7 +108,7 @@ const AIChat = () => {
               <div
                 className={`rounded-2xl p-3 ${
                   message.isAI
-                    ? "bg-white border border-gray-200 shadow-sm"
+                    ? "border border-gray-200 shadow-sm"
                     : ""
                 }`}
               >
