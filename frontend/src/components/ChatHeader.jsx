@@ -17,7 +17,7 @@ const ChatHeader = () => {
           <div className="avatar">
             <div className="size-10 rounded-full relative">
               {isAI ? (
-                <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-center">
                   <div className="text-blue-600">BOT</div> {/* Representação do Bot */}
                 </div>
               ) : (

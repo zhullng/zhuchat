@@ -108,7 +108,7 @@ const AIChat = () => {
               <div
                 className={`rounded-2xl p-3 ${
                   message.isAI
-                    ? "bg-white border border-gray-200 shadow-sm"
+                    ? " shadow-sm"
                     : ""
                 }`}
               >
@@ -128,7 +128,7 @@ const AIChat = () => {
                 </div>
               </div>
             </div>
-            <div className="p-3 rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-3 rounded-2xl bordershadow-sm">
               <div className="flex gap-1">
                 <div className="w-2 h-2rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 rounded-full animate-bounce delay-100"></div>
@@ -155,7 +155,7 @@ const AIChat = () => {
 
         <button
           type="submit"
-          className="btn btn-sm btn-circle mt-3"
+          className="btn btn-sm btn-circle mt-2"
           disabled={!input.trim()} // Corrigido para verificar o estado correto
         >
           <Send size={22} />
