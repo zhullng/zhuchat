@@ -2,22 +2,21 @@ import { useChatStore } from "../store/useChatStore";
 import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
-import AIChat from "./AIChat"; // Importe o AIChat
+import AIChat from "./AIChat";
 
 const HomePage = () => {
-  const { selectedUser, setSelectedUser } = useChatStore(); // Pegue também a função setSelectedUser
+  const { selectedUser, setSelectedUser } = useChatStore();
   const isAI = selectedUser?.isAI;
 
   return (
     <div className="h-screen bg-base-200">
-      <div className="flex items-center justify-center pt-20 px-4">
-        <div className="w-full">
-          <div className="flex h-full">
-            <Sidebar />
-
-            {/* Se for AI, exibe o AIChat, caso contrário, o ChatContainer */}
+      <div className="flex h-full pl-20"> {/* Added pl-20 to account for navbar width */}
+        <div className="flex w-full">
+          <Sidebar />
+          
+          <div className="flex-1 flex">
             {isAI ? (
-              <AIChat setSelectedUser={setSelectedUser} /> // Passe a função setSelectedUser para o AIChat
+              <AIChat setSelectedUser={setSelectedUser} />
             ) : !selectedUser ? (
               <NoChatSelected />
             ) : (
