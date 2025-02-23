@@ -10,15 +10,10 @@ const HomePage = () => {
 
   return (
     <div className="h-screen bg-base-200">
-      {/* pl-16 no mobile e pl-20 no desktop para acomodar a navbar */}
-      <div className="flex h-full pl-16 sm:pl-20">
+      <div className="flex h-full pl-20"> {/* Added pl-20 to account for navbar width */}
         <div className="flex w-full">
-          {/* Sidebar com width responsivo */}
-          <div className="w-64 md:w-80 flex-shrink-0 border-r border-base-300">
-            <Sidebar />
-          </div>
+          <Sidebar />
           
-          {/* Área principal do chat */}
           <div className="flex-1 flex">
             {isAI ? (
               <AIChat setSelectedUser={setSelectedUser} />
