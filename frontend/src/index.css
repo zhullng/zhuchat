@@ -3,36 +3,14 @@
 @tailwind utilities;
 
 /* Estilos personalizados */
-
-/* Cabeçalho fixo */
 header {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
+  bottom: 0;
   z-index: 1000;
 }
-
-/* Desabilitar rolagem no body */
+/* Disable scroll on the body */
 body {
-  overflow: hidden; /* Impede a rolagem global */
-  margin: 0;
-  padding: 0;
-}
-
-/* Variável para definir a altura da janela */
-:root {
-  --app-height: 100%;
-}
-
-html, body {
-  height: var(--app-height); /* Aplica a altura definida pela variável */
-  width: 100vw;
-  padding: 0;
-  margin: 0;
-}
-
-/* Conteúdo rolável (fora do cabeçalho fixo) */
-.main-content {
-  height: calc(var(--app-height) - 60px); /* Ajuste a altura subtraindo a altura do cabeçalho */
+  overflow: hidden;
 }
