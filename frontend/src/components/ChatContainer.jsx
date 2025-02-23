@@ -65,7 +65,9 @@ const ChatContainer = () => {
                 />
               </div>
             </div>
-            <div className="chat-header mb-1">
+
+            {/* Alteração do layout do cabeçalho para a posição do nome */}
+            <div className={`chat-header mb-1 flex ${message.senderId === authUser._id ? "justify-end" : "justify-start"}`}>
               <div className="flex items-center">
                 <span className="font-semibold text-sm">
                   {/* Usando fullName para exibir o nome do usuário */}
@@ -78,6 +80,7 @@ const ChatContainer = () => {
                 </time>
               </div>
             </div>
+
             <div className="chat-bubble flex flex-col">
               {message.image && (
                 <img
