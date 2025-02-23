@@ -1,5 +1,5 @@
 import Navbar from "./components/Navbar";
-import AIChat from './pages/AIChat';
+import AIChat from "./pages/AIChat";
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage"; 
 import LoginPage from "./pages/LoginPage"; 
@@ -38,7 +38,7 @@ const App = () => {
   const isLoginOrSignupPage = location.pathname === "/login" || location.pathname === "/signup";
 
   return (
-    <div style={{ overflow: "hidden" }} data-theme={theme}>
+    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col" data-theme={theme}>
       {/* Renderiza a Navbar apenas se não for a página de login ou signup */}
       {!isLoginOrSignupPage && <Navbar />}
 
