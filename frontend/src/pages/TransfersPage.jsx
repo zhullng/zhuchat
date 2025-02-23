@@ -1,6 +1,6 @@
 // TransfersPage.jsx
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
