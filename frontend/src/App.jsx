@@ -1,19 +1,3 @@
-import Navbar from "./components/Navbar";
-import AIChat from './pages/AIChat';
-import HomePage from "./pages/HomePage";
-import SignUpPage from "./pages/SignUpPage"; 
-import LoginPage from "./pages/LoginPage"; 
-import SettingsPage from "./pages/SettingsPage"; 
-import ProfilePage from "./pages/ProfilePage"; 
-
-import { Routes, Route, Navigate, useLocation } from "react-router-dom"; // Adicionei useLocation
-import { useAuthStore } from "./store/useAuthStore"; 
-import { useThemeStore } from "./store/useThemeStore"; 
-import { useEffect } from "react"; 
-
-import { Loader } from "lucide-react"; 
-import { Toaster } from "react-hot-toast"; 
-
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
   const { theme } = useThemeStore();
@@ -39,7 +23,7 @@ const App = () => {
   const isLoginOrSignupPage = location.pathname === "/login" || location.pathname === "/signup";
 
   return (
-    <div data-theme={theme}> 
+    <div style={{ overflow: "hidden" }} data-theme={theme}> {/* Desabilita o scroll aqui */}
       {/* Renderiza a Navbar apenas se não for a página de login ou signup */}
       {!isLoginOrSignupPage && <Navbar />}
 
@@ -71,5 +55,3 @@ const App = () => {
     </div>
   );
 };
-
-export default App;
