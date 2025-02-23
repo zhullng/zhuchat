@@ -82,12 +82,12 @@ const Sidebar = () => {
           className={`
             w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
             transition-colors hover:bg-base-200 mb-2
-            ${selectedUser?.isAI ? "bg-base-300 ring-1 ring-base-300" : "bg-blue-50 hover:bg-blue-100"}
+            ${selectedUser?.isAI ? "bg-base-300 ring-1 ring-base-300" : "hover:bg-base-200"}
           `}
         >
           <div className="relative">
-            <div className="size-10 lg:size-12 rounded-full border bg-blue-100 flex items-center justify-center">
-              <Bot className="text-blue-600 size-6" />
+            <div className="size-10 lg:size-12 rounded-full borderflex items-center justify-center">
+              <Bot className="size-6" />
             </div>
             <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
           </div>
@@ -113,7 +113,7 @@ const Sidebar = () => {
             className={`
               w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
               transition-colors hover:bg-base-200
-              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""} 
             `}
           >
             <div className="relative">

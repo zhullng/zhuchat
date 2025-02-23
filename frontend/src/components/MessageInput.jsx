@@ -14,7 +14,7 @@ const MessageInput = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Por favor, selecione um arquivo de imagem.");
       return;
     }
 
@@ -40,12 +40,12 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Clear form
+      // Limpar campos
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      console.error("Failed to send message:", error);
+      console.error("Erro ao enviar mensagem:", error);
     }
   };
 
@@ -61,7 +61,7 @@ const MessageInput = () => {
             />
             <button
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-200
               flex items-center justify-center"
               type="button"
             >
@@ -76,12 +76,12 @@ const MessageInput = () => {
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-md"
-            placeholder={isAI ? "Aguarde enquanto o assistente responde..." : "Digite uma mensagem..."}
+            placeholder="Digite uma mensagem..."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            disabled={isAI} // Desabilita o campo de input se for AI
           />
-          {!isAI && (
+          
+          {!isAI && (  // O botão de imagem será renderizado somente se não for AI
             <input
               type="file"
               accept="image/*"
@@ -91,21 +91,21 @@ const MessageInput = () => {
             />
           )}
 
-          {!isAI && (
+          {!isAI && (  // O botão de imagem aparece somente para usuários reais
             <button
               type="button"
-              className={`flex btn btn-circle
-                     ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+              className={`flex btn btn-circle ${imagePreview ? "text-success" : "text-zinc-400"}`}
               onClick={() => fileInputRef.current?.click()}
             >
               <Image size={20} />
             </button>
           )}
         </div>
+        
         <button
           type="submit"
           className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !imagePreview || isAI}
+          disabled={!text.trim() && !imagePreview || isAI}  // Desabilitar se for AI
         >
           <Send size={22} />
         </button>
@@ -113,4 +113,5 @@ const MessageInput = () => {
     </div>
   );
 };
+
 export default MessageInput;

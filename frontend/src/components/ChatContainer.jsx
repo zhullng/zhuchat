@@ -83,7 +83,9 @@ const ChatContainer = () => {
   if (isMessagesLoading && !selectedUser?.isAI) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
-        <ChatHeader />
+        <div className="border-b p-4 flex items-center justify-between md:flex-row md:items-center">
+          <ChatHeader />
+        </div>
         <MessageSkeleton />
         <MessageInput />
       </div>
@@ -93,19 +95,8 @@ const ChatContainer = () => {
   // Renderização para o AI Assistant
   const renderAIChat = () => (
     <div className="flex flex-col h-screen">
-      <div className="border-b p-4 flex items-center gap-3 bg-base-100">
-        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center bg-primary/10">
-          <Bot className="text-primary" size={24} />
-        </div>
-        <div>
-          <h2 className="font-semibold text-base-content">Assistente Virtual</h2>
-          <p className="text-sm text-base-content flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full ${isLoading ? "bg-warning" : "bg-success"} animate-pulse`}
-            ></span>
-            {isLoading ? "Digitando..." : "Online"}
-          </p>
-        </div>
+      <div className="border-b p-4 flex items-center justify-between md:flex-row md:items-center bg-base-100">
+        <ChatHeader />
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -124,7 +115,7 @@ const ChatContainer = () => {
                   <img
                     src={authUser?.profilePic || "/avatar.png"}
                     alt="User Avatar"
-                    className="w-full h-full object-cover"
+                    className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-full"
                   />
                 )}
               </div>
@@ -169,6 +160,7 @@ const ChatContainer = () => {
             </div>
           </div>
         )}
+
         <div ref={messageEndRef} />
       </div>
 
@@ -188,7 +180,10 @@ const ChatContainer = () => {
   // Renderização para um usuário real
   const renderUserChat = () => (
     <div className="flex-1 flex flex-col overflow-auto">
-      <ChatHeader />
+      <div className="border-b p-4 flex items-center justify-between md:flex-row md:items-center">
+        <ChatHeader />
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
