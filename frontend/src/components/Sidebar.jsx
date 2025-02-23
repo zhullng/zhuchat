@@ -59,16 +59,16 @@ const Sidebar = () => {
           />
 
           <div className="flex items-center justify-between">
-            <label className="cursor-pointer flex items-center gap-2">
+            <label className="cursor-pointer flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={showOnlineOnly}
                 onChange={(e) => setShowOnlineOnly(e.target.checked)}
-                className="toggle toggle-xs lg:toggle-sm"
+                className="toggle toggle-lg lg:toggle-xl" // Increased size for the checkbox
               />
-              <span className="text-xs lg:text-sm">Online only</span>
+              <span className="text-sm lg:text-base">Online only</span> {/* Increased label text size */}
             </label>
-            <span className="text-xs text-base-content/60">
+            <span className="text-lg lg:text-xl text-base-content/60"> {/* Increased font size for the online count */}
               {onlineUsers.length - 1} online
             </span>
           </div>
