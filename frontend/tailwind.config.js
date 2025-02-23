@@ -1,5 +1,4 @@
 import daisyui from "daisyui";
-import iosFullHeightPlugin from "@rvxlab/tailwind-plugin-ios-full-height";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -7,10 +6,7 @@ export default {
   theme: {
     extend: {},
   },
-  plugins: [
-    daisyui,
-    iosFullHeightPlugin, // Adicionando o plugin para corrigir o problema do 100vh no iOS Safari
-  ],
+  plugins: [daisyui],
   daisyui: {
     themes: [
       "light",
