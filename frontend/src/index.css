@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Evita scroll na página */
+html, body {
+    overflow: hidden;
+    height: 100%;
+    -webkit-overflow-scrolling: touch; /* Suaviza rolagem no Safari */
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    .h-screen {
+      height: -webkit-fill-available;
+    }
+  }
+      
