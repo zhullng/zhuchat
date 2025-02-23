@@ -1,7 +1,8 @@
-import stripe from 'stripe';
+import stripe from 'stripe'; // Importando o Stripe
 
-const stripeClient = stripe(process.env.STRIPE_API_SECRET);
+const stripeClient = stripe(process.env.STRIPE_API_SECRET); // Instanciando o cliente do Stripe
 
+// Função chargeCustomer
 const chargeCustomer = async (req, res) => {
   const { tokenId, amount } = req.body; // tokenId é o token gerado no frontend e amount é o valor
 
@@ -20,5 +21,5 @@ const chargeCustomer = async (req, res) => {
   }
 };
 
-// Usando export default
+// Exportação padrão da função chargeCustomer
 export default chargeCustomer;
