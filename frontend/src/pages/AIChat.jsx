@@ -97,7 +97,7 @@ const AIChat = () => {
               </div>
 
               {/* Message Text */}
-              <div className="chat-bubble px-4 py-2 rounded-lg max-w-xs sm:max-w-md break-words">
+              <div className="chat-bubble px-4 py-2 rounded-xl max-w-xs sm:max-w-md break-words">
                 {message.content}
               </div>
             </div>
