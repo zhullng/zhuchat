@@ -10,7 +10,9 @@ header {
   bottom: 0;
   z-index: 1000;
 }
-/* Disable scroll on the body */
+
+/* Evitar overflow global */
 body {
-  overflow: hidden;
+  overflow: auto; /* Permite rolagem em dispositivos móveis e desktops */
+  max-height: 100%;
 }
