@@ -32,7 +32,7 @@ const App = () => {
       <div className="flex items-center justify-center h-screen">
         <Loader className="size-10 animate-spin" /> 
       </div>
-    );
+    );  
   }
 
   // Verifica se a rota atual é login ou signup
