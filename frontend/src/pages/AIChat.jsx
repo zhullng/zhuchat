@@ -58,7 +58,7 @@ const AIChat = () => {
           <Bot className="text-blue-600" size={24} />
         </div>
         <div>
-          <h2 className="font-semibold text-gray-800">Assistente Virtual</h2>
+          <h2 className="font-semibold">Assistente Virtual</h2>
           <p className="text-sm text-gray-500 flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400' : 'bg-green-400'} animate-pulse`}></span>
             {isLoading ? "Digitando..." : "Online"}
@@ -83,7 +83,7 @@ const AIChat = () => {
                 ) : (
                   <img
                     src={authUser?.profilePic || "/avatar.png"}
-                    alt="User Avatar"
+                    alt="User Avatar"gap-3
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -97,7 +97,7 @@ const AIChat = () => {
               }`}
             >
               {/* Timestamp */}
-              <div className="text-xs text-gray-500 mb-1 px-1">
+              <div className="text-xs mb-1 px-1">
                 {message.timestamp.toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -109,7 +109,7 @@ const AIChat = () => {
                 className={`rounded-2xl p-3 ${
                   message.isAI
                     ? "bg-white border border-gray-200 shadow-sm"
-                    : "bg-blue-600 text-white"
+                    : ""
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -155,7 +155,7 @@ const AIChat = () => {
 
         <button
           type="submit"
-          className="btn btn-sm btn-circle"
+          className="btn btn-sm btn-circle mt-3"
           disabled={!input.trim()} // Corrigido para verificar o estado correto
         >
           <Send size={22} />
