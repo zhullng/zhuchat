@@ -8,7 +8,7 @@ import { formatMessageTime } from "../lib/utils";
 
 const ChatContainer = () => {
   const {
-    messages,
+    messages = [],
     getMessages,
     isMessagesLoading,
     selectedUser,
@@ -16,10 +16,16 @@ const ChatContainer = () => {
     unsubscribeFromMessages,
   } = useChatStore();
   const { authUser } = useAuthStore();
-  const messageEndRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
-  // Detect if the browser is Safari (modified version)
-  const isSafari = navigator.userAgent.toLowerCase().indexOf('safari/') > -1 && navigator.userAgent.toLowerCase().indexOf('chrome') === -1;
+  // Improved Safari detection using CSS supports
+  const [isSafari, setIsSafari] = useState(false);
+  useEffect(() => {
+    setIsSafari(
+      CSS.supports('(-webkit-hyphens: none)') && 
+      !CSS.supports('(scrollbar-gutter: stable)')
+    );
+  }, []);
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -28,9 +34,7 @@ const ChatContainer = () => {
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   useEffect(() => {
-    if (messageEndRef.current && messages) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   if (isMessagesLoading) {
@@ -52,7 +56,6 @@ const ChatContainer = () => {
           <div
             key={message._id}
             className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
-            ref={messageEndRef}
           >
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
@@ -62,7 +65,8 @@ const ChatContainer = () => {
                       ? authUser.profilePic || "/avatar.png"
                       : selectedUser.profilePic || "/avatar.png"
                   }
-                  alt="profile pic"
+                  alt="profile"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -77,12 +81,14 @@ const ChatContainer = () => {
                   src={message.image}
                   alt="Attachment"
                   className="sm:max-w-[200px] rounded-md mb-2"
+                  loading="lazy"
                 />
               )}
               {message.text && <p>{message.text}</p>}
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className={`pt-2 ${isSafari ? 'safari-padding' : 'pb-2'}`}>
