@@ -44,8 +44,13 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex-1 flex flex-col overflow-auto pb-5">
-      <ChatHeader />
+    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col overflow-hidden">
+      {/* ChatHeader fixado no topo */}
+      <div className="sticky top-0 z-10">
+        <ChatHeader />
+      </div>
+      
+      {/* Área de mensagens com scroll */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
@@ -84,7 +89,11 @@ const ChatContainer = () => {
         {/* Referência para a última mensagem */}
         <div ref={messageEndRef} />
       </div>
-      <MessageInput />
+
+      {/* MessageInput fixado no fundo */}
+      <div className="sticky bottom-0 z-10">
+        <MessageInput />
+      </div>
     </div>
   );
 };
