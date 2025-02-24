@@ -12,25 +12,22 @@ const AccountPage = () => {
   const { authUser, setAuthUser } = useAuthStore();
   const [previousBalance, setPreviousBalance] = useState(authUser?.balance);
 
+  // Atualiza o histórico e o saldo quando o saldo mudar
   useEffect(() => {
-    if (authUser?._id) {
-      fetchTransferHistory();
-      checkBalanceChange();
+    if (authUser?._id && authUser.balance !== previousBalance) {
+      setPreviousBalance(authUser.balance);  // Atualiza o saldo anterior
+      refreshData();  // Atualiza o saldo e o histórico
     }
-  }, [authUser?._id]);
+  }, [authUser?.balance]);  // Escuta mudanças no saldo (authUser.balance)
 
-  const checkBalanceChange = async () => {
-    if (authUser?.balance !== previousBalance) {
-      setPreviousBalance(authUser?.balance); // Atualiza o valor anterior do saldo
-      await refreshBalance();
-      await fetchTransferHistory();
-    }
+  const refreshData = async () => {
+    await fetchTransferHistory();
+    await refreshBalance();
   };
 
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      
       if (response && response.data) {
         setTransfers(Array.isArray(response.data) ? response.data : []);
       } else {
@@ -45,7 +42,6 @@ const AccountPage = () => {
   const refreshBalance = async () => {
     try {
       const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
-      
       if (response.data && response.data.balance !== undefined) {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       } else {
@@ -59,37 +55,41 @@ const AccountPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
-  
+
     try {
-      const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' :
-                       modalAction === 'withdraw' ? '/api/transfers/withdraw' :
-                       '/api/transfers/transfer';
-  
-      const payload = modalAction === 'transfer' 
-        ? { senderId: authUser._id, receiverEmail, amount }
-        : { userId: authUser._id, amount };
-  
+      const endpoint =
+        modalAction === 'deposit'
+          ? '/api/transfers/deposit'
+          : modalAction === 'withdraw'
+          ? '/api/transfers/withdraw'
+          : '/api/transfers/transfer';
+
+      const payload =
+        modalAction === 'transfer'
+          ? { senderId: authUser._id, receiverEmail, amount }
+          : { userId: authUser._id, amount };
+
       const response = await axios.post(endpoint, payload);
-  
+
       toast.success(response.data.message);
-  
+
       // Limpar os campos e fechar o modal
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
-  
-      // Não fazemos mais a atualização do saldo e histórico aqui
+
+      // Não fazemos mais a atualização do saldo e histórico aqui, pois ocorre no useEffect quando o saldo mudar
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
@@ -97,13 +97,40 @@ const AccountPage = () => {
 
         <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
-          <p className="text-4xl font-semibold">€{authUser?.balance?.toFixed(2) ?? '0.00'}</p>
+          <p className="text-4xl font-semibold">
+            {authUser?.balance?.toFixed(2) ?? '0.00'}{' '}
+            <span className="text-xl">{'EUR'}</span>
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button onClick={() => { setModalAction('deposit'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Depositar</button>
-          <button onClick={() => { setModalAction('transfer'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Transferir</button>
-          <button onClick={() => { setModalAction('withdraw'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Sacar</button>
+          <button
+            onClick={() => {
+              setModalAction('deposit');
+              setShowModal(true);
+            }}
+            className="btn bg-blue-500 text-white w-full"
+          >
+            Depositar
+          </button>
+          <button
+            onClick={() => {
+              setModalAction('transfer');
+              setShowModal(true);
+            }}
+            className="btn bg-blue-500 text-white w-full"
+          >
+            Transferir
+          </button>
+          <button
+            onClick={() => {
+              setModalAction('withdraw');
+              setShowModal(true);
+            }}
+            className="btn bg-blue-500 text-white w-full"
+          >
+            Sacar
+          </button>
         </div>
 
         <h2 className="text-xl font-semibold text-gray-800">Transações</h2>
@@ -115,7 +142,9 @@ const AccountPage = () => {
               <div key={transfer._id} className="flex justify-between p-2 border-b border-gray-300">
                 <div>
                   <p className="font-medium text-gray-700">
-                    {transfer.sender._id === authUser._id ? authUser.fullName : transfer.sender.fullName}
+                    {transfer.sender._id === authUser._id
+                      ? authUser.fullName
+                      : transfer.sender.fullName}
                   </p>
                   <p className="text-sm text-gray-500">
                     {new Date(transfer.createdAt).toLocaleString('pt-PT', {
@@ -123,12 +152,14 @@ const AccountPage = () => {
                       month: '2-digit',
                       year: 'numeric',
                       hour: '2-digit',
-                      minute: '2-digit'
+                      minute: '2-digit',
                     })}
                   </p>
                 </div>
                 <p className={transfer.sender._id === authUser._id ? 'text-red-500' : 'text-green-500'}>
-                  {transfer.sender._id === authUser._id ? '-' : '+'}€{transfer.amount.toFixed(2)}
+                  {transfer.sender._id === authUser._id ? '-' : '+'}
+                  {transfer.amount.toFixed(2)}{' '}
+                  <span className="text-sm">{'EUR'}</span>
                 </p>
               </div>
             ))
@@ -140,7 +171,11 @@ const AccountPage = () => {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
             <h2 className="text-2xl font-semibold mb-4">
-              {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
+              {modalAction === 'deposit'
+                ? 'Depositar'
+                : modalAction === 'transfer'
+                ? 'Transferir'
+                : 'Sacar'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {modalAction === 'transfer' && (
@@ -161,8 +196,17 @@ const AccountPage = () => {
                 className="input input-bordered w-full"
                 required
               />
-              <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
-              <button onClick={() => { setShowModal(false); }} className="btn btn-ghost w-full">Cancelar</button>
+              <button type="submit" className="btn bg-blue-500 text-white w-full">
+                Confirmar
+              </button>
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                }}
+                className="btn btn-ghost w-full"
+              >
+                Cancelar
+              </button>
             </form>
           </div>
         </div>
