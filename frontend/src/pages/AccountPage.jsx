@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -11,12 +11,44 @@ const AccountPage = () => {
   const [amount, setAmount] = useState('');
   const [loadingBalance, setLoadingBalance] = useState(false);
   const { authUser, setAuthUser } = useAuthStore();
+  const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
     if (authUser?._id) {
+      // Carregar o saldo e histórico imediatamente ao entrar na página
       refreshBalance();
       fetchTransferHistory();
+      
+      // Configurar atualização automática a cada 30 segundos
+      refreshIntervalRef.current = setInterval(() => {
+        refreshBalance();
+        fetchTransferHistory();
+      }, 30000); // 30 segundos
+      
+      // Limpar o intervalo quando o componente for desmontado
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
     }
+  }, [authUser?._id]);
+
+  // Atualiza também após qualquer operação (depósito/transferência/saque)
+  useEffect(() => {
+    const refreshAfterOperation = () => {
+      if (authUser?._id) {
+        refreshBalance();
+        fetchTransferHistory();
+      }
+    };
+    
+    // Adicionar event listener para operações
+    window.addEventListener('transaction-completed', refreshAfterOperation);
+    
+    return () => {
+      window.removeEventListener('transaction-completed', refreshAfterOperation);
+    };
   }, [authUser?._id]);
 
   const fetchTransferHistory = async () => {
@@ -24,7 +56,10 @@ const AccountPage = () => {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
       setTransfers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      toast.error('Erro ao buscar histórico de transferências');
+      // Silenciar erros durante atualização automática para não mostrar toasts repetidos
+      if (!refreshIntervalRef.current) {
+        toast.error('Erro ao buscar histórico de transferências');
+      }
     }
   };
 
@@ -38,7 +73,10 @@ const AccountPage = () => {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       }
     } catch (error) {
-      toast.error('Erro ao atualizar saldo');
+      // Silenciar erros durante atualização automática para não mostrar toasts repetidos
+      if (!refreshIntervalRef.current) {
+        toast.error('Erro ao atualizar saldo');
+      }
     } finally {
       setLoadingBalance(false);
     }
@@ -63,9 +101,13 @@ const AccountPage = () => {
   
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
-  
+      
+      // Atualizar saldo e histórico imediatamente após uma operação
       await refreshBalance();
       fetchTransferHistory();
+      
+      // Disparar evento para informar sobre a transação completada
+      window.dispatchEvent(new Event('transaction-completed'));
       
       setReceiverEmail('');
       setAmount('');
@@ -76,21 +118,16 @@ const AccountPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-16 sm:pl-20 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
-        <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
+        <div className="bg-blue-400 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
           <p className="text-4xl font-semibold">
             {loadingBalance ? 'Carregando...' : `€${authUser?.balance?.toFixed(2) ?? '0.00'}`}
           </p>
-          <button
-            onClick={refreshBalance}
-            className="mt-2 bg-white text-blue-500 px-4 py-2 rounded-lg font-medium"
-          >
-            Atualizar Saldo
-          </button>
+          <p className="text-xs mt-2">Atualização automática a cada 30 segundos</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
