@@ -107,8 +107,10 @@ const AIChat = ({ setSelectedUser }) => {
         {isTyping && (
           <div className="chat chat-start">
             <div className="chat-image avatar">
-              <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
-                <Bot className="text-blue-600" size={20} />
+              <div className="size-10 rounded-full border overflow-hidden">
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Bot className="text-blue-600" size={20} />
+                  </div>
               </div>
             </div>
             <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md flex items-center">
