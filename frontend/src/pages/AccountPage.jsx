@@ -61,9 +61,14 @@ const AccountPage = () => {
     }
   };
 
+  const handleModalAction = (action) => {
+    setModalAction(action);
+    setShowModal(true);
+  };
+
   return (
     <div className="p-6 max-w-md mx-auto bg-white rounded-xl shadow-md space-y-4">
-      <button onClick={() => navigate(-1)} className="text-primary">&larr; Back</button>
+      <button onClick={() => navigate('/')} className="text-primary">&larr; Voltar</button>
       <h1 className="text-2xl font-bold">Minha Conta</h1>
 
       <div className="bg-base-200 p-4 rounded-lg">
@@ -72,9 +77,9 @@ const AccountPage = () => {
       </div>
 
       <div className="flex space-x-4">
-        <button onClick={() => setModalAction('deposit')} className="btn btn-success">Depositar</button>
-        <button onClick={() => setModalAction('transfer')} className="btn btn-primary">Transferir</button>
-        <button onClick={() => setModalAction('withdraw')} className="btn btn-error">Sacar</button>
+        <button onClick={() => handleModalAction('deposit')} className="btn btn-success">Depositar</button>
+        <button onClick={() => handleModalAction('transfer')} className="btn btn-primary">Transferir</button>
+        <button onClick={() => handleModalAction('withdraw')} className="btn btn-error">Sacar</button>
       </div>
 
       {showModal && (
