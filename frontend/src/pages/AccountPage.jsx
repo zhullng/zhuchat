@@ -10,8 +10,7 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
-  const { authUser } = useAuthStore();
-  const navigate = useNavigate();
+  const { authUser, setAuthUser } = useAuthStore();
 
   useEffect(() => {
     fetchTransferHistory();
@@ -21,26 +20,26 @@ const AccountPage = () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
       setTransfers(Array.isArray(response.data) ? response.data : []);
+      updateBalance();
     } catch (error) {
       toast.error('Erro ao buscar histórico de transferências');
       setTransfers([]);
     }
   };
 
-  const validateEmail = (email) => {
-    const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return regex.test(email);
+  const updateBalance = async () => {
+    try {
+      const response = await axios.get(`/api/users/balance/${authUser._id}`);
+      setAuthUser({ ...authUser, balance: response.data.balance });
+    } catch (error) {
+      toast.error('Erro ao atualizar saldo');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
-      return;
-    }
-
-    if (modalAction === 'transfer' && !validateEmail(receiverEmail)) {
-      toast.error('Formato de e-mail inválido!');
       return;
     }
 
@@ -61,95 +60,50 @@ const AccountPage = () => {
     }
   };
 
-  const handleModalAction = (action) => {
-    setModalAction(action);
-    setShowModal(true);
-  };
-
   return (
-    <div className="p-6 max-w-md mx-auto bg-white rounded-xl shadow-md space-y-4">
-      <button onClick={() => navigate('/')} className="text-primary">&larr; Voltar</button>
-      <h1 className="text-2xl font-bold">Minha Conta</h1>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 space-y-6">
+        <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
-      <div className="bg-base-200 p-4 rounded-lg">
-        <p className="text-base-content">Saldo Atual</p>
-        <p className="text-3xl font-semibold">${authUser?.balance?.toFixed(2)}</p>
-      </div>
-
-      <div className="flex space-x-4">
-        <button onClick={() => handleModalAction('deposit')} className="btn btn-success">Depositar</button>
-        <button onClick={() => handleModalAction('transfer')} className="btn btn-primary">Transferir</button>
-        <button onClick={() => handleModalAction('withdraw')} className="btn btn-error">Sacar</button>
-      </div>
-
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
-            <h2 className="text-2xl font-semibold mb-4">
-              {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
-            </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {modalAction === 'transfer' && (
-                <div>
-                  <label htmlFor="receiverEmail" className="block text-sm font-medium">E-mail do Destinatário</label>
-                  <input
-                    type="email"
-                    id="receiverEmail"
-                    value={receiverEmail}
-                    onChange={(e) => setReceiverEmail(e.target.value)}
-                    className="input input-bordered w-full mt-2"
-                    required
-                    placeholder="Digite o e-mail do destinatário"
-                  />
-                </div>
-              )}
-              <div>
-                <label htmlFor="amount" className="block text-sm font-medium">Valor</label>
-                <input
-                  type="number"
-                  id="amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="input input-bordered w-full mt-2"
-                  required
-                  min="0.01"
-                  step="0.01"
-                  placeholder="Digite o valor"
-                />
-              </div>
-
-              <div className="flex justify-between">
-                <button type="submit" className="btn btn-primary w-full py-3">
-                  {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
-                </button>
-              </div>
-            </form>
-
-            <button onClick={() => setShowModal(false)} className="mt-4 btn btn-ghost w-full">Cancelar</button>
-          </div>
+        <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
+          <p className="text-lg">Saldo Atual</p>
+          <p className="text-4xl font-semibold">€{authUser?.balance?.toFixed(2)}</p>
         </div>
-      )}
 
-      <h2 className="text-xl font-semibold">Transações</h2>
-      <div className="space-y-2">
-        {transfers.length === 0 ? (
-          <p>Nenhuma transação encontrada</p>
-        ) : (
-          transfers.map((transfer) => (
-            <div key={transfer._id} className="flex justify-between p-2 border-b">
-              <div>
-                <p className="font-medium">
-                  {transfer.sender.fullName === authUser.fullName ? transfer.receiver.fullName : transfer.sender.fullName}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button onClick={() => setShowModal('deposit')} className="btn btn-primary w-full">Depositar</button>
+          <button onClick={() => setShowModal('transfer')} className="btn btn-primary w-full">Transferir</button>
+          <button onClick={() => setShowModal('withdraw')} className="btn btn-primary w-full">Sacar</button>
+        </div>
+
+        <h2 className="text-xl font-semibold text-gray-800">Transações</h2>
+        <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+          {transfers.length === 0 ? (
+            <p className="text-center text-gray-500">Nenhuma transação encontrada</p>
+          ) : (
+            transfers.map((transfer) => (
+              <div key={transfer._id} className="flex justify-between p-2 border-b border-gray-300">
+                <div>
+                  <p className="font-medium text-gray-700">
+                    {transfer.sender._id === authUser._id ? authUser.fullName : transfer.sender.fullName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(transfer.createdAt).toLocaleString('pt-PT', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+                <p className={transfer.sender._id === authUser._id ? 'text-red-500' : 'text-green-500'}>
+                  {transfer.sender._id === authUser._id ? '-' : '+'}€{transfer.amount.toFixed(2)}
                 </p>
-                <p className="text-sm text-base-content">{new Date(transfer.createdAt).toLocaleDateString()}</p>
               </div>
-              <p className={transfer.sender.fullName === authUser.fullName ? 'text-error' : 'text-success'}>
-                {transfer.sender.fullName === authUser.fullName ? '-' : '+'}${transfer.amount.toFixed(2)}
-              </p>
-            </div>
-          ))
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
