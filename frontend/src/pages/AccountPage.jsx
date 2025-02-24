@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -9,27 +9,18 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
-  const [loadingBalance, setLoadingBalance] = useState(false);
   const { authUser, setAuthUser } = useAuthStore();
-  const pollingIntervalRef = useRef(null);
 
   useEffect(() => {
     if (authUser?._id) {
-      refreshBalance();
-      fetchTransferHistory();
-      
-      pollingIntervalRef.current = setInterval(() => {
-        refreshBalance();
-        fetchTransferHistory();
-      }, 1000); // Atualiza a cada 1 segundo      
-
-      return () => {
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-        }
-      };
+      refreshData();
     }
   }, [authUser?._id]);
+
+  const refreshData = async () => {
+    await refreshBalance();
+    await fetchTransferHistory();
+  };
 
   const fetchTransferHistory = async () => {
     try {
@@ -41,9 +32,6 @@ const AccountPage = () => {
   };
 
   const refreshBalance = async () => {
-    if (!authUser?._id) return;
-
-    setLoadingBalance(true);
     try {
       const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
       if (response.data && response.data.balance !== undefined) {
@@ -51,8 +39,6 @@ const AccountPage = () => {
       }
     } catch (error) {
       toast.error('Erro ao atualizar saldo');
-    } finally {
-      setLoadingBalance(false);
     }
   };
 
@@ -76,12 +62,11 @@ const AccountPage = () => {
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
   
-      await refreshBalance();
-      fetchTransferHistory();
-      
+      setShowModal(false);
       setReceiverEmail('');
       setAmount('');
-      setShowModal(false);
+      
+      await refreshData();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
@@ -94,15 +79,7 @@ const AccountPage = () => {
 
         <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
-          <p className="text-4xl font-semibold">
-            {loadingBalance ? 'Carregando...' : `€${authUser?.balance?.toFixed(2) ?? '0.00'}`}
-          </p>
-          <button
-            onClick={refreshBalance}
-            className="mt-2 bg-white text-blue-500 px-4 py-2 rounded-lg font-medium"
-          >
-            Atualizar Saldo
-          </button>
+          <p className="text-4xl font-semibold">€{authUser?.balance?.toFixed(2) ?? '0.00'}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -167,7 +144,7 @@ const AccountPage = () => {
                 required
               />
               <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
-              <button onClick={() => setShowModal(false)} className="btn btn-ghost w-full">Cancelar</button>
+              <button onClick={() => { setShowModal(false); refreshData(); }} className="btn btn-ghost w-full">Cancelar</button>
             </form>
           </div>
         </div>
