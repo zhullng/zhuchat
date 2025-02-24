@@ -143,7 +143,7 @@ const AccountPage = () => {
                 className="input input-bordered w-full"
                 required
               />
-              <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
+              <button type="submit" onClick={() => { setShowModal(false); refreshData(); }} className="btn bg-blue-500 text-white w-full">Confirmar</button>
               <button onClick={() => { setShowModal(false); refreshData(); }} className="btn btn-ghost w-full">Cancelar</button>
             </form>
           </div>
