@@ -11,101 +11,47 @@ const AccountPage = () => {
   const [amount, setAmount] = useState('');
   const { authUser, setAuthUser } = useAuthStore();
   const pollingIntervalRef = useRef(null);
-  const socketRef = useRef(null);
   
-  // URLs base para APIs e WebSockets
+  // URL base para APIs
   const baseURL = 'https://zhuchat.onrender.com';
   const apiURL = `${baseURL}/api/transfers`;
   
   useEffect(() => {
     if (authUser?._id) {
       // Carregar o saldo e histórico imediatamente ao entrar na página
-      refreshBalance(false);
+      refreshBalance();
       fetchTransferHistory();
       
       // Configurar atualização rápida a cada 2 segundos
       pollingIntervalRef.current = setInterval(() => {
-        refreshBalance(false);
+        refreshBalance();
         fetchTransferHistory();
-      }, 2000); // 2 segundos para atualizações mais frequentes
+      }, 2000); // 2 segundos para atualizações frequentes
       
-      // Tenta configurar WebSocket se disponível
-      try {
-        setupWebSocket();
-      } catch (error) {
-        console.log('WebSocket não disponível, usando apenas polling');
-      }
-      
-      // Limpar os recursos quando o componente for desmontado
+      // Limpar intervalo quando o componente for desmontado
       return () => {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
-        }
-        if (socketRef.current) {
-          socketRef.current.close();
         }
       };
     }
   }, [authUser?._id]);
 
-  const setupWebSocket = () => {
-    // Tenta conectar ao WebSocket (se existir)
-    try {
-      // Converte de HTTP para WS mantendo o mesmo host
-      const wsBaseURL = baseURL.replace('https://', 'wss://').replace('http://', 'ws://');
-      socketRef.current = new WebSocket(`${wsBaseURL}/ws/balance/${authUser._id}`);
-      
-      socketRef.current.onopen = () => {
-        console.log('WebSocket conectado para atualizações em tempo real');
-        // Se WebSocket conectou com sucesso, podemos reduzir a frequência de polling
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = setInterval(() => {
-            refreshBalance(false);
-            fetchTransferHistory();
-          }, 10000); // Com WebSocket funcionando, polling a cada 10s é suficiente como backup
-        }
-      };
-      
-      socketRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'balance_update' || data.type === 'balance') {
-          setAuthUser((prev) => ({ ...prev, balance: data.balance }));
-        } else if (data.type === 'transfer' || data.type === 'transaction') {
-          fetchTransferHistory();
-        }
-      };
-      
-      socketRef.current.onclose = () => {
-        console.log('WebSocket desconectado, voltando ao polling frequente');
-        // Se WebSocket desconectar, voltamos ao polling mais frequente
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = setInterval(() => {
-            refreshBalance(false);
-            fetchTransferHistory();
-          }, 2000);
-        }
-      };
-      
-      socketRef.current.onerror = (error) => {
-        console.error('WebSocket erro:', error);
-      };
-    } catch (error) {
-      console.log('WebSocket não suportado ou não disponível');
-    }
-  };
-
   const fetchTransferHistory = async () => {
+    if (!authUser?._id) return;
+    
     try {
       const response = await axios.get(`${apiURL}/history/${authUser._id}`);
-      setTransfers(Array.isArray(response.data) ? response.data : []);
+      if (Array.isArray(response.data)) {
+        setTransfers(response.data);
+      }
     } catch (error) {
-      console.error('Erro ao buscar histórico:', error);
+      // Silenciar erros de polling para não perturbar o usuário
+      console.error('Erro ao buscar histórico (silenciado):', error);
     }
   };
 
-  const refreshBalance = async (showLoading = true) => {
+  const refreshBalance = async () => {
     if (!authUser?._id) return;
 
     try {
@@ -114,14 +60,15 @@ const AccountPage = () => {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       }
     } catch (error) {
-      console.error('Erro ao atualizar saldo:', error);
+      // Silenciar erros de polling para não perturbar o usuário
+      console.error('Erro ao atualizar saldo (silenciado):', error);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
+    if (!amount || Number(amount) <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
@@ -152,9 +99,9 @@ const AccountPage = () => {
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
             
-      // Ainda assim, atualizar do servidor para garantir precisão
+      // Garantir que os dados sejam precisos após a operação
       setTimeout(() => {
-        refreshBalance(false);
+        refreshBalance();
         fetchTransferHistory();
       }, 300);
       
@@ -164,7 +111,7 @@ const AccountPage = () => {
     } catch (error) {
       // Em caso de erro, reverte a UI otimista e mostra o erro
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
-      refreshBalance(false); // Recarregar saldo real
+      refreshBalance(); // Recarregar saldo real
     }
   };
 
@@ -178,7 +125,7 @@ const AccountPage = () => {
           <p className="text-4xl font-semibold">
             €{authUser?.balance?.toFixed(2) ?? '0.00'}
           </p>
-          <p className="text-xs mt-2">Atualização em tempo real</p>
+          <p className="text-xs mt-2">Atualização automática</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
