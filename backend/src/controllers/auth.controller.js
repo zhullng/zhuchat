@@ -1,12 +1,7 @@
-import Stripe from "stripe"; // Importando o Stripe
-import { generateToken } from "../lib/utils.js"; // Função para gerar o token JWT
-import User from "../models/user.model.js"; // Modelo de usuário
+import { generateToken } from "../lib/utils.js"; // Função para gerar token JWT
+import User from "../models/user.model.js";
 import bcrypt from "bcryptjs"; 
-import dotenv from "dotenv"; 
-
-dotenv.config();
-
-const stripe = new Stripe(process.env.STRIPE_API_SECRET); // Inicializando o Stripe
+//import cloudinary from "../lib/cloudinary.js"; 
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body; // Recebe os dados da requisição
@@ -21,63 +16,39 @@ export const signup = async (req, res) => {
     }
 
     // Verifica se o e-mail já existe na bd
-    const userExists = await User.findOne({ email });
-    if (userExists) return res.status(400).json({ message: "Email already exists" });
+    const user = await User.findOne({ email });
 
-    // Cria uma senha encriptada
+    if (user) return res.status(400).json({ message: "Email already exists" });
+
+    // Cria uma pass encriptada
     const salt = await bcrypt.genSalt(10); // Cria o sal (valor único e aleatório)
-    const hashedPassword = await bcrypt.hash(password, salt); // Hash da senha
+    const hashedPassword = await bcrypt.hash(password, salt); // Hash à pass
 
-    // Verificar se já existe um cliente no Stripe com esse email
-    const existingCustomer = await stripe.customers.list({
-      email, // Passa o email do usuário para procurar um cliente existente
-    });
-
-    let stripeCustomerId;
-
-    if (existingCustomer.data.length > 0) {
-      // Cliente já existe no Stripe, usar o ID existente
-      stripeCustomerId = existingCustomer.data[0].id;
-    } else {
-      try {
-        // Cliente não existe, criar um novo cliente no Stripe
-        const stripeCustomer = await stripe.customers.create({
-          email,
-          name: fullName,
-        });
-
-        stripeCustomerId = stripeCustomer.id;
-      } catch (error) {
-        console.error("Erro ao criar cliente no Stripe:", error);
-        return res.status(500).json({ message: "Erro ao criar cliente no Stripe" });
-      }
-    }
-
-    // Cria o novo usuário no MongoDB
+    // Cria um novo user
     const newUser = new User({
       fullName,
       email,
-      password: hashedPassword, // Armazena a senha criptografada
-      stripeCustomerId, // Armazena o ID do cliente do Stripe
-      balance: 0, // Inicializa o saldo como 0
+      password: hashedPassword, // Armazena a pass
     });
 
-    // Salva o novo usuário na base de dados
-    await newUser.save();
+    if (newUser) {
+      // Cria o token JWT e envia na resposta
+      generateToken(newUser._id, res);
+      await newUser.save(); // Guarda o novo user na bd
 
-    // Cria o token JWT e envia na resposta
-    generateToken(newUser._id, res);
-
-    // Responde com os dados do usuário (exceto a senha)
-    res.status(201).json({
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-      profilePic: newUser.profilePic,
-    });
+      // Recebe os dados do user, exceto a pass
+      res.status(201).json({
+        _id: newUser._id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        profilePic: newUser.profilePic,
+      });
+    } else {
+      res.status(400).json({ message: "Invalid user data" }); 
+    }
   } catch (error) {
     console.log("Error in signup controller", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error" }); 
   }
 };
 
@@ -92,7 +63,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Verifica se a pass está correta
+    // Verifica se a pass está bem
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Invalid credentials" });
@@ -101,7 +72,7 @@ export const login = async (req, res) => {
     // Cria o token JWT e envia na resposta
     generateToken(user._id, res);
 
-    // Responde com os dados do user, exceto a pass
+    // Recebe os dados do user, exceto a pass
     res.status(200).json({
       _id: user._id,
       fullName: user.fullName,
@@ -110,7 +81,7 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.log("Error in login controller", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error" }); 
   }
 };
 
