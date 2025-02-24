@@ -14,8 +14,10 @@ const AccountPage = () => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
+    if (!authUser?._id) return;
+    
     const socketConnection = io('http://localhost:5000', {
-      query: { userId: authUser?._id },
+      query: { userId: authUser._id },
     });
 
     socketConnection.on('connect', () => {
@@ -23,7 +25,7 @@ const AccountPage = () => {
     });
 
     socketConnection.on('balanceUpdated', (newBalance) => {
-      console.log("Novo saldo recebido:", newBalance);
+      console.log("Novo saldo recebido via WebSocket:", newBalance);
       setAuthUser((prev) => ({ ...prev, balance: newBalance }));
     });
 
@@ -38,7 +40,6 @@ const AccountPage = () => {
     socketConnection.on('updateTransferHistory', fetchTransferHistory);
 
     fetchTransferHistory();
-
     setSocket(socketConnection);
 
     return () => {
@@ -49,11 +50,7 @@ const AccountPage = () => {
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      if (response && response.data) {
-        setTransfers(Array.isArray(response.data) ? response.data : []);
-      } else {
-        toast.error('Histórico de transferências não encontrado');
-      }
+      setTransfers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
@@ -82,14 +79,17 @@ const AccountPage = () => {
           : { userId: authUser._id, amount };
 
       const response = await axios.post(endpoint, payload);
-
       toast.success(response.data.message);
 
+      setAuthUser((prev) => ({ ...prev, balance: response.data.newBalance }));
+      if (socket) {
+        socket.emit('updateBalance', authUser._id, response.data.newBalance);
+      }
+      
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
-
-      fetchTransferHistory(); // Atualiza o histórico sem precisar emitir eventos manualmente
+      fetchTransferHistory();
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
@@ -97,34 +97,18 @@ const AccountPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
         <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
-          <p className="text-4xl font-semibold">
-            {authUser?.balance !== undefined ? (
-              <>
-                {authUser?.balance?.toFixed(2)} <span className="text-sm">EUR</span>
-              </>
-            ) : (
-              'Carregando...'
-            )}
-          </p>
+          <p className="text-4xl font-semibold">{authUser?.balance?.toFixed(2)} <span className="text-sm">EUR</span></p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button onClick={() => { setModalAction('deposit'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">
-            Depositar
-          </button>
-          <button onClick={() => { setModalAction('transfer'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">
-            Transferir
-          </button>
-          <button onClick={() => { setModalAction('withdraw'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">
-            Sacar
-          </button>
-        </div>
+        <button onClick={() => { setModalAction('deposit'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Depositar</button>
+        <button onClick={() => { setModalAction('transfer'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Transferir</button>
+        <button onClick={() => { setModalAction('withdraw'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Sacar</button>
       </div>
     </div>
   );

@@ -4,18 +4,22 @@ import express from "express";
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: ["http://localhost:5173"] },
+  cors: {
+    origin: ["http://localhost:5173"],
+  },
 });
 
+// Função que retorna o Socket ID do recetor dado o userId
 export function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
+  return userSocketMap[userId]; 
 }
 
-const userSocketMap = {}; 
+const userSocketMap = {};
 
 io.on("connection", (socket) => {
-  console.log("Um utilizador conectou-se", socket.id);
+  console.log("Usuário conectado", socket.id);
 
   const userId = socket.handshake.query.userId;
   if (userId) userSocketMap[userId] = socket.id;
@@ -23,23 +27,32 @@ io.on("connection", (socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   socket.on("disconnect", () => {
-    console.log("Um utilizador desconectou-se", socket.id);
+    console.log("Usuário desconectado", socket.id);
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 
-  socket.on("transferCompleted", (senderId, receiverId, amount, updatedSenderBalance, updatedReceiverBalance) => {
-    const senderSocketId = userSocketMap[senderId];
-    const receiverSocketId = userSocketMap[receiverId];
+  socket.on("updateBalance", (userId, newBalance) => {
+    if (userSocketMap[userId]) {
+      io.to(userSocketMap[userId]).emit("balanceUpdated", newBalance);
+    }
+  });
 
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("balanceUpdated", updatedSenderBalance);
-      io.to(senderSocketId).emit("transferNotification", { type: "sent", amount, receiverId });
+  socket.on("transferCompleted", (senderId, receiverId, amount) => {
+    if (userSocketMap[senderId]) {
+      io.to(userSocketMap[senderId]).emit("transferNotification", {
+        type: "sent",
+        amount,
+        receiverId,
+      });
     }
 
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("balanceUpdated", updatedReceiverBalance);
-      io.to(receiverSocketId).emit("transferNotification", { type: "received", amount, senderId });
+    if (userSocketMap[receiverId]) {
+      io.to(userSocketMap[receiverId]).emit("transferNotification", {
+        type: "received",
+        amount,
+        senderId,
+      });
     }
 
     io.emit("updateTransferHistory");
