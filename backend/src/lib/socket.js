@@ -72,6 +72,9 @@ io.on("connection", (socket) => {
         senderId,
       });
     }
+
+    // Emitir evento para o front-end atualizar o histórico
+    io.emit("updateTransferHistory"); // Novo evento para atualizar o histórico
   });
 });
 

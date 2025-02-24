@@ -23,11 +23,12 @@ const AccountPage = () => {
       console.log('Conectado ao WebSocket');
     });
 
+    // Atualiza o saldo quando a notificação for recebida
     socketConnection.on('balanceUpdated', (newBalance) => {
-      // Atualiza o saldo quando a notificação for recebida
       setAuthUser((prev) => ({ ...prev, balance: newBalance }));
     });
 
+    // Notifica quando uma transferência é feita
     socketConnection.on('transferNotification', (data) => {
       if (data.type === 'sent') {
         toast.success(`Você enviou €${data.amount}`);
@@ -36,15 +37,21 @@ const AccountPage = () => {
       }
     });
 
+    // Atualiza o histórico de transferências quando o evento for disparado
+    socketConnection.on('updateTransferHistory', fetchTransferHistory);
+
+    // Carregar histórico ao iniciar a aplicação
+    fetchTransferHistory();
+
     setSocket(socketConnection);
 
     // Limpar a conexão ao WebSocket quando o componente for desmontado
     return () => {
       socketConnection.disconnect();
     };
-  }, [authUser?._id]);
+  }, [authUser?._id]);  // Garante que o socket seja atualizado se o authUser mudar
 
-  // Buscar o histórico de transferências do usuário
+  // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
@@ -95,6 +102,7 @@ const AccountPage = () => {
         socket.emit('updateBalance', authUser._id, response.data.newBalance);
       }
 
+      // Atualizar o histórico após a operação
       fetchTransferHistory();
     } catch (error) {
       console.error('Erro ao processar operação:', error);
