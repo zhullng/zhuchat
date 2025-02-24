@@ -10,23 +10,34 @@ const AccountPage = () => {
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
   const { authUser, setAuthUser } = useAuthStore();
+  const [previousBalance, setPreviousBalance] = useState(authUser?.balance);
 
   useEffect(() => {
     if (authUser?._id) {
-      refreshData();
+      fetchTransferHistory();
+      checkBalanceChange();
     }
   }, [authUser?._id]);
 
-  const refreshData = async () => {
-    await refreshBalance();
-    await fetchTransferHistory();
+  const checkBalanceChange = async () => {
+    if (authUser?.balance !== previousBalance) {
+      setPreviousBalance(authUser?.balance); // Atualiza o valor anterior do saldo
+      await refreshBalance();
+      await fetchTransferHistory();
+    }
   };
 
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      setTransfers(Array.isArray(response.data) ? response.data : []);
+      
+      if (response && response.data) {
+        setTransfers(Array.isArray(response.data) ? response.data : []);
+      } else {
+        toast.error('Histórico de transferências não encontrado');
+      }
     } catch (error) {
+      console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
   };
@@ -34,49 +45,51 @@ const AccountPage = () => {
   const refreshBalance = async () => {
     try {
       const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
+      
       if (response.data && response.data.balance !== undefined) {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
+      } else {
+        toast.error('Erro ao recuperar o saldo');
       }
     } catch (error) {
+      console.error('Erro ao atualizar saldo:', error);
       toast.error('Erro ao atualizar saldo');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+  
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
-
+  
     try {
       const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' :
                        modalAction === 'withdraw' ? '/api/transfers/withdraw' :
                        '/api/transfers/transfer';
-      
+  
       const payload = modalAction === 'transfer' 
         ? { senderId: authUser._id, receiverEmail, amount }
         : { userId: authUser._id, amount };
   
       const response = await axios.post(endpoint, payload);
+  
       toast.success(response.data.message);
-      
-      // Atualize o saldo diretamente após a operação
-      if (response.data.user) {
-        setAuthUser((prev) => ({ ...prev, balance: response.data.user.balance }));
-      }
-
+  
+      // Limpar os campos e fechar o modal
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
-      
-      await refreshData(); // Refresh após a operação
+  
+      // Não fazemos mais a atualização do saldo e histórico aqui
     } catch (error) {
+      console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
-
+  
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
@@ -149,7 +162,7 @@ const AccountPage = () => {
                 required
               />
               <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
-              <button onClick={() => { setShowModal(false); refreshData(); }} className="btn btn-ghost w-full">Cancelar</button>
+              <button onClick={() => { setShowModal(false); }} className="btn btn-ghost w-full">Cancelar</button>
             </form>
           </div>
         </div>
