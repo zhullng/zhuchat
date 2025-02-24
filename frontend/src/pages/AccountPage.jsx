@@ -65,6 +65,7 @@ const AccountPage = () => {
     try {
       const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
       if (response.data && response.data.balance !== undefined) {
+        // Atualiza o saldo após a operação
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       } else {
         toast.error('Erro ao recuperar o saldo');
@@ -105,7 +106,9 @@ const AccountPage = () => {
       setReceiverEmail('');
       setAmount('');
 
-      // Não fazemos mais a atualização do saldo e histórico aqui, pois ocorre no useEffect quando o saldo mudar
+      // Forçar a atualização do saldo após a operação
+      await refreshBalance();
+
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
