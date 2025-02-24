@@ -83,7 +83,8 @@ const AccountPage = () => {
       setReceiverEmail('');
       setAmount('');
 
-      // Não fazemos mais a atualização do saldo e histórico aqui, pois ocorre no useEffect quando o saldo mudar
+      // Atualizar saldo e histórico após a operação
+      await refreshData();  // Atualiza o saldo e o histórico
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
