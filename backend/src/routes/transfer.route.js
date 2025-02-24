@@ -5,7 +5,7 @@ import { protectRoute } from "../middleware/auth.middleware.js"; // Certifique-s
 const router = express.Router();
 
 // 🔹 Rota para fazer uma transferência
-router.post("/", protectRoute, makeTransfer);
+router.post("/transfer", protectRoute, makeTransfer);
 
 // 🔹 Rota para buscar o histórico de transferências de um usuário
 router.get("/history/:userId", protectRoute, getTransferHistory);
