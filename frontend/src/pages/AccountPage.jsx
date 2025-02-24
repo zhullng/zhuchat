@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -23,16 +22,15 @@ const AccountPage = () => {
       updateBalance();
     } catch (error) {
       toast.error('Erro ao buscar histórico de transferências');
-      setTransfers([]);
     }
   };
 
   const updateBalance = async () => {
     try {
       const response = await axios.get(`/api/users/balance/${authUser._id}`);
-      setAuthUser({ ...authUser, balance: response.data.balance });
+      setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
     } catch (error) {
-      toast.error('Erro ao atualizar saldo');
+      console.error('Erro ao atualizar saldo');
     }
   };
 
@@ -42,24 +40,32 @@ const AccountPage = () => {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
-
+  
     try {
-      const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' : modalAction === 'withdraw' ? '/api/transfers/withdraw' : '/api/transfers/transfer';
+      const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' :
+                       modalAction === 'withdraw' ? '/api/transfers/withdraw' :
+                       '/api/transfers/transfer';
       const payload = modalAction === 'transfer' 
         ? { senderId: authUser._id, receiverEmail, amount }
         : { userId: authUser._id, amount };
-
+  
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
+  
+      // Atualiza o saldo após qualquer operação
+      await updateBalance(); 
+  
+      // Limpar os campos e fechar o modal
       setReceiverEmail('');
       setAmount('');
       setShowModal(false);
-      fetchTransferHistory();
+      fetchTransferHistory(); // Atualiza o histórico de transferências
+  
     } catch (error) {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
-
+  
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 space-y-6">
@@ -71,9 +77,9 @@ const AccountPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button onClick={() => setShowModal('deposit')} className="btn btn-primary w-full">Depositar</button>
-          <button onClick={() => setShowModal('transfer')} className="btn btn-primary w-full">Transferir</button>
-          <button onClick={() => setShowModal('withdraw')} className="btn btn-primary w-full">Sacar</button>
+          <button onClick={() => { setModalAction('deposit'); setShowModal(true); }} className="btn btn-primary w-full">Depositar</button>
+          <button onClick={() => { setModalAction('transfer'); setShowModal(true); }} className="btn btn-primary w-full">Transferir</button>
+          <button onClick={() => { setModalAction('withdraw'); setShowModal(true); }} className="btn btn-primary w-full">Sacar</button>
         </div>
 
         <h2 className="text-xl font-semibold text-gray-800">Transações</h2>
@@ -85,7 +91,7 @@ const AccountPage = () => {
               <div key={transfer._id} className="flex justify-between p-2 border-b border-gray-300">
                 <div>
                   <p className="font-medium text-gray-700">
-                    {transfer.sender._id === authUser._id ? authUser.fullName : transfer.sender.fullName}
+                    {transfer.sender._id === authUser._id ? 'Você' : transfer.sender.fullName}
                   </p>
                   <p className="text-sm text-gray-500">
                     {new Date(transfer.createdAt).toLocaleString('pt-PT', {
@@ -105,6 +111,40 @@ const AccountPage = () => {
           )}
         </div>
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
+            <h2 className="text-2xl font-semibold mb-4">
+              {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {modalAction === 'transfer' && (
+                <input
+                  type="email"
+                  placeholder="E-mail do destinatário"
+                  value={receiverEmail}
+                  onChange={(e) => setReceiverEmail(e.target.value)}
+                  className="input input-bordered w-full"
+                  required
+                />
+              )}
+              <input
+                type="number"
+                placeholder="Valor"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="input input-bordered w-full"
+                required
+              />
+              <button type="submit" className="btn btn-primary w-full">
+                {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
+              </button>
+              <button onClick={() => setShowModal(false)} className="btn btn-ghost w-full">Cancelar</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
