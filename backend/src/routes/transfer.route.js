@@ -5,6 +5,6 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 const router = express.Router();
 
 router.post("/", protectRoute, makeTransfer);
-router.get("/history/:userId", getTransferHistory);
+router.get("/history/:userId", protectRoute, getTransferHistory);
 
 export default router;

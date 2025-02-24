@@ -3,42 +3,40 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import cors from "cors"; 
 import path from "path"; 
-import { connectDB } from "./lib/db.js"; // Função para conectar ao banco de dados
+import { connectDB } from "./lib/db.js"; // Conexão com o MongoDB
 
 import aiRoutes from './routes/ai.route.js';
 import authRoutes from "./routes/auth.route.js"; 
 import messageRoutes from "./routes/message.route.js";
-import transferRoutes from "./routes/transfer.route.js"; // ✅ Nova rota para transferências
+import transferRoutes from "./routes/transfer.route.js"; // ✅ Corrigido
 import { app, server } from "./lib/socket.js"; // Inicializa app e server de socket
 
-dotenv.config(); // Carrega variáveis de ambiente
+dotenv.config();
 
-const PORT = process.env.PORT; // Define a porta do servidor
-const __dirname = path.resolve(); // Caminho absoluto do diretório (para mudanças de pastas)
+const PORT = process.env.PORT;
+const __dirname = path.resolve();
 
-app.use(express.json()); // Middleware para tratar JSON
-app.use(cookieParser()); // Middleware para tratar cookies
-app.use(
-  cors({
-    origin: "*", // Permite requisições de qualquer origem (apenas para testes)
-    credentials: true,
-  })
-);  
+// Middlewares
+app.use(express.json());
+app.use(cookieParser());
+app.use(cors({ origin: "*", credentials: true }));
 
-app.use("/api/auth", authRoutes); 
+// Rotas
+app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiRoutes); 
-app.use("/api/transfer", transferRoutes); // ✅ Nova rota para transferências
+app.use("/api/ai", aiRoutes);
+app.use("/api/transfers", transferRoutes); // ✅ Corrigido
 
-if (process.env.NODE_ENV === "production") { // Verifica ambiente de produção
-  app.use(express.static(path.join(__dirname, "../frontend/dist"))); // Receber arquivos estáticos
-
-  app.get("*", (req, res) => { // Rota para receber index.html
+// Serve frontend em produção
+if (process.env.NODE_ENV === "production") {  
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));  
+  app.get("*", (req, res) => {  
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
 
-server.listen(PORT, () => { // Inicia o servidor na porta especificada
-  console.log("server is running on PORT:" + PORT);
-  connectDB(); // Conecta ao banco de dados
+// Conectar banco antes de iniciar servidor
+connectDB();
+server.listen(PORT, () => {
+  console.log("Server is running on PORT:" + PORT);
 });
