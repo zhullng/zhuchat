@@ -86,7 +86,8 @@ export const depositMoney = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-    user.balance += amount;
+    user.balance += Number(amount); // Garantindo que ambos sejam números
+
     await user.save();
 
     res.json({
@@ -116,7 +117,8 @@ export const withdrawMoney = async (req, res) => {
       return res.status(400).json({ error: "Saldo insuficiente" });
     }
 
-    user.balance -= amount;
+    user.balance -= Number(amount); // Garantindo que ambos sejam números
+
     await user.save();
 
     res.json({
