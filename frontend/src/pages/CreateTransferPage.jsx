@@ -42,7 +42,7 @@ const CreateTransfersPage = () => {
   };
 
   return (
-    <div>
+    <div className="pl-32">
       <h1>Fazer Transferência</h1>
       <form onSubmit={handleSubmit}>
         <div>

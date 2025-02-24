@@ -25,7 +25,7 @@ const TransfersPage = () => {
   }, [authUser]);
 
   return (
-    <div>
+    <div className='pl-32'>
       <h1>Histórico de Transferências</h1>
       <table>
         <thead>
