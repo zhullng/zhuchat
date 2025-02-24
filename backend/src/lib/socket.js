@@ -11,7 +11,7 @@ const server = http.createServer(app);
 // Cria uma instância do Server do Socket.IO, associada ao servidor HTTP
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"], // Permite conexões do domínio especificado
+    origin: ["https://zhuchat.onrender.com"], // Permite conexões do domínio especificado
   },
 });
 
