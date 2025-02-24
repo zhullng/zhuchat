@@ -18,16 +18,16 @@ const AccountPage = () => {
     const socketConnection = io('http://localhost:5000', {
       query: { userId: authUser?._id },
     });
-
+  
     socketConnection.on('connect', () => {
       console.log('Conectado ao WebSocket');
     });
-
+  
     // Atualiza o saldo quando a notificação for recebida
     socketConnection.on('balanceUpdated', (newBalance) => {
       setAuthUser((prev) => ({ ...prev, balance: newBalance }));
     });
-
+  
     // Notifica quando uma transferência é feita
     socketConnection.on('transferNotification', (data) => {
       if (data.type === 'sent') {
@@ -36,20 +36,20 @@ const AccountPage = () => {
         toast.success(`Você recebeu €${data.amount}`);
       }
     });
-
+  
     // Atualiza o histórico de transferências quando o evento for disparado
     socketConnection.on("updateTransferHistory", fetchTransferHistory);
-
+  
     // Carregar histórico ao iniciar a aplicação
     fetchTransferHistory();
-
+  
     setSocket(socketConnection);
-
+  
     // Limpar a conexão ao WebSocket quando o componente for desmontado
     return () => {
       socketConnection.disconnect();
     };
-  }, [authUser?._id]);  // Garante que o socket seja atualizado se o authUser mudar
+  }, [authUser?._id]); // Garante que o socket seja atualizado se o authUser mudar
 
   // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
@@ -64,7 +64,7 @@ const AccountPage = () => {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
-  };
+  };  
 
   // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {

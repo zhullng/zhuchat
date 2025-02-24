@@ -51,30 +51,32 @@ io.on("connection", (socket) => {
   });
 
   // Evento para emitir quando uma transferência foi realizada
-  socket.on("transferCompleted", (senderId, receiverId, amount) => {
-    const senderSocketId = userSocketMap[senderId];
-    const receiverSocketId = userSocketMap[receiverId];
-  
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("transferNotification", {
-        type: "sent",
-        amount,
-        receiverId,
-      });
-      io.to(senderSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o remetente
-      io.to(senderSocketId).emit("balanceUpdated", newBalance);
-    }
-  
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("transferNotification", {
-        type: "received",
-        amount,
-        senderId,
-      });
-      io.to(receiverSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o destinatário
-      io.to(receiverSocketId).emit("balanceUpdated", newBalance);
-    }
-  });
+  // Evento para emitir quando uma transferência foi realizada
+socket.on("transferCompleted", (senderId, receiverId, amount) => {
+  const senderSocketId = userSocketMap[senderId];
+  const receiverSocketId = userSocketMap[receiverId];
+
+  // Envia a notificação para o remetente
+  if (senderSocketId) {
+    io.to(senderSocketId).emit("transferNotification", {
+      type: "sent",
+      amount,
+      receiverId,
+    });
+    io.to(senderSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o remetente
+  }
+
+  // Envia a notificação para o destinatário
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("transferNotification", {
+      type: "received",
+      amount,
+      senderId,
+    });
+    io.to(receiverSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o destinatário
+  }
+});
+
   
 });
 
