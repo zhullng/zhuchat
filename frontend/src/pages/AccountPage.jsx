@@ -61,12 +61,17 @@ const AccountPage = () => {
   
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
-  
+      
+      // Atualize o saldo diretamente após a operação
+      if (response.data.user) {
+        setAuthUser((prev) => ({ ...prev, balance: response.data.user.balance }));
+      }
+
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
       
-      await refreshData();
+      await refreshData(); // Refresh após a operação
     } catch (error) {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
