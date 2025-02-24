@@ -169,7 +169,7 @@ const AccountPage = () => {
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
-        <div className="bg-blue-400 p-6 rounded-lg text-white text-center">
+        <div className="bg-slate-700 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
           <p className="text-4xl font-semibold">
             €{authUser?.balance?.toFixed(2) ?? '0.00'}
