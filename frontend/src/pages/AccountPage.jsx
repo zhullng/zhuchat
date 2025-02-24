@@ -12,18 +12,21 @@ const AccountPage = () => {
   const { authUser, setAuthUser } = useAuthStore();
   const [previousBalance, setPreviousBalance] = useState(authUser?.balance);
 
-  // Atualiza o histórico e o saldo quando o saldo mudar
+  // Carregar saldo e histórico na primeira renderização
   useEffect(() => {
-    if (authUser?._id && authUser.balance !== previousBalance) {
-      setPreviousBalance(authUser.balance);  // Atualiza o saldo anterior
-      refreshData();  // Atualiza o saldo e o histórico
+    if (authUser?._id) {
+      fetchTransferHistory(); // Carregar histórico de transferências inicialmente
+      fetchInitialBalance(); // Carregar o saldo inicialmente
     }
-  }, [authUser?.balance]);  // Escuta mudanças no saldo (authUser.balance)
+  }, [authUser?._id]); // Esse useEffect roda uma vez ao inicializar
 
-  const refreshData = async () => {
-    await fetchTransferHistory();
-    await refreshBalance();
-  };
+  // Atualiza o saldo e o histórico quando o saldo mudar
+  useEffect(() => {
+    if (authUser?.balance !== previousBalance) {
+      setPreviousBalance(authUser.balance); // Atualiza o saldo anterior
+      refreshData(); // Atualiza o saldo e histórico
+    }
+  }, [authUser?.balance]);  // Vai escutar mudanças no saldo
 
   const fetchTransferHistory = async () => {
     try {
@@ -37,6 +40,25 @@ const AccountPage = () => {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
+  };
+
+  const fetchInitialBalance = async () => {
+    try {
+      const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
+      if (response.data && response.data.balance !== undefined) {
+        setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
+      } else {
+        toast.error('Erro ao recuperar o saldo');
+      }
+    } catch (error) {
+      console.error('Erro ao recuperar saldo:', error);
+      toast.error('Erro ao recuperar saldo');
+    }
+  };
+
+  const refreshData = async () => {
+    await fetchTransferHistory();
+    await refreshBalance();
   };
 
   const refreshBalance = async () => {
@@ -83,8 +105,7 @@ const AccountPage = () => {
       setReceiverEmail('');
       setAmount('');
 
-      // Atualizar saldo e histórico após a operação
-      await refreshData();  // Atualiza o saldo e o histórico
+      // Não fazemos mais a atualização do saldo e histórico aqui, pois ocorre no useEffect quando o saldo mudar
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
@@ -99,8 +120,13 @@ const AccountPage = () => {
         <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
           <p className="text-4xl font-semibold">
-            {authUser?.balance?.toFixed(2) ?? '0.00'}{' '}
-            <span className="text-xl">{'EUR'}</span>
+            {authUser?.balance !== undefined ? (
+              <>
+                {authUser?.balance?.toFixed(2)} <span className="text-sm">EUR</span>
+              </>
+            ) : (
+              'Carregando...'
+            )}
           </p>
         </div>
 
@@ -158,9 +184,7 @@ const AccountPage = () => {
                   </p>
                 </div>
                 <p className={transfer.sender._id === authUser._id ? 'text-red-500' : 'text-green-500'}>
-                  {transfer.sender._id === authUser._id ? '-' : '+'}
-                  {transfer.amount.toFixed(2)}{' '}
-                  <span className="text-sm">{'EUR'}</span>
+                  {transfer.sender._id === authUser._id ? '-' : '+'}€{transfer.amount.toFixed(2)}
                 </p>
               </div>
             ))
