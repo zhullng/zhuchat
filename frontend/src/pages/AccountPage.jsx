@@ -13,22 +13,22 @@ const AccountPage = () => {
   const { authUser, setAuthUser } = useAuthStore();
   const [socket, setSocket] = useState(null);
 
+  // Conectar ao servidor WebSocket na inicialização
   useEffect(() => {
-    if (!authUser?._id) return;
-    
     const socketConnection = io('http://localhost:5000', {
-      query: { userId: authUser._id },
+      query: { userId: authUser?._id },
     });
 
     socketConnection.on('connect', () => {
       console.log('Conectado ao WebSocket');
     });
 
+    // Atualiza o saldo quando a notificação for recebida
     socketConnection.on('balanceUpdated', (newBalance) => {
-      console.log("Novo saldo recebido via WebSocket:", newBalance);
       setAuthUser((prev) => ({ ...prev, balance: newBalance }));
     });
 
+    // Notifica quando uma transferência é feita
     socketConnection.on('transferNotification', (data) => {
       if (data.type === 'sent') {
         toast.success(`Você enviou €${data.amount}`);
@@ -37,26 +37,36 @@ const AccountPage = () => {
       }
     });
 
+    // Atualiza o histórico de transferências quando o evento for disparado
     socketConnection.on('updateTransferHistory', fetchTransferHistory);
 
+    // Carregar histórico ao iniciar a aplicação
     fetchTransferHistory();
+
     setSocket(socketConnection);
 
+    // Limpar a conexão ao WebSocket quando o componente for desmontado
     return () => {
       socketConnection.disconnect();
     };
-  }, [authUser?._id]);
+  }, [authUser?._id]);  // Garante que o socket seja atualizado se o authUser mudar
 
+  // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      setTransfers(Array.isArray(response.data) ? response.data : []);
+      if (response && response.data) {
+        setTransfers(Array.isArray(response.data) ? response.data : []);
+      } else {
+        toast.error('Histórico de transferências não encontrado');
+      }
     } catch (error) {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
   };
 
+  // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -79,16 +89,20 @@ const AccountPage = () => {
           : { userId: authUser._id, amount };
 
       const response = await axios.post(endpoint, payload);
+
       toast.success(response.data.message);
 
-      setAuthUser((prev) => ({ ...prev, balance: response.data.newBalance }));
-      if (socket) {
-        socket.emit('updateBalance', authUser._id, response.data.newBalance);
-      }
-      
+      // Fechar o modal e limpar os campos
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
+
+      // Emitir o evento de atualização do saldo pelo WebSocket
+      if (socket) {
+        socket.emit('updateBalance', authUser._id, response.data.newBalance);
+      }
+
+      // Atualizar o histórico após a operação
       fetchTransferHistory();
     } catch (error) {
       console.error('Erro ao processar operação:', error);
@@ -97,19 +111,129 @@ const AccountPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
         <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
-          <p className="text-4xl font-semibold">{authUser?.balance?.toFixed(2)} <span className="text-sm">EUR</span></p>
+          <p className="text-4xl font-semibold">
+            {authUser?.balance !== undefined ? (
+              <>
+                {authUser?.balance?.toFixed(2)} <span className="text-sm">EUR</span>
+              </>
+            ) : (
+              'Carregando...'
+            )}
+          </p>
         </div>
 
-        <button onClick={() => { setModalAction('deposit'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Depositar</button>
-        <button onClick={() => { setModalAction('transfer'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Transferir</button>
-        <button onClick={() => { setModalAction('withdraw'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Sacar</button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button
+            onClick={() => {
+              setModalAction('deposit');
+              setShowModal(true);
+            }}
+            className="btn bg-blue-500 text-white w-full"
+          >
+            Depositar
+          </button>
+          <button
+            onClick={() => {
+              setModalAction('transfer');
+              setShowModal(true);
+            }}
+            className="btn bg-blue-500 text-white w-full"
+          >
+            Transferir
+          </button>
+          <button
+            onClick={() => {
+              setModalAction('withdraw');
+              setShowModal(true);
+            }}
+            className="btn bg-blue-500 text-white w-full"
+          >
+            Sacar
+          </button>
+        </div>
+
+        <h2 className="text-xl font-semibold text-gray-800">Transações</h2>
+        <div className="space-y-4 bg-gray-50 p-4 rounded-lg max-h-80 overflow-y-auto">
+          {transfers.length === 0 ? (
+            <p className="text-center text-gray-500">Nenhuma transação encontrada</p>
+          ) : (
+            transfers.map((transfer) => (
+              <div key={transfer._id} className="flex justify-between p-2 border-b border-gray-300">
+                <div>
+                  <p className="font-medium text-gray-700">
+                    {transfer.sender._id === authUser._id
+                      ? authUser.fullName
+                      : transfer.sender.fullName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(transfer.createdAt).toLocaleString('pt-PT', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+                <p className={transfer.sender._id === authUser._id ? 'text-red-500' : 'text-green-500'}>
+                  {transfer.sender._id === authUser._id ? '-' : '+'}€{transfer.amount.toFixed(2)}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
+            <h2 className="text-2xl font-semibold mb-4">
+              {modalAction === 'deposit'
+                ? 'Depositar'
+                : modalAction === 'transfer'
+                ? 'Transferir'
+                : 'Sacar'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {modalAction === 'transfer' && (
+                <input
+                  type="email"
+                  placeholder="E-mail do destinatário"
+                  value={receiverEmail}
+                  onChange={(e) => setReceiverEmail(e.target.value)}
+                  className="input input-bordered w-full"
+                  required
+                />
+              )}
+              <input
+                type="number"
+                placeholder="Valor"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="input input-bordered w-full"
+                required
+              />
+              <button type="submit" className="btn bg-blue-500 text-white w-full">
+                Confirmar
+              </button>
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                }}
+                className="btn btn-ghost w-full"
+              >
+                Cancelar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
