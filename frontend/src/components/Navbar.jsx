@@ -1,10 +1,16 @@
 import React from 'react';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Importando useNavigate
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, Settings, MessageCircle, CreditCard } from "lucide-react"; // Importando o ícone de cartão de crédito
+import { LogOut, Settings, MessageCircle, CreditCard } from "lucide-react";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
+  const navigate = useNavigate(); // Hook para navegação
+
+  const handleLogout = () => {
+    logout(); // Função de logout
+    navigate("https://zhuchat.onrender.com/"); // Redireciona para a URL após o logout
+  };
 
   return (
     <header className="border-r fixed top-0 left-0 z-40 w-16 sm:w-20 md:w-20 h-full bg-base-200">
@@ -43,7 +49,7 @@ const Navbar = () => {
 
               {/* Botão de logout */}
               <button 
-                onClick={logout}
+                onClick={handleLogout} // Usa a função handleLogout
                 className="btn btn-circle btn-ghost btn-lg"
               >
                 <LogOut className="size-6" />
