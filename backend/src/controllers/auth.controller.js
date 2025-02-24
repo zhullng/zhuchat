@@ -39,13 +39,18 @@ export const signup = async (req, res) => {
       // Cliente já existe no Stripe, usar o ID existente
       stripeCustomerId = existingCustomer.data[0].id;
     } else {
-      // Cliente não existe, criar um novo cliente no Stripe
-      const stripeCustomer = await stripe.customers.create({
-        email,
-        name: fullName,
-      });
+      try {
+        // Cliente não existe, criar um novo cliente no Stripe
+        const stripeCustomer = await stripe.customers.create({
+          email,
+          name: fullName,
+        });
 
-      stripeCustomerId = stripeCustomer.id;
+        stripeCustomerId = stripeCustomer.id;
+      } catch (error) {
+        console.error("Erro ao criar cliente no Stripe:", error);
+        return res.status(500).json({ message: "Erro ao criar cliente no Stripe" });
+      }
     }
 
     // Cria o novo usuário no MongoDB
@@ -163,4 +168,3 @@ export const checkAuth = (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
-  
