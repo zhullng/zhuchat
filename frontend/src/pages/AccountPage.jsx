@@ -9,11 +9,12 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
+  const [loadingBalance, setLoadingBalance] = useState(false);
   const { authUser, setAuthUser } = useAuthStore();
 
   useEffect(() => {
     if (authUser?._id) {
-      updateBalance();
+      refreshBalance();
       fetchTransferHistory();
     }
   }, [authUser?._id]);
@@ -27,15 +28,19 @@ const AccountPage = () => {
     }
   };
 
-  const updateBalance = async () => {
+  const refreshBalance = async () => {
+    if (!authUser?._id) return;
+
+    setLoadingBalance(true);
     try {
       const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
       if (response.data && response.data.balance !== undefined) {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       }
     } catch (error) {
-      console.error('Erro ao atualizar saldo', error);
       toast.error('Erro ao atualizar saldo');
+    } finally {
+      setLoadingBalance(false);
     }
   };
 
@@ -59,37 +64,43 @@ const AccountPage = () => {
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
   
-      await updateBalance(); 
+      await refreshBalance();
+      fetchTransferHistory();
       
       setReceiverEmail('');
       setAmount('');
       setShowModal(false);
-      fetchTransferHistory();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 space-y-6">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-16 sm:pl-20 p-4">
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
         <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
           <p className="text-4xl font-semibold">
-            €{authUser?.balance ? authUser.balance.toFixed(2) : 'Carregando...'}
+            {loadingBalance ? 'Carregando...' : `€${authUser?.balance?.toFixed(2) ?? '0.00'}`}
           </p>
+          <button
+            onClick={refreshBalance}
+            className="mt-2 bg-white text-blue-500 px-4 py-2 rounded-lg font-medium"
+          >
+            Atualizar Saldo
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button onClick={() => { setModalAction('deposit'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Depositar</button>
           <button onClick={() => { setModalAction('transfer'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Transferir</button>
           <button onClick={() => { setModalAction('withdraw'); setShowModal(true); }} className="btn bg-blue-500 text-white w-full">Sacar</button>
         </div>
 
         <h2 className="text-xl font-semibold text-gray-800">Transações</h2>
-        <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+        <div className="space-y-4 bg-gray-50 p-4 rounded-lg max-h-80 overflow-y-auto">
           {transfers.length === 0 ? (
             <p className="text-center text-gray-500">Nenhuma transação encontrada</p>
           ) : (

@@ -9,7 +9,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout(); // Função de logout
-    navigate("https://zhuchat.onrender.com/"); // Redireciona para a URL após o logout
+    navigate("/"); // Redireciona para a URL após o logout
   };
 
   return (
