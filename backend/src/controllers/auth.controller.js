@@ -61,9 +61,9 @@ export const signup = async (req, res) => {
       gender,
       email,
       password: hashedPassword,
+      stripeCustomerId, // 🔹 Adiciona o ID do Stripe ao usuário
     });
-
-    // Salva o usuário antes de gerar o token
+    
     await newUser.save();
 
     // Cria o token JWT e envia na resposta
@@ -75,6 +75,7 @@ export const signup = async (req, res) => {
       email: newUser.email,
       profilePic: newUser.profilePic || "", // Evita erro se profilePic for undefined
       gender: newUser.gender,
+      stripeCustomerId: newUser.stripeCustomerId,
     });
 
   } catch (error) {
@@ -85,20 +86,46 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
+  
   try {
-    // Verifica se o usuário existe
-    const user = await User.findOne({ email });
+    // 🔹 1. Verifica se o usuário existe
+    let user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Verifica se a senha está correta
+    // 🔹 2. Verifica se a senha está correta
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Gera o token JWT
+    // 🔹 3. Verifica se já tem um stripeCustomerId
+    let stripeCustomerId = user.stripeCustomerId;
+
+    if (!stripeCustomerId) {
+      try {
+        // 🔹 4. Criar um cliente no Stripe, já que não tem ID
+        const stripeCustomer = await stripe.customers.create({
+          email: user.email,
+          name: user.fullName,
+        });
+
+        stripeCustomerId = stripeCustomer.id;
+
+        // 🔹 5. Atualizar o usuário no banco com o stripeCustomerId gerado
+        user = await User.findByIdAndUpdate(
+          user._id,
+          { stripeCustomerId },
+          { new: true } // Retorna os dados atualizados
+        );
+      } catch (error) {
+        console.error("Erro ao criar cliente no Stripe:", error);
+        return res.status(500).json({ message: "Erro ao criar cliente no Stripe" });
+      }
+    }
+
+    // 🔹 6. Gera o token JWT e faz login normalmente
     generateToken(user._id, res);
 
     res.status(200).json({
@@ -106,6 +133,7 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic || "",
+      stripeCustomerId: user.stripeCustomerId, // 🔹 Retorna sempre o ID atualizado
     });
 
   } catch (error) {
@@ -113,6 +141,7 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 export const logout = (req, res) => {
   try {
