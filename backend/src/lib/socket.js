@@ -54,28 +54,28 @@ io.on("connection", (socket) => {
   socket.on("transferCompleted", (senderId, receiverId, amount) => {
     const senderSocketId = userSocketMap[senderId];
     const receiverSocketId = userSocketMap[receiverId];
-
+  
     if (senderSocketId) {
-      // Envia a confirmação de transferência para o remetente
       io.to(senderSocketId).emit("transferNotification", {
         type: "sent",
         amount,
         receiverId,
       });
+      io.to(senderSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o remetente
+      io.to(senderSocketId).emit("balanceUpdated", newBalance);
     }
-
+  
     if (receiverSocketId) {
-      // Envia a confirmação de transferência para o destinatário
       io.to(receiverSocketId).emit("transferNotification", {
         type: "received",
         amount,
         senderId,
       });
+      io.to(receiverSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o destinatário
+      io.to(receiverSocketId).emit("balanceUpdated", newBalance);
     }
-
-    // Emitir evento para o front-end atualizar o histórico
-    io.emit("updateTransferHistory"); // Novo evento para atualizar o histórico
   });
+  
 });
 
 export { io, app, server };

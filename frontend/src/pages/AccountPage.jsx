@@ -38,7 +38,7 @@ const AccountPage = () => {
     });
 
     // Atualiza o histórico de transferências quando o evento for disparado
-    socketConnection.on('updateTransferHistory', fetchTransferHistory);
+    socketConnection.on("updateTransferHistory", fetchTransferHistory);
 
     // Carregar histórico ao iniciar a aplicação
     fetchTransferHistory();
