@@ -9,76 +9,112 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
-  const [loadingBalance, setLoadingBalance] = useState(false);
   const { authUser, setAuthUser } = useAuthStore();
-  const refreshIntervalRef = useRef(null);
-
+  const pollingIntervalRef = useRef(null);
+  const socketRef = useRef(null);
+  
+  // URLs base para APIs e WebSockets
+  const baseURL = 'https://zhuchat.onrender.com';
+  const apiURL = `${baseURL}/api/transfers`;
+  
   useEffect(() => {
     if (authUser?._id) {
       // Carregar o saldo e histórico imediatamente ao entrar na página
-      refreshBalance();
+      refreshBalance(false);
       fetchTransferHistory();
       
-      // Configurar atualização automática a cada 30 segundos
-      refreshIntervalRef.current = setInterval(() => {
-        refreshBalance();
+      // Configurar atualização rápida a cada 2 segundos
+      pollingIntervalRef.current = setInterval(() => {
+        refreshBalance(false);
         fetchTransferHistory();
-      }, 30000); // 30 segundos
+      }, 2000); // 2 segundos para atualizações mais frequentes
       
-      // Limpar o intervalo quando o componente for desmontado
+      // Tenta configurar WebSocket se disponível
+      try {
+        setupWebSocket();
+      } catch (error) {
+        console.log('WebSocket não disponível, usando apenas polling');
+      }
+      
+      // Limpar os recursos quando o componente for desmontado
       return () => {
-        if (refreshIntervalRef.current) {
-          clearInterval(refreshIntervalRef.current);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        if (socketRef.current) {
+          socketRef.current.close();
         }
       };
     }
   }, [authUser?._id]);
 
-  // Atualiza também após qualquer operação (depósito/transferência/saque)
-  useEffect(() => {
-    const refreshAfterOperation = () => {
-      if (authUser?._id) {
-        refreshBalance();
-        fetchTransferHistory();
-      }
-    };
-    
-    // Adicionar event listener para operações
-    window.addEventListener('transaction-completed', refreshAfterOperation);
-    
-    return () => {
-      window.removeEventListener('transaction-completed', refreshAfterOperation);
-    };
-  }, [authUser?._id]);
-
-  const fetchTransferHistory = async () => {
+  const setupWebSocket = () => {
+    // Tenta conectar ao WebSocket (se existir)
     try {
-      const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      setTransfers(Array.isArray(response.data) ? response.data : []);
+      // Converte de HTTP para WS mantendo o mesmo host
+      const wsBaseURL = baseURL.replace('https://', 'wss://').replace('http://', 'ws://');
+      socketRef.current = new WebSocket(`${wsBaseURL}/ws/balance/${authUser._id}`);
+      
+      socketRef.current.onopen = () => {
+        console.log('WebSocket conectado para atualizações em tempo real');
+        // Se WebSocket conectou com sucesso, podemos reduzir a frequência de polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = setInterval(() => {
+            refreshBalance(false);
+            fetchTransferHistory();
+          }, 10000); // Com WebSocket funcionando, polling a cada 10s é suficiente como backup
+        }
+      };
+      
+      socketRef.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'balance_update' || data.type === 'balance') {
+          setAuthUser((prev) => ({ ...prev, balance: data.balance }));
+        } else if (data.type === 'transfer' || data.type === 'transaction') {
+          fetchTransferHistory();
+        }
+      };
+      
+      socketRef.current.onclose = () => {
+        console.log('WebSocket desconectado, voltando ao polling frequente');
+        // Se WebSocket desconectar, voltamos ao polling mais frequente
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = setInterval(() => {
+            refreshBalance(false);
+            fetchTransferHistory();
+          }, 2000);
+        }
+      };
+      
+      socketRef.current.onerror = (error) => {
+        console.error('WebSocket erro:', error);
+      };
     } catch (error) {
-      // Silenciar erros durante atualização automática para não mostrar toasts repetidos
-      if (!refreshIntervalRef.current) {
-        toast.error('Erro ao buscar histórico de transferências');
-      }
+      console.log('WebSocket não suportado ou não disponível');
     }
   };
 
-  const refreshBalance = async () => {
+  const fetchTransferHistory = async () => {
+    try {
+      const response = await axios.get(`${apiURL}/history/${authUser._id}`);
+      setTransfers(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Erro ao buscar histórico:', error);
+    }
+  };
+
+  const refreshBalance = async (showLoading = true) => {
     if (!authUser?._id) return;
 
-    setLoadingBalance(true);
     try {
-      const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
+      const response = await axios.get(`${apiURL}/balance/${authUser._id}`);
       if (response.data && response.data.balance !== undefined) {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       }
     } catch (error) {
-      // Silenciar erros durante atualização automática para não mostrar toasts repetidos
-      if (!refreshIntervalRef.current) {
-        toast.error('Erro ao atualizar saldo');
-      }
-    } finally {
-      setLoadingBalance(false);
+      console.error('Erro ao atualizar saldo:', error);
     }
   };
 
@@ -91,29 +127,44 @@ const AccountPage = () => {
     }
 
     try {
-      const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' :
-                       modalAction === 'withdraw' ? '/api/transfers/withdraw' :
-                       '/api/transfers/transfer';
+      // Otimismo UI: Atualizar o saldo imediatamente na interface
+      const numAmount = Number(amount);
+      if (modalAction === 'deposit') {
+        setAuthUser((prev) => ({ 
+          ...prev, 
+          balance: prev.balance + numAmount 
+        }));
+      } else if (modalAction === 'withdraw' || modalAction === 'transfer') {
+        setAuthUser((prev) => ({ 
+          ...prev, 
+          balance: prev.balance - numAmount 
+        }));
+      }
+      
+      const endpoint = modalAction === 'deposit' ? `${apiURL}/deposit` :
+                       modalAction === 'withdraw' ? `${apiURL}/withdraw` :
+                       `${apiURL}/transfer`;
       
       const payload = modalAction === 'transfer' 
-        ? { senderId: authUser._id, receiverEmail, amount }
-        : { userId: authUser._id, amount };
+        ? { senderId: authUser._id, receiverEmail, amount: numAmount }
+        : { userId: authUser._id, amount: numAmount };
   
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
-      
-      // Atualizar saldo e histórico imediatamente após uma operação
-      await refreshBalance();
-      fetchTransferHistory();
-      
-      // Disparar evento para informar sobre a transação completada
-      window.dispatchEvent(new Event('transaction-completed'));
+            
+      // Ainda assim, atualizar do servidor para garantir precisão
+      setTimeout(() => {
+        refreshBalance(false);
+        fetchTransferHistory();
+      }, 300);
       
       setReceiverEmail('');
       setAmount('');
       setShowModal(false);
     } catch (error) {
+      // Em caso de erro, reverte a UI otimista e mostra o erro
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
+      refreshBalance(false); // Recarregar saldo real
     }
   };
 
@@ -125,9 +176,9 @@ const AccountPage = () => {
         <div className="bg-blue-400 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
           <p className="text-4xl font-semibold">
-            {loadingBalance ? 'Carregando...' : `€${authUser?.balance?.toFixed(2) ?? '0.00'}`}
+            €{authUser?.balance?.toFixed(2) ?? '0.00'}
           </p>
-          <p className="text-xs mt-2">Atualização automática a cada 30 segundos</p>
+          <p className="text-xs mt-2">Atualização em tempo real</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
