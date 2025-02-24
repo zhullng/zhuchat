@@ -9,26 +9,20 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
+  const [loadingBalance, setLoadingBalance] = useState(false);
   const { authUser, setAuthUser } = useAuthStore();
   const pollingIntervalRef = useRef(null);
-  
-  // URL base para APIs
-  const baseURL = 'https://zhuchat.onrender.com';
-  const apiURL = `${baseURL}/api/transfers`;
-  
+
   useEffect(() => {
     if (authUser?._id) {
-      // Carregar o saldo e histórico imediatamente ao entrar na página
       refreshBalance();
       fetchTransferHistory();
       
-      // Configurar atualização rápida a cada 2 segundos
       pollingIntervalRef.current = setInterval(() => {
         refreshBalance();
         fetchTransferHistory();
-      }, 2000); // 2 segundos para atualizações frequentes
-      
-      // Limpar intervalo quando o componente for desmontado
+      }, 1000); // Atualiza a cada 1 segundo      
+
       return () => {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
@@ -38,129 +32,58 @@ const AccountPage = () => {
   }, [authUser?._id]);
 
   const fetchTransferHistory = async () => {
-    if (!authUser?._id) return;
-    
     try {
-      const response = await axios.get(`${apiURL}/history/${authUser._id}`);
-      if (Array.isArray(response.data)) {
-        setTransfers(response.data);
-      }
+      const response = await axios.get(`/api/transfers/history/${authUser._id}`);
+      setTransfers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      // Silenciar erros de polling para não perturbar o usuário
-      console.error('Erro ao buscar histórico (silenciado):', error);
+      toast.error('Erro ao buscar histórico de transferências');
     }
   };
 
   const refreshBalance = async () => {
     if (!authUser?._id) return;
 
+    setLoadingBalance(true);
     try {
-      const response = await axios.get(`${apiURL}/balance/${authUser._id}`);
+      const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
       if (response.data && response.data.balance !== undefined) {
         setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
       }
     } catch (error) {
-      // Silenciar erros de polling para não perturbar o usuário
-      console.error('Erro ao atualizar saldo (silenciado):', error);
+      toast.error('Erro ao atualizar saldo');
+    } finally {
+      setLoadingBalance(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!amount || Number(amount) <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
+    if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
 
     try {
-      // Otimismo UI: Atualizar o saldo imediatamente na interface
-      const numAmount = Number(amount);
-      if (modalAction === 'deposit') {
-        setAuthUser((prev) => ({ 
-          ...prev, 
-          balance: prev.balance + numAmount 
-        }));
-      } else if (modalAction === 'withdraw' || modalAction === 'transfer') {
-        setAuthUser((prev) => ({ 
-          ...prev, 
-          balance: prev.balance - numAmount 
-        }));
-      }
-      
-      const endpoint = modalAction === 'deposit' ? `${apiURL}/deposit` :
-                       modalAction === 'withdraw' ? `${apiURL}/withdraw` :
-                       `${apiURL}/transfer`;
+      const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' :
+                       modalAction === 'withdraw' ? '/api/transfers/withdraw' :
+                       '/api/transfers/transfer';
       
       const payload = modalAction === 'transfer' 
-        ? { senderId: authUser._id, receiverEmail, amount: numAmount }
-        : { userId: authUser._id, amount: numAmount };
+        ? { senderId: authUser._id, receiverEmail, amount }
+        : { userId: authUser._id, amount };
   
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
-            
-      // Garantir que os dados sejam precisos após a operação
-      setTimeout(() => {
-        refreshBalance();
-        fetchTransferHistory();
-      }, 300);
+  
+      await refreshBalance();
+      fetchTransferHistory();
       
       setReceiverEmail('');
       setAmount('');
       setShowModal(false);
     } catch (error) {
-      // Em caso de erro, reverte a UI otimista e mostra o erro
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
-      refreshBalance(); // Recarregar saldo real
-    }
-  };
-
-  // Handle form actions separately without form submission
-  const handleAction = async () => {
-    if (!amount || Number(amount) <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
-      toast.error('Todos os campos são obrigatórios');
-      return;
-    }
-
-    try {
-      // Otimismo UI: Atualizar o saldo imediatamente na interface
-      const numAmount = Number(amount);
-      if (modalAction === 'deposit') {
-        setAuthUser((prev) => ({ 
-          ...prev, 
-          balance: prev.balance + numAmount 
-        }));
-      } else if (modalAction === 'withdraw' || modalAction === 'transfer') {
-        setAuthUser((prev) => ({ 
-          ...prev, 
-          balance: prev.balance - numAmount 
-        }));
-      }
-      
-      const endpoint = modalAction === 'deposit' ? `${apiURL}/deposit` :
-                       modalAction === 'withdraw' ? `${apiURL}/withdraw` :
-                       `${apiURL}/transfer`;
-      
-      const payload = modalAction === 'transfer' 
-        ? { senderId: authUser._id, receiverEmail, amount: numAmount }
-        : { userId: authUser._id, amount: numAmount };
-  
-      const response = await axios.post(endpoint, payload);
-      toast.success(response.data.message);
-            
-      // Garantir que os dados sejam precisos após a operação
-      setTimeout(() => {
-        refreshBalance();
-        fetchTransferHistory();
-      }, 300);
-      
-      setReceiverEmail('');
-      setAmount('');
-      setShowModal(false);
-    } catch (error) {
-      // Em caso de erro, reverte a UI otimista e mostra o erro
-      toast.error(error.response?.data?.error || 'Erro ao processar a operação');
-      refreshBalance(); // Recarregar saldo real
     }
   };
 
@@ -169,12 +92,17 @@ const AccountPage = () => {
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-800">Minha Conta</h1>
 
-        <div className="bg-slate-700 p-6 rounded-lg text-white text-center">
+        <div className="bg-blue-500 p-6 rounded-lg text-white text-center">
           <p className="text-lg">Saldo Atual</p>
           <p className="text-4xl font-semibold">
-            €{authUser?.balance?.toFixed(2) ?? '0.00'}
+            {loadingBalance ? 'Carregando...' : `€${authUser?.balance?.toFixed(2) ?? '0.00'}`}
           </p>
-          <p className="text-xs mt-2">Atualização automática</p>
+          <button
+            onClick={refreshBalance}
+            className="mt-2 bg-white text-blue-500 px-4 py-2 rounded-lg font-medium"
+          >
+            Atualizar Saldo
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -219,8 +147,7 @@ const AccountPage = () => {
             <h2 className="text-2xl font-semibold mb-4">
               {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
             </h2>
-            {/* Change from form to div to avoid form submission issues */}
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {modalAction === 'transfer' && (
                 <input
                   type="email"
@@ -228,6 +155,7 @@ const AccountPage = () => {
                   value={receiverEmail}
                   onChange={(e) => setReceiverEmail(e.target.value)}
                   className="input input-bordered w-full"
+                  required
                 />
               )}
               <input
@@ -236,12 +164,11 @@ const AccountPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="input input-bordered w-full"
+                required
               />
-              <button onClick={handleAction} className="btn bg-blue-500 text-white w-full">
-                {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
-              </button>
+              <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
               <button onClick={() => setShowModal(false)} className="btn btn-ghost w-full">Cancelar</button>
-            </div>
+            </form>
           </div>
         </div>
       )}
