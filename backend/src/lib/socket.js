@@ -15,6 +15,11 @@ const io = new Server(server, {
   },
 });
 
+// Função que retorna o Socket ID do recetor dado o userId
+export function getReceiverSocketId(userId) {
+  return userSocketMap[userId]; 
+}
+
 // Mapa para armazenar os users online
 const userSocketMap = {}; // Exemplo: {userId: socketId}
 
