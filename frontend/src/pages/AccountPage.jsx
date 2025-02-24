@@ -45,7 +45,7 @@ const AccountPage = () => {
     }
 
     try {
-      const endpoint = modalAction === 'deposit' ? '/api/deposit' : modalAction === 'withdraw' ? '/api/withdraw' : '/api/transfers';
+      const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' : modalAction === 'withdraw' ? '/api/transfers/withdraw' : '/api/transfers/transfer';
       const payload = modalAction === 'transfer' 
         ? { senderId: authUser._id, receiverEmail, amount }
         : { userId: authUser._id, amount };
