@@ -26,8 +26,8 @@ const Navbar = () => {
         <div className="flex flex-col items-center gap-6 w-full">
           <div className="flex flex-col gap-4 w-full">
             <Link to="/" className="btn btn-ghost flex items-center gap-4 p-2">
-              <MessageCircle className="size-6" />
               {isExpanded && <span>Chat</span>}
+              <MessageCircle className="size-6" />
             </Link>
           </div>
         </div>
@@ -37,27 +37,27 @@ const Navbar = () => {
           {authUser && (
             <>
               <Link to="/account" className="btn btn-ghost flex items-center gap-4 p-2">
-                <CreditCard className="size-6" />
                 {isExpanded && <span>Pagamentos</span>}
+                <CreditCard className="size-6" />
               </Link>
 
               <Link to="/settings" className="btn btn-ghost flex items-center gap-4 p-2">
-                <Settings className="size-6" />
                 {isExpanded && <span>Configurações</span>}
+                <Settings className="size-6" />
               </Link>
 
               <Link to="/profile" className="btn btn-ghost flex items-center gap-4 p-2">
+                {isExpanded && <span>Perfil</span>}
                 <img
                   src={authUser.profilePic || "/avatar.png"}
                   alt="Profile"
                   className="size-12 rounded-full object-cover"
                 />
-                {isExpanded && <span>Perfil</span>}
               </Link>
 
               <button onClick={handleLogout} className="btn btn-ghost flex items-center gap-4 p-2">
-                <LogOut className="size-6" />
                 {isExpanded && <span>Sair</span>}
+                <LogOut className="size-6" />
               </button>
             </>
           )}
