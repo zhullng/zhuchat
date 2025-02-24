@@ -1,6 +1,12 @@
 import { generateToken } from "../lib/utils.js"; // Função para gerar token JWT
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs"; 
+import Stripe from "stripe"; // Importando o Stripe
+import dotenv from "dotenv"; 
+
+dotenv.config();
+
+const stripe = new Stripe(process.env.STRIPE_API_SECRET); 
 
 export const signup = async (req, res) => {
   const { fullName, gender, email, password } = req.body;
@@ -24,6 +30,30 @@ export const signup = async (req, res) => {
     // Cria e encripta a senha
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
+    const existingCustomer = await stripe.customers.list({
+      email, // Passa o email do usuário para procurar um cliente existente
+    });
+
+    let stripeCustomerId;
+
+    if (existingCustomer.data.length > 0) {
+      // Cliente já existe no Stripe, usar o ID existente
+      stripeCustomerId = existingCustomer.data[0].id;
+    } else {
+      try {
+        // Cliente não existe, criar um novo cliente no Stripe
+        const stripeCustomer = await stripe.customers.create({
+          email,
+          name: fullName,
+        });
+
+        stripeCustomerId = stripeCustomer.id;
+      } catch (error) {
+        console.error("Erro ao criar cliente no Stripe:", error);
+        return res.status(500).json({ message: "Erro ao criar cliente no Stripe" });
+      }
+    }
 
     // Cria o novo usuário
     const newUser = new User({
