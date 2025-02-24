@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send, X } from "lucide-react"; // Importe o ícone X para o botão de voltar
+import { Bot, Send, X } from "lucide-react";
 
 const AIChat = ({ setSelectedUser }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const { authUser } = useAuthStore();
 
@@ -13,7 +14,7 @@ const AIChat = ({ setSelectedUser }) => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,6 +28,7 @@ const AIChat = ({ setSelectedUser }) => {
 
     setMessages((prev) => [...prev, newMessage]);
     setInput("");
+    setIsTyping(true);
 
     try {
       const response = await getAIResponse(input);
@@ -43,25 +45,23 @@ const AIChat = ({ setSelectedUser }) => {
           timestamp: new Date(),
         },
       ]);
+    } finally {
+      setIsTyping(false);
     }
   };
 
   return (
-    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] w-full flex flex-col">
+    <div className="h-screen w-full flex flex-col">
       {/* Chat Header */}
       <div className="border-b border-base-300 p-4 flex items-center gap-3 w-full">
-        <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
+        <div className="size-10 rounded-full border flex items-center justify-center">
           <Bot className="text-blue-600" size={24} />
         </div>
         <div>
           <h2 className="font-semibold">Assistente Virtual</h2>
           <p className="text-sm flex items-center gap-2">Online</p>
         </div>
-        {/* Botão de voltar */}
-        <button
-          onClick={() => setSelectedUser(null)} // Chama a função para desmarcar o usuário selecionado
-          className="ml-auto"
-        >
+        <button onClick={() => setSelectedUser(null)} className="ml-auto">
           <X size={24} />
         </button>
       </div>
@@ -69,12 +69,7 @@ const AIChat = ({ setSelectedUser }) => {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 w-full">
         {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}
-            ref={messagesEndRef}
-          >
-            {/* Avatar */}
+          <div key={index} className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}>
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border overflow-hidden">
                 {message.isAI ? (
@@ -91,9 +86,7 @@ const AIChat = ({ setSelectedUser }) => {
               </div>
             </div>
 
-            {/* Message Content */}
             <div className="flex flex-col">
-              {/* Timestamp above the message */}
               <div className="chat-header mb-1">
                 <time className="text-xs opacity-50 ml-1">
                   {message.timestamp.toLocaleTimeString([], {
@@ -103,13 +96,30 @@ const AIChat = ({ setSelectedUser }) => {
                 </time>
               </div>
 
-              {/* Message Text */}
               <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md break-words">
                 {message.content}
               </div>
             </div>
           </div>
         ))}
+
+        {/* Animação dos círculos digitando */}
+        {isTyping && (
+          <div className="chat chat-start">
+            <div className="chat-image avatar">
+              <div className="size-10 rounded-full border overflow-hidden flex items-center justify-center">
+                <Bot className="text-blue-600" size={20} />
+              </div>
+            </div>
+            <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md flex items-center">
+              <div className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div ref={messagesEndRef} />
       </div>
@@ -124,11 +134,7 @@ const AIChat = ({ setSelectedUser }) => {
               placeholder="Digite sua mensagem..."
               className="w-full input input-bordered rounded-full input-md"
             />
-            <button
-              type="submit"
-              className="btn btn-sm btn-circle mt-2"
-              disabled={!input.trim()}
-            >
+            <button type="submit" className="btn btn-sm btn-circle mt-2" disabled={!input.trim()}>
               <Send size={22} />
             </button>
           </div>
