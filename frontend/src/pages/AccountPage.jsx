@@ -15,7 +15,7 @@ const AccountPage = () => {
 
   // Conectar ao servidor WebSocket na inicialização
   useEffect(() => {
-    const socketConnection = io('http://localhost:5000', {
+    const socketConnection = io('/', {
       query: { userId: authUser?._id },
     });
   
