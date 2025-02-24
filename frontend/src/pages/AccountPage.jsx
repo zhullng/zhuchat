@@ -115,6 +115,55 @@ const AccountPage = () => {
     }
   };
 
+  // Handle form actions separately without form submission
+  const handleAction = async () => {
+    if (!amount || Number(amount) <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
+      toast.error('Todos os campos são obrigatórios');
+      return;
+    }
+
+    try {
+      // Otimismo UI: Atualizar o saldo imediatamente na interface
+      const numAmount = Number(amount);
+      if (modalAction === 'deposit') {
+        setAuthUser((prev) => ({ 
+          ...prev, 
+          balance: prev.balance + numAmount 
+        }));
+      } else if (modalAction === 'withdraw' || modalAction === 'transfer') {
+        setAuthUser((prev) => ({ 
+          ...prev, 
+          balance: prev.balance - numAmount 
+        }));
+      }
+      
+      const endpoint = modalAction === 'deposit' ? `${apiURL}/deposit` :
+                       modalAction === 'withdraw' ? `${apiURL}/withdraw` :
+                       `${apiURL}/transfer`;
+      
+      const payload = modalAction === 'transfer' 
+        ? { senderId: authUser._id, receiverEmail, amount: numAmount }
+        : { userId: authUser._id, amount: numAmount };
+  
+      const response = await axios.post(endpoint, payload);
+      toast.success(response.data.message);
+            
+      // Garantir que os dados sejam precisos após a operação
+      setTimeout(() => {
+        refreshBalance();
+        fetchTransferHistory();
+      }, 300);
+      
+      setReceiverEmail('');
+      setAmount('');
+      setShowModal(false);
+    } catch (error) {
+      // Em caso de erro, reverte a UI otimista e mostra o erro
+      toast.error(error.response?.data?.error || 'Erro ao processar a operação');
+      refreshBalance(); // Recarregar saldo real
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">
@@ -170,7 +219,8 @@ const AccountPage = () => {
             <h2 className="text-2xl font-semibold mb-4">
               {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Change from form to div to avoid form submission issues */}
+            <div className="space-y-4">
               {modalAction === 'transfer' && (
                 <input
                   type="email"
@@ -178,7 +228,6 @@ const AccountPage = () => {
                   value={receiverEmail}
                   onChange={(e) => setReceiverEmail(e.target.value)}
                   className="input input-bordered w-full"
-                  required
                 />
               )}
               <input
@@ -187,13 +236,12 @@ const AccountPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="input input-bordered w-full"
-                required
               />
-              <button type="submit" className="btn bg-blue-500 text-white w-full">
+              <button onClick={handleAction} className="btn bg-blue-500 text-white w-full">
                 {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
               </button>
               <button onClick={() => setShowModal(false)} className="btn btn-ghost w-full">Cancelar</button>
-            </form>
+            </div>
           </div>
         </div>
       )}
