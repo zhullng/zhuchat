@@ -2,7 +2,6 @@ import User from "../models/user.model.js";
 import Transfer from "../models/transfer.model.js";
 
 // 🔹 FAZER TRANSFERÊNCIA
-// 🔹 FAZER TRANSFERÊNCIA
 export const makeTransfer = async (req, res) => {
   const { senderId, receiverEmail, amount } = req.body;
 
