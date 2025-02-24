@@ -92,7 +92,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Verifica se a pass está bem
+    // Verifica se a pass está correta
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Invalid credentials" });
@@ -101,7 +101,7 @@ export const login = async (req, res) => {
     // Cria o token JWT e envia na resposta
     generateToken(user._id, res);
 
-    // Recebe os dados do user, exceto a pass
+    // Responde com os dados do user, exceto a pass
     res.status(200).json({
       _id: user._id,
       fullName: user.fullName,
