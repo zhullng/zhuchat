@@ -10,7 +10,6 @@ export const makeTransfer = async (req, res) => {
       return res.status(400).json({ error: "Dados inválidos para transferência" });
     }
 
-    // Validação do formato do e-mail
     const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
     if (!emailRegex.test(receiverEmail)) {
       return res.status(400).json({ error: "Formato de e-mail inválido" });
@@ -27,20 +26,17 @@ export const makeTransfer = async (req, res) => {
       return res.status(400).json({ error: "Saldo insuficiente" });
     }
 
-    // Atualiza os saldos e salva no banco
     sender.balance -= amount;
     receiver.balance += amount;
     await sender.save();
     await receiver.save();
 
-    // Registra a transferência
     const transfer = new Transfer({
       sender: sender._id,
       receiver: receiver._id,
       amount,
       status: "completed",
     });
-
     await transfer.save();
 
     res.json({
@@ -75,5 +71,59 @@ export const getTransferHistory = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erro ao buscar histórico de transferências" });
+  }
+};
+
+// 🔹 DEPOSITAR DINHEIRO
+export const depositMoney = async (req, res) => {
+  const { userId, amount } = req.body;
+
+  try {
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: "Valor inválido para depósito" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    user.balance += amount;
+    await user.save();
+
+    res.json({
+      message: "Depósito realizado com sucesso!",
+      user: { fullName: user.fullName, balance: user.balance },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao processar depósito" });
+  }
+};
+
+// 🔹 SACAR DINHEIRO
+export const withdrawMoney = async (req, res) => {
+  const { userId, amount } = req.body;
+
+  try {
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: "Valor inválido para saque" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    if (user.balance < amount) {
+      return res.status(400).json({ error: "Saldo insuficiente" });
+    }
+
+    user.balance -= amount;
+    await user.save();
+
+    res.json({
+      message: "Saque realizado com sucesso!",
+      user: { fullName: user.fullName, balance: user.balance },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao processar saque" });
   }
 };

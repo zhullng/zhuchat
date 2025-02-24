@@ -23,7 +23,7 @@ const Navbar = () => {
           {authUser && (
             <>
               {/* Novo botão de pagamento */}
-              <Link to="/transfer" className="btn btn-circle btn-ghost btn-lg">
+              <Link to="/account" className="btn btn-circle btn-ghost btn-lg">
                 <CreditCard className="size-6" /> {/* Ícone de pagamento */}
               </Link>
 
