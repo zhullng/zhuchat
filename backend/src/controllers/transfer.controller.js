@@ -99,6 +99,7 @@ export const depositMoney = async (req, res) => {
   }
 };
 
+
 // 🔹 SACAR DINHEIRO
 export const withdrawMoney = async (req, res) => {
   const { userId, amount } = req.body;
@@ -125,5 +126,29 @@ export const withdrawMoney = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erro ao processar saque" });
+  }
+};
+
+// 🔹 MOSTRAR SALDO
+export const getBalance = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    if (!userId) {
+      return res.status(400).json({ error: "ID do usuário é obrigatório" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    res.json({
+      message: "Saldo recuperado com sucesso!",
+      user: { fullName: user.fullName, balance: user.balance },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao recuperar o saldo" });
   }
 };

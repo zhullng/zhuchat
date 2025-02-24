@@ -27,7 +27,7 @@ const AccountPage = () => {
 
   const updateBalance = async () => {
     try {
-      const response = await axios.get(`/api/users/balance/${authUser._id}`);
+      const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
       setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
     } catch (error) {
       console.error('Erro ao atualizar saldo');
@@ -36,35 +36,41 @@ const AccountPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Verifica se os campos estão preenchidos corretamente
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
   
     try {
+      // Definindo o endpoint de acordo com a ação (depósito, saque ou transferência)
       const endpoint = modalAction === 'deposit' ? '/api/transfers/deposit' :
                        modalAction === 'withdraw' ? '/api/transfers/withdraw' :
                        '/api/transfers/transfer';
+      
+      // Payload para a requisição
       const payload = modalAction === 'transfer' 
         ? { senderId: authUser._id, receiverEmail, amount }
         : { userId: authUser._id, amount };
   
+      // Faz a requisição para o backend
       const response = await axios.post(endpoint, payload);
       toast.success(response.data.message);
   
-      // Atualiza o saldo após qualquer operação
+      // Atualiza o saldo após qualquer operação (depósito, saque ou transferência)
       await updateBalance(); 
-  
-      // Limpar os campos e fechar o modal
+      
+      // Limpa os campos e fecha o modal
       setReceiverEmail('');
       setAmount('');
       setShowModal(false);
       fetchTransferHistory(); // Atualiza o histórico de transferências
-  
     } catch (error) {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
+  
   
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
