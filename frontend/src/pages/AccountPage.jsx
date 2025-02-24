@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import io from 'socket.io-client';
 
 const AccountPage = () => {
   const [transfers, setTransfers] = useState([]);
@@ -10,24 +11,40 @@ const AccountPage = () => {
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
   const { authUser, setAuthUser } = useAuthStore();
-  const [previousBalance, setPreviousBalance] = useState(authUser?.balance);
+  const [socket, setSocket] = useState(null);
 
-  // Carregar saldo e histórico na primeira renderização
+  // Conectar ao servidor WebSocket na inicialização
   useEffect(() => {
-    if (authUser?._id) {
-      fetchTransferHistory(); // Carregar histórico de transferências inicialmente
-      fetchInitialBalance(); // Carregar o saldo inicialmente
-    }
-  }, [authUser?._id]); // Esse useEffect roda uma vez ao inicializar
+    const socketConnection = io('http://localhost:5000', {
+      query: { userId: authUser?._id },
+    });
 
-  // Atualiza o saldo e o histórico quando o saldo mudar
-  useEffect(() => {
-    if (authUser?.balance !== previousBalance) {
-      setPreviousBalance(authUser.balance); // Atualiza o saldo anterior
-      refreshData(); // Atualiza o saldo e histórico
-    }
-  }, [authUser?.balance]);  // Vai escutar mudanças no saldo
+    socketConnection.on('connect', () => {
+      console.log('Conectado ao WebSocket');
+    });
 
+    socketConnection.on('balanceUpdated', (newBalance) => {
+      // Atualiza o saldo quando a notificação for recebida
+      setAuthUser((prev) => ({ ...prev, balance: newBalance }));
+    });
+
+    socketConnection.on('transferNotification', (data) => {
+      if (data.type === 'sent') {
+        toast.success(`Você enviou €${data.amount}`);
+      } else if (data.type === 'received') {
+        toast.success(`Você recebeu €${data.amount}`);
+      }
+    });
+
+    setSocket(socketConnection);
+
+    // Limpar a conexão ao WebSocket quando o componente for desmontado
+    return () => {
+      socketConnection.disconnect();
+    };
+  }, [authUser?._id]);
+
+  // Buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
@@ -42,40 +59,7 @@ const AccountPage = () => {
     }
   };
 
-  const fetchInitialBalance = async () => {
-    try {
-      const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
-      if (response.data && response.data.balance !== undefined) {
-        setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
-      } else {
-        toast.error('Erro ao recuperar o saldo');
-      }
-    } catch (error) {
-      console.error('Erro ao recuperar saldo:', error);
-      toast.error('Erro ao recuperar saldo');
-    }
-  };
-
-  const refreshData = async () => {
-    await fetchTransferHistory();
-    await refreshBalance();
-  };
-
-  const refreshBalance = async () => {
-    try {
-      const response = await axios.get(`/api/transfers/balance/${authUser._id}`);
-      if (response.data && response.data.balance !== undefined) {
-        // Atualiza o saldo após a operação
-        setAuthUser((prev) => ({ ...prev, balance: response.data.balance }));
-      } else {
-        toast.error('Erro ao recuperar o saldo');
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar saldo:', error);
-      toast.error('Erro ao atualizar saldo');
-    }
-  };
-
+  // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -101,14 +85,17 @@ const AccountPage = () => {
 
       toast.success(response.data.message);
 
-      // Limpar os campos e fechar o modal
+      // Fechar o modal e limpar os campos
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
 
-      // Forçar a atualização do saldo após a operação
-      await refreshBalance();
+      // Emitir o evento de atualização do saldo pelo WebSocket
+      if (socket) {
+        socket.emit('updateBalance', authUser._id, response.data.newBalance);
+      }
 
+      fetchTransferHistory();
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
