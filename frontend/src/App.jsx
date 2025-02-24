@@ -5,7 +5,6 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage"; 
 import ProfilePage from "./pages/ProfilePage"; 
 import AccountPage from './pages/AccountPage'; 
-import CreateTransfersPage from './pages/CreateTransferPage';
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
@@ -49,7 +48,6 @@ const App = () => {
         <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
-        <Route path="/transfer" element={<CreateTransfersPage />} />
         <Route path="/account" element={<AccountPage />} />
       </Routes>
 
