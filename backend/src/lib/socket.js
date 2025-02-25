@@ -51,33 +51,31 @@ io.on("connection", (socket) => {
   });
 
   // Evento para emitir quando uma transferência foi realizada
-  socket.on("transferCompleted", (senderId, receiverId, amount) => {
-    const senderSocketId = userSocketMap[senderId];
-    const receiverSocketId = userSocketMap[receiverId];
-  
-    // Verifique se o senderSocketId e receiverSocketId estão sendo encontrados corretamente
-    console.log('Sender Socket ID:', senderSocketId);
-    console.log('Receiver Socket ID:', receiverSocketId);
-  
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("transferNotification", {
-        type: "sent",
-        amount,
-        receiverId,
-      });
-      io.to(senderSocketId).emit("updateTransferHistory"); // Atualiza o histórico para o remetente
-    }
-  
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("transferNotification", {
-        type: "received",  // Destinatário recebe a transferência
-        amount,
-        senderId, // Passando o senderId para o destinatário
-      });
-      io.to(receiverSocketId).emit("updateTransferHistory"); // Atualiza o histórico para o destinatário
-    }
-  });
-  
+  // Evento para emitir quando uma transferência foi realizada
+socket.on("transferCompleted", (senderId, receiverId, amount) => {
+  const senderSocketId = userSocketMap[senderId];
+  const receiverSocketId = userSocketMap[receiverId];
+
+  // Envia a notificação para o remetente
+  if (senderSocketId) {
+    io.to(senderSocketId).emit("transferNotification", {
+      type: "sent",
+      amount,
+      receiverId,
+    });
+    io.to(senderSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o remetente
+  }
+
+  // Envia a notificação para o destinatário
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("transferNotification", {
+      type: "received",
+      amount,
+      senderId,
+    });
+    io.to(receiverSocketId).emit("updateTransferHistory"); // Atualizar o histórico para o destinatário
+  }
+});
 
   
 });
