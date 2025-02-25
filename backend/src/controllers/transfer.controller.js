@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import Transfer from "../models/transfer.model.js";
 
 // 🔹 FAZER TRANSFERÊNCIA
+// 🔹 FAZER TRANSFERÊNCIA
 export const makeTransfer = async (req, res) => {
   const { senderId, receiverEmail, amount } = req.body;
 
@@ -22,7 +23,6 @@ export const makeTransfer = async (req, res) => {
       return res.status(404).json({ error: "Remetente ou destinatário não encontrado" });
     }
 
-    // Verificar se o remetente e o destinatário são o mesmo usuário
     if (senderId === receiver._id.toString()) {
       return res.status(400).json({ error: "Não é possível transferir para si próprio" });
     }
@@ -59,6 +59,7 @@ export const makeTransfer = async (req, res) => {
   }
 };
 
+
 // 🔹 HISTÓRICO DE TRANSFERÊNCIAS
 export const getTransferHistory = async (req, res) => {
   const { userId } = req.params;
@@ -79,7 +80,7 @@ export const getTransferHistory = async (req, res) => {
   }
 };
 
-// 🔹 DEPOSITAR DINHEIRO
+
 export const depositMoney = async (req, res) => {
   const { userId, amount } = req.body;
 
@@ -105,8 +106,6 @@ export const depositMoney = async (req, res) => {
   }
 };
 
-
-// 🔹 SACAR DINHEIRO
 export const withdrawMoney = async (req, res) => {
   const { userId, amount } = req.body;
 

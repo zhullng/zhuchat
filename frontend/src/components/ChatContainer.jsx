@@ -1,5 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -17,6 +17,7 @@ const ChatContainer = () => {
     unsubscribeFromMessages,
   } = useChatStore();
   const { authUser } = useAuthStore();
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false); // Estado para saber se o outro usuário está digitando
   const messageEndRef = useRef(null);
 
   useEffect(() => {
@@ -24,7 +25,18 @@ const ChatContainer = () => {
 
     subscribeToMessages();
 
-    return () => unsubscribeFromMessages();
+    // Supondo que o backend envia a informação de digitação
+    // Essa função deve ser chamada quando o outro usuário começa/destina a digitar.
+    const handleOtherUserTyping = (isTyping) => {
+      setIsOtherUserTyping(isTyping);
+    };
+
+    // Assumindo que o seu `subscribeToMessages` recebe um callback de digitação
+    subscribeToMessages(handleOtherUserTyping);
+
+    return () => {
+      unsubscribeFromMessages();
+    };
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   // Só faz o scroll se houver mensagens e se a referência do final da mensagem estiver acessível
@@ -103,6 +115,31 @@ const ChatContainer = () => {
             </div>
           </div>
         ))}
+
+        {/* Animação de digitação do outro usuário */}
+        {isOtherUserTyping && (
+          <div className="chat chat-start">
+            <div className="chat-image avatar">
+              <div className="size-10 rounded-full border overflow-hidden">
+                <div className="w-full h-full flex items-center justify-center">
+                  <img
+                    src={selectedUser.profilePic || "/avatar.png"}
+                    alt="profile pic"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md flex items-center">
+              <div className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Referência para o final da lista de mensagens */}
         <div ref={messageEndRef}></div>
       </div>
