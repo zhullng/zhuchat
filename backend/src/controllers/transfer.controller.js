@@ -2,38 +2,40 @@ import User from "../models/user.model.js";
 import Transfer from "../models/transfer.model.js";
 
 // 🔹 FAZER TRANSFERÊNCIA
-export const sendTransaction = async (req, res) => {
+export const makeTransfer = async (req, res) => {
+  const { senderId, receiverEmail, amount } = req.body;
+
   try {
-    const { receiverEmail, amount } = req.body;
-    const senderId = req.user._id;
-
-    if (!receiverEmail || !amount || amount <= 0) {
-      return res.status(400).json({ error: "Dados inválidos para a transação" });
+    if (!senderId || !receiverEmail || !amount || amount <= 0) {
+      return res.status(400).json({ error: "Dados inválidos para transferência" });
     }
 
-    // Buscar destinatário pelo email
-    const receiver = await User.findOne({ email: receiverEmail });
-    if (!receiver) {
-      return res.status(404).json({ error: "Usuário destinatário não encontrado" });
+    const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
+    if (!emailRegex.test(receiverEmail)) {
+      return res.status(400).json({ error: "Formato de e-mail inválido" });
     }
 
-    if (senderId.toString() === receiver._id.toString()) {
-      return res.status(400).json({ error: "Não é possível transferir para si mesmo" });
-    }
-
-    // Buscar o remetente para verificar saldo
     const sender = await User.findById(senderId);
-    if (!sender || sender.balance < amount) {
+    const receiver = await User.findOne({ email: receiverEmail });
+
+    if (!sender || !receiver) {
+      return res.status(404).json({ error: "Remetente ou destinatário não encontrado" });
+    }
+
+    // Verificar se o remetente e o destinatário são o mesmo usuário
+    if (senderId === receiver._id.toString()) {
+      return res.status(400).json({ error: "Não é possível transferir para si próprio" });
+    }
+
+    if (sender.balance < amount) {
       return res.status(400).json({ error: "Saldo insuficiente" });
     }
 
-    // Atualizar saldo do remetente e destinatário
     sender.balance -= Number(amount);
     receiver.balance += Number(amount);
     await sender.save();
     await receiver.save();
 
-    // Criar e salvar transação
     const transfer = new Transfer({
       sender: sender._id,
       receiver: receiver._id,
@@ -42,33 +44,40 @@ export const sendTransaction = async (req, res) => {
     });
     await transfer.save();
 
-    res.status(201).json({ message: "Transação realizada com sucesso", transaction: transfer });
+    res.json({
+      message: "Transferência realizada com sucesso!",
+      transfer: {
+        sender: { fullName: sender.fullName, balance: sender.balance },
+        receiver: { fullName: receiver.fullName, balance: receiver.balance },
+        amount,
+        status: "completed",
+      },
+    });
   } catch (error) {
-    console.error("Erro ao processar transação:", error.message);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    console.error(error);
+    res.status(500).json({ error: "Erro ao processar transferência" });
   }
 };
 
+// 🔹 HISTÓRICO DE TRANSFERÊNCIAS
+export const getTransferHistory = async (req, res) => {
+  const { userId } = req.params;
 
-export const getTransactionHistoryWithUser = async (req, res) => {
   try {
-    const { id: otherUserId } = req.params; // ID do outro usuário na conversa
-    const myId = req.user._id; // ID do usuário autenticado
+    if (!userId) return res.status(400).json({ error: "ID do usuário é obrigatório" });
 
-    const transfer = await Transfer.find({
-      $or: [
-        { senderId: myId, receiverId: otherUserId },
-        { senderId: otherUserId, receiverId: myId },
-      ],
-    }).sort({ createdAt: -1 });
+    const transfers = await Transfer.find({
+      $or: [{ sender: userId }, { receiver: userId }],
+    })
+      .populate("sender receiver", "fullName email")
+      .sort({ createdAt: -1 });
 
-    res.status(200).json(transfer);
+    res.json(transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" });
   } catch (error) {
-    console.error("Erro ao buscar histórico de transações:", error.message);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    console.error(error);
+    res.status(500).json({ error: "Erro ao buscar histórico de transferências" });
   }
 };
-
 
 // 🔹 DEPOSITAR DINHEIRO
 export const depositMoney = async (req, res) => {
