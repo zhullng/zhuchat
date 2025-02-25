@@ -7,7 +7,7 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 export const makeTransfer = async (req, res) => {
   const { receiverEmail, amount } = req.body;
   const { id: receiverId } = req.params; // ID do user destinatário
-    const senderId = req.user._id; // ID do user remetente
+  const senderId = req.user._id; // ID do user remetente
   try {
     if (!senderId || !receiverEmail || !amount || amount <= 0) {
       return res.status(400).json({ error: "Dados inválidos para transferência" });
@@ -19,8 +19,8 @@ export const makeTransfer = async (req, res) => {
     }
 
     const sender = await User.findById(senderId);
-    const receiver = await User.findById(receiverId);
-
+    const receiver = await User.findOne({ email: receiverEmail }); // Alterado de findById para findOne
+    
     if (!sender || !receiver) {
       return res.status(404).json({ error: "Remetente ou destinatário não encontrado" });
     }
@@ -46,10 +46,19 @@ export const makeTransfer = async (req, res) => {
     });
     await transfer.save();
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
+    const transferData = {
+      sender: { fullName: sender.fullName, balance: sender.balance },
+      receiver: { fullName: receiver.fullName, balance: receiver.balance },
+      amount,
+      status: "completed",
+    };
+
+    // Buscar o socketId do destinatário
+    const receiverSocketId = getReceiverSocketId(receiver._id); // Aqui buscamos o socketId
+
     if (receiverSocketId) {
-      // Se o user destinatário estiver online (conectado ao socket), envia a mensagem para ele
-      io.to(receiverSocketId).emit("newTransfer", newMessage);
+      // Emitindo o evento com os dados da transferência para o destinatário
+      io.to(receiverSocketId).emit("newTransfer", transferData);
     }
 
     res.json({
@@ -66,6 +75,7 @@ export const makeTransfer = async (req, res) => {
     res.status(500).json({ error: "Erro ao processar transferência" });
   }
 };
+
 
 
 // 🔹 HISTÓRICO DE TRANSFERÊNCIAS
