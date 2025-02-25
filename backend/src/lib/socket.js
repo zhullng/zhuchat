@@ -50,11 +50,14 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("transferCompleted", (senderId, receiverEmail, amount) => {
+  // Evento para emitir quando uma transferência foi realizada
+  socket.on("transferCompleted", (senderId, receiverId, amount) => {
     const senderSocketId = userSocketMap[senderId];
-    // Encontrar o userId correspondente ao email do destinatário
-    const receiverId = findUserIdByEmail(receiverEmail); // Você deve criar uma função para encontrar o userId pelo email
     const receiverSocketId = userSocketMap[receiverId];
+  
+    // Verifique se o senderSocketId e receiverSocketId estão sendo encontrados corretamente
+    console.log('Sender Socket ID:', senderSocketId);
+    console.log('Receiver Socket ID:', receiverSocketId);
   
     if (senderSocketId) {
       io.to(senderSocketId).emit("transferNotification", {
@@ -62,19 +65,18 @@ io.on("connection", (socket) => {
         amount,
         receiverId,
       });
-      io.to(senderSocketId).emit("updateTransferHistory");
+      io.to(senderSocketId).emit("updateTransferHistory"); // Atualiza o histórico para o remetente
     }
   
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("transferNotification", {
-        type: "received",
+        type: "received",  // Destinatário recebe a transferência
         amount,
-        senderId,
+        senderId, // Passando o senderId para o destinatário
       });
-      io.to(receiverSocketId).emit("updateTransferHistory");
+      io.to(receiverSocketId).emit("updateTransferHistory"); // Atualiza o histórico para o destinatário
     }
   });
-  
   
 
   
