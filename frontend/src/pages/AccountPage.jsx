@@ -13,7 +13,6 @@ const AccountPage = () => {
   const { authUser, setAuthUser } = useAuthStore();
   const [socket, setSocket] = useState(null);
 
-  // Conectar ao servidor WebSocket na inicialização
   useEffect(() => {
     const socketConnection = io('/', {
       query: { userId: authUser?._id },
@@ -37,19 +36,16 @@ const AccountPage = () => {
       }
     });
   
-    // Atualiza o histórico de transferências quando o evento for disparado
+    // Atualiza o histórico de transferências
     socketConnection.on("updateTransferHistory", fetchTransferHistory);
-  
-    // Carregar histórico ao iniciar a aplicação
-    fetchTransferHistory();
   
     setSocket(socketConnection);
   
-    // Limpar a conexão ao WebSocket quando o componente for desmontado
     return () => {
       socketConnection.disconnect();
     };
-  }, [authUser?._id]); // Garante que o socket seja atualizado se o authUser mudar
+  }, [authUser?._id]); // Certifique-se de que a conexão do socket está associada ao `authUser._id`
+  
 
   // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
