@@ -13,9 +13,9 @@ const AccountPage = () => {
 
   // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
+    if (!authUser?._id) return; // Adicionando checagem para garantir que authUser tenha _id
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      console.log(response.data); // Verifique o formato da resposta aqui
       if (response && Array.isArray(response.data)) {
         setTransfers(response.data);
       } else {
@@ -25,18 +25,21 @@ const AccountPage = () => {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
-  };  
+  };
 
   useEffect(() => {
-    fetchTransferHistory();
+    if (authUser?._id) {
+      fetchTransferHistory();
+    }
   }, [authUser?._id]);
 
   // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Verificar se o campo valor está válido e se o email foi preenchido (no caso da transferência)
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
-      toast.error('Todos os campos são obrigatórios');
+      toast.error('Todos os campos são obrigatórios e o valor deve ser maior que zero');
       return;
     }
 
