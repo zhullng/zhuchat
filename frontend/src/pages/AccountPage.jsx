@@ -8,8 +8,8 @@ const AccountPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
-  const [amount] = useState('');
-  const { authUser } = useAuthStore();
+  const [amount, setAmount] = useState('');
+  const { authUser, socket } = useAuthStore();
 
   // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
@@ -26,9 +26,44 @@ const AccountPage = () => {
     }
   };
 
+  // Função para se inscrever nos eventos de transferências do WebSocket
+  const subscribeToTransferUpdates = () => {
+    if (!socket) return;
+
+    socket.on('transfer-update', (transferData) => {
+      const isTransferRelevant = transferData.senderId === authUser._id || transferData.receiverId === authUser._id;
+
+      if (isTransferRelevant) {
+        // Atualizar o histórico de transferências com a nova transferência
+        setTransfers((prevTransfers) => [...prevTransfers, transferData]);
+
+        // Se for o usuário autenticado o remetente ou o destinatário, atualizar o saldo
+        if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
+          // Atualizar saldo local
+          const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);
+          // Atualizar saldo na store
+          useAuthStore.setState({ authUser: { ...authUser, balance: updatedBalance } });
+        }
+      }
+    });
+  };
+
+  // Função para desinscrever dos eventos de transferências do WebSocket
+  const unsubscribeFromTransferUpdates = () => {
+    if (socket) {
+      socket.off('transfer-update');
+    }
+  };
+
   useEffect(() => {
     fetchTransferHistory();
-  }, [authUser?._id]);
+    subscribeToTransferUpdates();
+
+    // Limpeza do WebSocket quando o componente for desmontado
+    return () => {
+      unsubscribeFromTransferUpdates();
+    };
+  }, [authUser?._id, socket]);
 
   // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {

@@ -1,11 +1,13 @@
 import User from "../models/user.model.js";
 import Transfer from "../models/transfer.model.js";
+import { getReceiverSocketId, io } from "../lib/socket.js";
 
 // 🔹 FAZER TRANSFERÊNCIA
 // 🔹 FAZER TRANSFERÊNCIA
 export const makeTransfer = async (req, res) => {
-  const { senderId, receiverEmail, amount } = req.body;
-
+  const { receiverEmail, amount } = req.body;
+  const { id: receiverId } = req.params; // ID do user destinatário
+    const senderId = req.user._id; // ID do user remetente
   try {
     if (!senderId || !receiverEmail || !amount || amount <= 0) {
       return res.status(400).json({ error: "Dados inválidos para transferência" });
@@ -17,7 +19,7 @@ export const makeTransfer = async (req, res) => {
     }
 
     const sender = await User.findById(senderId);
-    const receiver = await User.findOne({ email: receiverEmail });
+    const receiver = await User.findById(receiverId);
 
     if (!sender || !receiver) {
       return res.status(404).json({ error: "Remetente ou destinatário não encontrado" });
@@ -43,6 +45,12 @@ export const makeTransfer = async (req, res) => {
       status: "completed",
     });
     await transfer.save();
+
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      // Se o user destinatário estiver online (conectado ao socket), envia a mensagem para ele
+      io.to(receiverSocketId).emit("newTransfer", newMessage);
+    }
 
     res.json({
       message: "Transferência realizada com sucesso!",
