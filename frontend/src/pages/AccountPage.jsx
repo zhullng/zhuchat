@@ -8,15 +8,15 @@ const AccountPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
-  const [amount, setAmount] = useState('');
-  const { authUser, setAuthUser } = useAuthStore();
+  const [amount] = useState('');
+  const { authUser } = useAuthStore();
 
   // Função para buscar o histórico de transferências do usuário
-  const fetchTransferHistory = async (userId) => {
+  const fetchTransferHistory = async () => {
     try {
-      const response = await axios.get(`/api/transfers/history/${userId}`);
-      if (Array.isArray(response.data)) {
-        setTransfers(response.data);
+      const response = await axios.get(`/api/transfers/history/${authUser._id}`);
+      if (response && response.data) {
+        setTransfers(Array.isArray(response.data) ? response.data : []);
       } else {
         toast.error('Histórico de transferências não encontrado');
       }
@@ -26,29 +26,34 @@ const AccountPage = () => {
     }
   };
 
-  // Buscar o histórico sempre que o _id do authUser mudar
   useEffect(() => {
-    if (authUser?._id) fetchTransferHistory(authUser._id);
+    fetchTransferHistory();
   }, [authUser?._id]);
 
-  // Função para validar se os dados da operação estão corretos
-  const isValidOperation = () => {
+  // Submeter o formulário de operações (depositar, transferir, sacar)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
-      toast.error('Todos os campos são obrigatórios e o valor deve ser maior que zero');
-      return false;
+      toast.error('Todos os campos são obrigatórios');
+      return;
     }
-    return true;
-  };
-
-  // Função para processar a operação (depositar, sacar, transferir)
-  const processOperation = async () => {
-    if (!isValidOperation()) return;
-
-    const endpoint = getEndpoint();
-    const payload = getPayload();
 
     try {
+      const endpoint =
+        modalAction === 'deposit'
+          ? '/api/transfers/deposit'
+          : modalAction === 'withdraw'
+          ? '/api/transfers/withdraw'
+          : '/api/transfers/transfer';
+
+      const payload =
+        modalAction === 'transfer'
+          ? { senderId: authUser._id, receiverEmail, amount }
+          : { userId: authUser._id, amount };
+
       const response = await axios.post(endpoint, payload);
+
       toast.success(response.data.message);
 
       // Fechar o modal e limpar os campos
@@ -56,48 +61,11 @@ const AccountPage = () => {
       setReceiverEmail('');
       setAmount('');
 
-      // Atualizar o histórico e o saldo
-      fetchTransferHistory(authUser._id); // Atualizar o histórico do sender
-      if (modalAction === 'transfer') {
-        // Atualizar o histórico do receiver também
-        const receiverResponse = await axios.get(`/api/users/${receiverEmail}`);
-        if (receiverResponse.data?._id) {
-          fetchTransferHistory(receiverResponse.data._id); // Histórico do receiver
-        }
-      }
-
-      // Atualizar o saldo
-      updateBalance(response.data);
+      // Atualizar o histórico após a operação
+      fetchTransferHistory();
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
-    }
-  };
-
-  // Função auxiliar para decidir o endpoint com base na ação
-  const getEndpoint = () => {
-    switch (modalAction) {
-      case 'deposit': return '/api/transfers/deposit';
-      case 'withdraw': return '/api/transfers/withdraw';
-      case 'transfer': return '/api/transfers/transfer';
-      default: return '';
-    }
-  };
-
-  // Função auxiliar para criar o payload com base na ação
-  const getPayload = () => {
-    if (modalAction === 'transfer') {
-      return { senderId: authUser._id, receiverEmail, amount };
-    }
-    return { userId: authUser._id, amount };
-  };
-
-  // Função para atualizar o saldo do usuário após a operação
-  const updateBalance = (data) => {
-    if (data.transfer) {
-      setAuthUser({ ...authUser, balance: data.transfer.sender.balance });
-    } else {
-      setAuthUser({ ...authUser, balance: data.user.balance });
     }
   };
 
@@ -167,13 +135,13 @@ const AccountPage = () => {
             <h2 className="text-2xl font-semibold mb-4">
               {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
             </h2>
-            <form onSubmit={(e) => { e.preventDefault(); processOperation(); }} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {modalAction === 'transfer' && (
                 <input type="email" placeholder="E-mail do destinatário" value={receiverEmail} onChange={(e) => setReceiverEmail(e.target.value)} className="input input-bordered w-full" required />
               )}
               <input type="number" placeholder="Valor" value={amount} onChange={(e) => setAmount(e.target.value)} className="input input-bordered w-full" required />
               <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
-              <button type="button" onClick={() => { setShowModal(false); }} className="btn btn-ghost w-full">Cancelar</button>
+              <button onClick={() => { setShowModal(false); }} className="btn btn-ghost w-full">Cancelar</button>
             </form>
           </div>
         </div>
