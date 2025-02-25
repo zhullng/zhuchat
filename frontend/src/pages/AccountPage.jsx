@@ -15,8 +15,9 @@ const AccountPage = () => {
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      if (response && response.data) {
-        setTransfers(Array.isArray(response.data) ? response.data : []);
+      console.log(response.data); // Verifique o formato da resposta aqui
+      if (response && Array.isArray(response.data)) {
+        setTransfers(response.data);
       } else {
         toast.error('Histórico de transferências não encontrado');
       }
@@ -24,7 +25,7 @@ const AccountPage = () => {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
-  };
+  };  
 
   useEffect(() => {
     fetchTransferHistory();
@@ -81,7 +82,7 @@ const AccountPage = () => {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-6">

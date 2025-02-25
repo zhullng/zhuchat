@@ -1,5 +1,5 @@
 import express from "express";
-import { makeTransfer, getTransferHistory, depositMoney, withdrawMoney, getBalance } from "../controllers/transfer.controller.js"; // Certifique-se de que está importando os controllers corretamente
+import { makeTransfer, getTransferHistory, depositMoney, withdrawMoney } from "../controllers/transfer.controller.js"; // Certifique-se de que está importando os controllers corretamente
 import { protectRoute } from "../middleware/auth.middleware.js"; // Middleware de autenticação
 
 const router = express.Router();
