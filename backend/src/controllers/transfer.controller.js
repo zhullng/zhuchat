@@ -78,24 +78,39 @@ export const makeTransfer = async (req, res) => {
 
 
 // 🔹 HISTÓRICO DE TRANSFERÊNCIAS
+// 🔹 HISTÓRICO DE TRANSFERÊNCIAS
 export const getTransferHistory = async (req, res) => {
   const { userId } = req.params;
 
   try {
     if (!userId) return res.status(400).json({ error: "ID do usuário é obrigatório" });
 
+    // Primeiro, busque o usuário (sender) e o destinatário (receiver) com base no e-mail
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    // Buscar transferências onde o sender ou receiver tem o ID do usuário
     const transfers = await Transfer.find({
       $or: [{ sender: userId }, { receiver: userId }],
     })
-      .populate("sender receiver", "fullName email")
+      .populate({
+        path: 'sender receiver',
+        select: 'fullName email',  // Selecionar apenas os dados necessários para exibir no histórico
+      })
       .sort({ createdAt: -1 });
 
-    res.json(transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" });
+    if (transfers.length === 0) {
+      return res.status(200).json({ message: "Nenhuma transferência encontrada" });
+    }
+
+    // Enviar os dados das transferências
+    res.json(transfers);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erro ao buscar histórico de transferências" });
   }
 };
+
 
 
 export const depositMoney = async (req, res) => {

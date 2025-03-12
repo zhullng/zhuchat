@@ -26,17 +26,6 @@ const AccountPage = () => {
     }
   };
 
-  const fetchReceiverId = async (email) => {
-    try {
-      const response = await axios.get(`/api/users/findByEmail/${email}`);
-      return response.data._id;  // Supondo que o backend retorne o ID do usuário
-    } catch (error) {
-      console.error('Erro ao buscar destinatário:', error);
-      toast.error('Usuário não encontrado');
-      return null;
-    }
-  };  
-
   // Função para se inscrever nos eventos de transferências do WebSocket
   const subscribeToTransferUpdates = () => {
     if (!socket) return;
@@ -79,45 +68,34 @@ const AccountPage = () => {
   // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
       toast.error('Todos os campos são obrigatórios');
       return;
     }
-  
+
     try {
-      let receiverId = null;
-  
-      if (modalAction === 'transfer') {
-        receiverId = await fetchReceiverId(receiverEmail);  // Buscar o receiverId
-  
-        if (!receiverId) {
-          // Caso o receiverId não seja encontrado, não prosseguir
-          return;
-        }
-      }
-  
       const endpoint =
         modalAction === 'deposit'
           ? '/api/transfers/deposit'
           : modalAction === 'withdraw'
           ? '/api/transfers/withdraw'
           : '/api/transfers/transfer';
-  
+
       const payload =
         modalAction === 'transfer'
-          ? { senderId: authUser._id, receiverId, amount }  // Usar o receiverId
+          ? { senderId: authUser._id, receiverEmail, amount }
           : { userId: authUser._id, amount };
-  
+
       const response = await axios.post(endpoint, payload);
-  
+
       toast.success(response.data.message);
-  
+
       // Fechar o modal e limpar os campos
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
-  
+
       // Atualizar o histórico após a operação
       fetchTransferHistory();
     } catch (error) {
@@ -125,7 +103,6 @@ const AccountPage = () => {
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
-  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
