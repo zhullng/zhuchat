@@ -18,6 +18,11 @@ export const makeTransfer = async (req, res) => {
       return res.status(404).json({ error: 'Destinatário não encontrado' });
     }
 
+    // Impedir transferência para si mesmo
+    if (receiver._id.equals(senderId)) {
+      return res.status(400).json({ error: 'Não é possível transferir para si mesmo' });
+    }
+
     // 2. Criar a transferência
     const transfer = new Transfer({
       sender: senderId,
@@ -71,8 +76,6 @@ export const makeTransfer = async (req, res) => {
   }
 };
 
-
-
 // 🔹 HISTÓRICO DE TRANSFERÊNCIAS
 export const getTransferHistory = async (req, res) => {
   const { userId } = req.params;
@@ -92,7 +95,6 @@ export const getTransferHistory = async (req, res) => {
     res.status(500).json({ error: "Erro ao buscar histórico de transferências" });
   }
 };
-
 
 export const depositMoney = async (req, res) => {
   const { userId, amount } = req.body;

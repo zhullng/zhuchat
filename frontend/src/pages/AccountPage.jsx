@@ -167,7 +167,7 @@ const AccountPage = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 pl-20 sm:pl-24">
           <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
             <h2 className="text-2xl font-semibold mb-4">
               {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
