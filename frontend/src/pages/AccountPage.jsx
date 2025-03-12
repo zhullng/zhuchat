@@ -10,7 +10,8 @@ const AccountPage = () => {
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
   const { authUser, socket } = useAuthStore();
-
+ 
+  
   // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
     try {
