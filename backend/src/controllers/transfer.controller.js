@@ -85,6 +85,27 @@ export const makeTransfer = async (req, res) => {
 
 
 
+// 🔹 HISTÓRICO DE TRANSFERÊNCIAS
+export const getTransferHistory = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    if (!userId) return res.status(400).json({ error: "ID do usuário é obrigatório" });
+
+    const transfers = await Transfer.find({
+      $or: [{ sender: userId }, { receiver: userId }],
+    })
+      .populate("sender receiver", "fullName email")
+      .sort({ createdAt: -1 });
+
+    res.json(transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao buscar histórico de transferências" });
+  }
+};
+
+
 export const depositMoney = async (req, res) => {
   const { userId, amount } = req.body;
 
