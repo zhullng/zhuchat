@@ -9,77 +9,85 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
-  const { authUser, socket } = useAuthStore();
+  const { authUser, socket, setAuthUser } = useAuthStore();
 
-  // Função para buscar o histórico de transferências do usuário
+  // Buscar histórico de transferências
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      if (response && response.data) {
-        setTransfers(Array.isArray(response.data) ? response.data : []);
-      } else {
-        toast.error('Histórico de transferências não encontrado');
-      }
+      setTransfers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
   };
 
-  // Função para se inscrever nos eventos de transferências do WebSocket
-const subscribeToTransferUpdates = () => {
-  if (!socket) return;
-
-  socket.on("transfer-update", (transferData) => {
-    setTransfers((prevTransfers) => [...prevTransfers, transferData]);
-    if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
-      const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);
-      useAuthStore.setState({ authUser: { ...authUser, balance: updatedBalance } });
-    }
-  });
-};
-
-
-  // Função para desinscrever dos eventos de transferências do WebSocket
-  const unsubscribeFromTransferUpdates = () => {
-    if (socket) {
-      socket.off('transfer-update');
-    }
-  };
-
+  // Inscrever-se nos eventos de transferência do WebSocket
   useEffect(() => {
-    fetchTransferHistory();
-    subscribeToTransferUpdates();
+    if (!socket) return;
 
-    // Limpeza do WebSocket quando o componente for desmontado
-    return () => {
-      unsubscribeFromTransferUpdates();
+    const handleTransferUpdate = (transferData) => {
+      if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
+        // Atualizar histórico de transferências
+        setTransfers((prevTransfers) => [...prevTransfers, transferData]);
+
+        // Atualizar saldo localmente
+        const updatedBalance =
+          transferData.senderId === authUser._id
+            ? authUser.balance - transferData.amount
+            : authUser.balance + transferData.amount;
+
+        // Atualizar o estado global do usuário
+        setAuthUser({ ...authUser, balance: updatedBalance });
+      }
     };
-  }, [authUser?._id, socket]);
 
-  // Submeter o formulário de operações (depositar, transferir, sacar)
+    // Ouvir o evento de atualização
+    socket.on('transfer-update', handleTransferUpdate);
+
+    return () => {
+      socket.off('transfer-update', handleTransferUpdate);
+    };
+  }, [authUser, socket, setAuthUser]);
+
+  // Submeter formulário para operações financeiras
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
+    if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
+      toast.error('Todos os campos são obrigatórios');
+      return;
+    }
+
     try {
-      const endpoint = modalAction === "deposit"
-        ? "/api/transfers/deposit"
-        : modalAction === "withdraw"
-        ? "/api/transfers/withdraw"
-        : "/api/transfers/transfer";
-  
-      const payload = modalAction === "transfer"
-        ? { senderId: authUser._id, receiverEmail, amount }
-        : { userId: authUser._id, amount };
-  
+      const endpoint =
+        modalAction === 'deposit'
+          ? '/api/transfers/deposit'
+          : modalAction === 'withdraw'
+          ? '/api/transfers/withdraw'
+          : '/api/transfers/transfer';
+
+      const payload =
+        modalAction === 'transfer'
+          ? { senderId: authUser._id, receiverEmail, amount }
+          : { userId: authUser._id, amount };
+
       const response = await axios.post(endpoint, payload);
+
       toast.success(response.data.message);
-      fetchTransferHistory(); // Atualizar o histórico após a operação
+
+      // Fechar modal e limpar os campos
+      setShowModal(false);
+      setReceiverEmail('');
+      setAmount('');
+
+      // Atualizar saldo via WebSocket (caso não seja automático pelo backend)
+      socket.emit('request-balance-update', authUser._id);
     } catch (error) {
-      toast.error(error.response?.data?.error || "Erro ao processar a operação");
+      console.error('Erro ao processar operação:', error);
+      toast.error(error.response?.data?.error || 'Erro ao processar a operação');
     }
   };
-  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
@@ -140,24 +148,6 @@ const subscribeToTransferUpdates = () => {
           )}
         </div>
       </div>
-
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
-            <h2 className="text-2xl font-semibold mb-4">
-              {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {modalAction === 'transfer' && (
-                <input type="email" placeholder="E-mail do destinatário" value={receiverEmail} onChange={(e) => setReceiverEmail(e.target.value)} className="input input-bordered w-full" required />
-              )}
-              <input type="number" placeholder="Valor" value={amount} onChange={(e) => setAmount(e.target.value)} className="input input-bordered w-full" required />
-              <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
-              <button onClick={() => { setShowModal(false); }} className="btn btn-ghost w-full">Cancelar</button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
