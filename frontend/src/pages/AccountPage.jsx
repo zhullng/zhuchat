@@ -48,7 +48,7 @@ const AccountPage = () => {
         }
       }
     });
-  };
+  };  
 
   // Função para desinscrever dos eventos de transferências do WebSocket
   const unsubscribeFromTransferUpdates = () => {

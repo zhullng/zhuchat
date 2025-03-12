@@ -1,6 +1,6 @@
-import Transfer from '../models/Transfer.js';
-import User from '../models/User.js'; // Adicione o modelo User
-import { socketServer } from '../socket.js'; // Supondo que você tenha a instância do servidor de WebSocket
+import User from "../models/user.model.js";
+import Transfer from "../models/transfer.model.js";
+import { getReceiverSocketId, io } from "../lib/socket.js";
 
 export const makeTransfer = async (req, res) => {
   const { receiverEmail, amount } = req.body;
@@ -36,7 +36,23 @@ export const makeTransfer = async (req, res) => {
     await receiver.save();
 
     // 4. Emitir um evento via WebSocket para ambos os usuários
-    socketServer.emit('transfer-update', {
+    // Obter o socketId do receptor para emitir o evento para ele
+    const receiverSocketId = getReceiverSocketId(receiver._id);
+
+    // Emitir para o sender e receiver
+    io.to(receiverSocketId).emit('transfer-update', {
+      senderId,
+      receiverId: receiver._id,
+      amount,
+      senderBalance: sender.balance,
+      receiverBalance: receiver.balance,
+      senderFullName: sender.fullName,
+      receiverFullName: receiver.fullName,
+      createdAt: transfer.createdAt,
+    });
+
+    // Emitir também para o sender
+    io.to(senderId).emit('transfer-update', {
       senderId,
       receiverId: receiver._id,
       amount,
@@ -54,7 +70,6 @@ export const makeTransfer = async (req, res) => {
     res.status(500).json({ error: 'Erro ao processar a transferência' });
   }
 };
-
 
 
 
