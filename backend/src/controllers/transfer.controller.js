@@ -60,13 +60,13 @@ export const makeTransfer = async (req, res) => {
       io.to(receiverSocketId).emit("newTransfer", transferData);
     }
 
-    // Atualizando o histórico de transferências (para o remetente e destinatário)
     const transfers = await Transfer.find({
       $or: [{ sender: sender._id }, { receiver: receiver._id }],
     })
       .populate("sender receiver", "fullName email")
       .sort({ createdAt: -1 });
-
+    
+      res.json(transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" });
     res.json({
       message: "Transferência realizada com sucesso!",
       transfer: {
