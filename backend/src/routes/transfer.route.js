@@ -5,19 +5,19 @@ import { protectRoute } from "../middleware/auth.middleware.js"; // Middleware d
 const router = express.Router();
 
 // 🔹 Rota para fazer uma transferência
-// Alteração: O middleware de balance não deve ser aplicado aqui, pois o saldo já está sendo retornado pela função `makeTransfer`
+// Alteração: O middleware de balance não deve ser aplicado aqui, pois o saldo já está sendo retornado pela função makeTransfer
 router.post("/transfer", protectRoute, makeTransfer);
 
-// 🔹 Rota para buscar o histórico de transferências de um user
+// 🔹 Rota para buscar o histórico de transferências de um usuário
 // A rota para buscar o histórico está correta. Apenas retornando o histórico de transferências.
 router.get("/history/:userId", protectRoute, getTransferHistory);
 
 // 🔹 Rota para depósito de dinheiro
-// A operação de depósito também deve retornar o saldo atualizado do user
+// A operação de depósito também deve retornar o saldo atualizado do usuário
 router.post("/deposit", protectRoute, depositMoney);
 
 // 🔹 Rota para saque de dinheiro
-// A operação de saque também deve retornar o saldo atualizado do user
+// A operação de saque também deve retornar o saldo atualizado do usuário
 router.post("/withdraw", protectRoute, withdrawMoney);
 
 export default router;

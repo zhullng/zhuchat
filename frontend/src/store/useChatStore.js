@@ -31,7 +31,7 @@ export const useChatStore = create((set, get) => ({
   getMessages: async (userId) => {
     set({ isMessagesLoading: true }); // Início do carregamento das mensagens
     try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
+      const res = await axiosInstance.get(/messages/${userId});
       set({ messages: res.data }); // Armazena as mensagens do user
     } catch (error) {
       toast.error(error.response.data.message); 
@@ -44,7 +44,7 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get(); // Recebe o user selecionado e as mensagens atuais
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      const res = await axiosInstance.post(/messages/send/${selectedUser._id}, messageData);
       set({ messages: [...messages, res.data] }); // Adiciona a nova mensagem ao estado das mensagens
     } catch (error) {
       toast.error(error.response.data.message); 
@@ -80,12 +80,12 @@ export const useChatStore = create((set, get) => ({
 
   // Função para buscar o histórico de transferências
   getTransferHistory: async () => {
-    const { authUser } = useAuthStore.getState(); // Obter user autenticado
+    const { authUser } = useAuthStore.getState(); // Obter usuário autenticado
     if (!authUser?._id) return;
 
     set({ isTransfersLoading: true });
     try {
-      const res = await axiosInstance.get(`/api/transfers/history/${authUser._id}`);
+      const res = await axiosInstance.get(/api/transfers/history/${authUser._id});
       set({ transfers: res.data });
     } catch (error) {
       toast.error(error.response?.data?.message || "Erro ao carregar histórico");
@@ -99,7 +99,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket; // Recebe a instância do socket da store de autenticação
 
     socket.on("transfer-update", (transferData) => {
-      const { authUser } = useAuthStore.getState(); // Obter user autenticado
+      const { authUser } = useAuthStore.getState(); // Obter usuário autenticado
       if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
         set((state) => ({
           transfers: [...state.transfers, transferData], // Adiciona a transferência ao histórico
@@ -113,7 +113,6 @@ export const useChatStore = create((set, get) => ({
       }
     });
   },
-  
 
   // Função para se desinscrever das notificações de transferências
   unsubscribeFromTransfers: () => {
