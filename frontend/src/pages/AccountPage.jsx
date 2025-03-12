@@ -9,48 +9,63 @@ const AccountPage = () => {
   const [modalAction, setModalAction] = useState('');
   const [receiverEmail, setReceiverEmail] = useState('');
   const [amount, setAmount] = useState('');
-  const { authUser, socket, setAuthUser } = useAuthStore();
+  const { authUser, socket } = useAuthStore();
 
-  // Buscar histórico de transferências
+  // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
-      setTransfers(Array.isArray(response.data) ? response.data : []);
+      if (response && response.data) {
+        setTransfers(Array.isArray(response.data) ? response.data : []);
+      } else {
+        toast.error('Histórico de transferências não encontrado');
+      }
     } catch (error) {
       console.error('Erro ao buscar histórico de transferências:', error);
       toast.error('Erro ao buscar histórico de transferências');
     }
   };
 
-  // Inscrever-se nos eventos de transferência do WebSocket
-  useEffect(() => {
+  // Função para se inscrever nos eventos de transferências do WebSocket
+  const subscribeToTransferUpdates = () => {
     if (!socket) return;
 
-    const handleTransferUpdate = (transferData) => {
-      if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
-        // Atualizar histórico de transferências
+    socket.on('transfer-update', (transferData) => {
+      const isTransferRelevant = transferData.senderId === authUser._id || transferData.receiverId === authUser._id;
+
+      if (isTransferRelevant) {
+        // Atualizar o histórico de transferências com a nova transferência
         setTransfers((prevTransfers) => [...prevTransfers, transferData]);
 
-        // Atualizar saldo localmente
-        const updatedBalance =
-          transferData.senderId === authUser._id
-            ? authUser.balance - transferData.amount
-            : authUser.balance + transferData.amount;
-
-        // Atualizar o estado global do usuário
-        setAuthUser({ ...authUser, balance: updatedBalance });
+        // Se for o usuário autenticado o remetente ou o destinatário, atualizar o saldo
+        if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
+          // Atualizar saldo local
+          const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);
+          // Atualizar saldo na store
+          useAuthStore.setState({ authUser: { ...authUser, balance: updatedBalance } });
+        }
       }
-    };
+    });
+  };
 
-    // Ouvir o evento de atualização
-    socket.on('transfer-update', handleTransferUpdate);
+  // Função para desinscrever dos eventos de transferências do WebSocket
+  const unsubscribeFromTransferUpdates = () => {
+    if (socket) {
+      socket.off('transfer-update');
+    }
+  };
 
+  useEffect(() => {
+    fetchTransferHistory();
+    subscribeToTransferUpdates();
+
+    // Limpeza do WebSocket quando o componente for desmontado
     return () => {
-      socket.off('transfer-update', handleTransferUpdate);
+      unsubscribeFromTransferUpdates();
     };
-  }, [authUser, socket, setAuthUser]);
+  }, [authUser?._id, socket]);
 
-  // Submeter formulário para operações financeiras
+  // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -76,13 +91,13 @@ const AccountPage = () => {
 
       toast.success(response.data.message);
 
-      // Fechar modal e limpar os campos
+      // Fechar o modal e limpar os campos
       setShowModal(false);
       setReceiverEmail('');
       setAmount('');
 
-      // Atualizar saldo via WebSocket (caso não seja automático pelo backend)
-      socket.emit('request-balance-update', authUser._id);
+      // Atualizar o histórico após a operação
+      fetchTransferHistory();
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       toast.error(error.response?.data?.error || 'Erro ao processar a operação');
@@ -148,6 +163,24 @@ const AccountPage = () => {
           )}
         </div>
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
+            <h2 className="text-2xl font-semibold mb-4">
+              {modalAction === 'deposit' ? 'Depositar' : modalAction === 'transfer' ? 'Transferir' : 'Sacar'}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {modalAction === 'transfer' && (
+                <input type="email" placeholder="E-mail do destinatário" value={receiverEmail} onChange={(e) => setReceiverEmail(e.target.value)} className="input input-bordered w-full" required />
+              )}
+              <input type="number" placeholder="Valor" value={amount} onChange={(e) => setAmount(e.target.value)} className="input input-bordered w-full" required />
+              <button type="submit" className="btn bg-blue-500 text-white w-full">Confirmar</button>
+              <button onClick={() => { setShowModal(false); }} className="btn btn-ghost w-full">Cancelar</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
