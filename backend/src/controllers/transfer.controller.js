@@ -6,7 +6,6 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 // 🔹 FAZER TRANSFERÊNCIA
 export const makeTransfer = async (req, res) => {
   const { receiverEmail, amount } = req.body;
-  const { id: receiverId } = req.params; // ID do user destinatário
   const senderId = req.user._id; // ID do user remetente
   try {
     if (!senderId || !receiverEmail || !amount || amount <= 0) {
