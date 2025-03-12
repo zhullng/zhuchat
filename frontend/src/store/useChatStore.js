@@ -113,6 +113,7 @@ export const useChatStore = create((set, get) => ({
       }
     });
   },
+  
 
   // Função para se desinscrever das notificações de transferências
   unsubscribeFromTransfers: () => {

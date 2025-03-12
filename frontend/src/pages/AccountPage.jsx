@@ -37,11 +37,13 @@ const AccountPage = () => {
         // Atualizar o histórico de transferências com a nova transferência
         setTransfers((prevTransfers) => [...prevTransfers, transferData]);
 
-        // Se for o usuário autenticado o remetente ou o destinatário, atualizar o saldo
+        // Atualizar o saldo do usuário
         if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
-          // Atualizar saldo local
-          const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);
-          // Atualizar saldo na store
+          const updatedBalance = transferData.senderId === authUser._id
+            ? authUser.balance - transferData.amount // Se for o remetente, subtrai
+            : authUser.balance + transferData.amount; // Se for o destinatário, adiciona
+
+          // Atualiza o saldo local e também na store de autenticação
           useAuthStore.setState({ authUser: { ...authUser, balance: updatedBalance } });
         }
       }

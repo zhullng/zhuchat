@@ -1,87 +1,60 @@
-import User from "../models/user.model.js";
-import Transfer from "../models/transfer.model.js";
-import { getReceiverSocketId, io } from "../lib/socket.js";
+import Transfer from '../models/Transfer.js';
+import User from '../models/User.js'; // Adicione o modelo User
+import { socketServer } from '../socket.js'; // Supondo que você tenha a instância do servidor de WebSocket
 
-// 🔹 FAZER TRANSFERÊNCIA
-// 🔹 FAZER TRANSFERÊNCIA
 export const makeTransfer = async (req, res) => {
   const { receiverEmail, amount } = req.body;
-  const senderId = req.user._id; // ID do user remetente
+  const senderId = req.user._id;
+
   try {
-    if (!senderId || !receiverEmail || !amount || amount <= 0) {
-      return res.status(400).json({ error: "Dados inválidos para transferência" });
-    }
-
-    const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
-    if (!emailRegex.test(receiverEmail)) {
-      return res.status(400).json({ error: "Formato de e-mail inválido" });
-    }
-
+    // 1. Verificar se o valor é positivo e se o remetente tem saldo suficiente
     const sender = await User.findById(senderId);
-    const receiver = await User.findOne({ email: receiverEmail }); // Alterado de findById para findOne
-    
-    if (!sender || !receiver) {
-      return res.status(404).json({ error: "Remetente ou destinatário não encontrado" });
-    }
-
-    if (senderId === receiver._id.toString()) {
-      return res.status(400).json({ error: "Não é possível transferir para si próprio" });
-    }
-
     if (sender.balance < amount) {
-      return res.status(400).json({ error: "Saldo insuficiente" });
+      return res.status(400).json({ error: 'Saldo insuficiente' });
     }
 
+    const receiver = await User.findOne({ email: receiverEmail });
+    if (!receiver) {
+      return res.status(404).json({ error: 'Destinatário não encontrado' });
+    }
+
+    // 2. Criar a transferência
+    const transfer = new Transfer({
+      sender: senderId,
+      receiver: receiver._id,
+      amount,
+    });
+
+    // Salvar a transferência
+    await transfer.save();
+
+    // 3. Atualizar os saldos dos dois usuários
     sender.balance -= Number(amount);
     receiver.balance += Number(amount);
+
     await sender.save();
     await receiver.save();
 
-    const transfer = new Transfer({
-      sender: sender._id,
-      receiver: receiver._id,
+    // 4. Emitir um evento via WebSocket para ambos os usuários
+    socketServer.emit('transfer-update', {
+      senderId,
+      receiverId: receiver._id,
       amount,
-      status: "completed",
+      senderBalance: sender.balance,
+      receiverBalance: receiver.balance,
+      senderFullName: sender.fullName,
+      receiverFullName: receiver.fullName,
+      createdAt: transfer.createdAt,
     });
-    await transfer.save();
 
-    const transferData = {
-      sender: { fullName: sender.fullName, balance: sender.balance },
-      receiver: { fullName: receiver.fullName, balance: receiver.balance },
-      amount,
-      status: "completed",
-    };
-
-    // Buscar o socketId do destinatário
-    const receiverSocketId = getReceiverSocketId(receiver._id); // Aqui buscamos o socketId
-
-    if (receiverSocketId) {
-      // Emitindo o evento com os dados da transferência para o destinatário
-      io.to(receiverSocketId).emit("newTransfer", transferData);
-    }
-
-    const transfers = await Transfer.find({
-      $or: [{ sender: sender._id }, { receiver: receiver._id }],
-    })
-      .populate("sender receiver", "fullName email")
-      .sort({ createdAt: -1 });
-    
-      res.json(transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" });
-    res.json({
-      message: "Transferência realizada com sucesso!",
-      transfer: {
-        sender: { fullName: sender.fullName, balance: sender.balance },
-        receiver: { fullName: receiver.fullName, balance: receiver.balance },
-        amount,
-        status: "completed",
-      },
-      transferHistory: transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" },
-    });
+    // 5. Retornar a resposta
+    res.status(200).json({ message: 'Transferência realizada com sucesso', transfer });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao processar transferência" });
+    console.error('Erro ao processar a transferência:', error);
+    res.status(500).json({ error: 'Erro ao processar a transferência' });
   }
 };
+
 
 
 
