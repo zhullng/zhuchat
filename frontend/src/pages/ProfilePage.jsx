@@ -17,7 +17,7 @@ const ProfilePage = () => {
   });
   const [errors, setErrors] = useState({});
 
-  // Inicializa os dados do formulário com os valores do usuário autenticado
+  // Inicializa os dados do formulário com os valores do user autenticado
   useEffect(() => {
     if (authUser) {
       setFormData({

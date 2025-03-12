@@ -31,11 +31,11 @@ const userSchema = new mongoose.Schema(
     },
     balance: {
       type: Number,
-      default: 0, // Saldo do usuário
+      default: 0, // Saldo do user
     },
     stripeCustomerId: {
       type: String,
-      unique: true, // Garantir que cada usuário tem um ID Stripe único
+      unique: true, // Garantir que cada user tem um ID Stripe único
     },
   },
   { timestamps: true }

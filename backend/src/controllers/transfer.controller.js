@@ -33,14 +33,14 @@ export const makeTransfer = async (req, res) => {
     // Salvar a transferência
     await transfer.save();
 
-    // 3. Atualizar os saldos dos dois usuários
+    // 3. Atualizar os saldos dos dois users
     sender.balance -= Number(amount);
     receiver.balance += Number(amount);
 
     await sender.save();
     await receiver.save();
 
-    // 4. Emitir um evento via WebSocket para ambos os usuários
+    // 4. Emitir um evento via WebSocket para ambos os users
     // Obter o socketId do receptor para emitir o evento para ele
     const receiverSocketId = getReceiverSocketId(receiver._id);
 
@@ -81,7 +81,7 @@ export const getTransferHistory = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    if (!userId) return res.status(400).json({ error: "ID do usuário é obrigatório" });
+    if (!userId) return res.status(400).json({ error: "ID do user é obrigatório" });
 
     const transfers = await Transfer.find({
       $or: [{ sender: userId }, { receiver: userId }],
@@ -105,7 +105,7 @@ export const depositMoney = async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    if (!user) return res.status(404).json({ error: "user não encontrado" });
 
     user.balance += Number(amount); // Garantindo que ambos sejam números
 
@@ -130,7 +130,7 @@ export const withdrawMoney = async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    if (!user) return res.status(404).json({ error: "user não encontrado" });
 
     if (user.balance < amount) {
       return res.status(400).json({ error: "Saldo insuficiente" });

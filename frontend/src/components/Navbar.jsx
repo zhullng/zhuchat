@@ -38,7 +38,7 @@ const Navbar = () => {
                 <Settings className="size-6" />
               </Link>
 
-              {/* Perfil do usuário */}
+              {/* Perfil do user */}
               <Link to="/profile" className="btn btn-circle btn-ghost btn-lg">
                 <img
                   src={authUser.profilePic || "/avatar.png"}

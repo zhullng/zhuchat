@@ -8,16 +8,16 @@ const router = express.Router();
 // Alteração: O middleware de balance não deve ser aplicado aqui, pois o saldo já está sendo retornado pela função `makeTransfer`
 router.post("/transfer", protectRoute, makeTransfer);
 
-// 🔹 Rota para buscar o histórico de transferências de um usuário
+// 🔹 Rota para buscar o histórico de transferências de um user
 // A rota para buscar o histórico está correta. Apenas retornando o histórico de transferências.
 router.get("/history/:userId", protectRoute, getTransferHistory);
 
 // 🔹 Rota para depósito de dinheiro
-// A operação de depósito também deve retornar o saldo atualizado do usuário
+// A operação de depósito também deve retornar o saldo atualizado do user
 router.post("/deposit", protectRoute, depositMoney);
 
 // 🔹 Rota para saque de dinheiro
-// A operação de saque também deve retornar o saldo atualizado do usuário
+// A operação de saque também deve retornar o saldo atualizado do user
 router.post("/withdraw", protectRoute, withdrawMoney);
 
 export default router;

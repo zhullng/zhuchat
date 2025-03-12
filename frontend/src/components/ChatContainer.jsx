@@ -68,7 +68,7 @@ const ChatContainer = () => {
 
             {/* Alteração do layout do cabeçalho para a posição do nome */}
             <div className={`chat-header mb-1 flex items-center ${message.senderId === authUser._id ? "justify-end" : "justify-start"}`}>
-              {/* Para o usuário logado (authUser), o nome estará à direita e o horário à esquerda */}
+              {/* Para o user logado (authUser), o nome estará à direita e o horário à esquerda */}
               {message.senderId === authUser._id ? (
                 <>
                   <time className="text-xs opacity-50">
@@ -79,7 +79,7 @@ const ChatContainer = () => {
                   </span>
                 </>
               ) : (
-                // Para o outro usuário (selectedUser), o nome estará à esquerda e o horário à direita
+                // Para o outro user (selectedUser), o nome estará à esquerda e o horário à direita
                 <>
                   <span className="font-semibold text-sm">
                     {selectedUser?.fullName || 'Nome Desconhecido'}

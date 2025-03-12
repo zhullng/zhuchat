@@ -6,7 +6,7 @@ const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
   const { onlineUsers } = useAuthStore();
 
-  // Verifica se o usuário selecionado é um assistente AI
+  // Verifica se o user selecionado é um assistente AI
   const isAI = selectedUser?.isAI;
 
   return (

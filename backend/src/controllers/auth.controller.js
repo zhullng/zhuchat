@@ -32,7 +32,7 @@ export const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const existingCustomer = await stripe.customers.list({
-      email, // Passa o email do usuário para procurar um cliente existente
+      email, // Passa o email do user para procurar um cliente existente
     });
 
     let stripeCustomerId;
@@ -55,13 +55,13 @@ export const signup = async (req, res) => {
       }
     }
 
-    // Cria o novo usuário
+    // Cria o novo user
     const newUser = new User({
       fullName,
       gender,
       email,
       password: hashedPassword,
-      stripeCustomerId, // 🔹 Adiciona o ID do Stripe ao usuário
+      stripeCustomerId, // 🔹 Adiciona o ID do Stripe ao user
     });
     
     await newUser.save();
@@ -88,7 +88,7 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // 🔹 1. Verifica se o usuário existe
+    // 🔹 1. Verifica se o user existe
     let user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -113,7 +113,7 @@ export const login = async (req, res) => {
 
         stripeCustomerId = stripeCustomer.id;
 
-        // 🔹 5. Atualizar o usuário no banco com o stripeCustomerId gerado
+        // 🔹 5. Atualizar o user no banco com o stripeCustomerId gerado
         user = await User.findByIdAndUpdate(
           user._id,
           { stripeCustomerId },
@@ -163,7 +163,7 @@ export const updateProfile = async (req, res) => {
     if (updates.email) {
       const emailExists = await User.findOne({
         email: updates.email,
-        _id: { $ne: userId }, // Verifica se o email pertence a outro usuário
+        _id: { $ne: userId }, // Verifica se o email pertence a outro user
       });
       if (emailExists) {
         errors.email = "Email já está em uso";
@@ -179,7 +179,7 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ errors });
     }
 
-    // Atualiza os dados do usuário
+    // Atualiza os dados do user
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       updates,
@@ -194,7 +194,7 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// Verifica se o usuário está autenticado
+// Verifica se o user está autenticado
 export const checkAuth = (req, res) => {
   try {
     res.status(200).json(req.user);

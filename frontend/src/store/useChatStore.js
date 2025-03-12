@@ -80,7 +80,7 @@ export const useChatStore = create((set, get) => ({
 
   // Função para buscar o histórico de transferências
   getTransferHistory: async () => {
-    const { authUser } = useAuthStore.getState(); // Obter usuário autenticado
+    const { authUser } = useAuthStore.getState(); // Obter user autenticado
     if (!authUser?._id) return;
 
     set({ isTransfersLoading: true });
@@ -99,7 +99,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket; // Recebe a instância do socket da store de autenticação
 
     socket.on("transfer-update", (transferData) => {
-      const { authUser } = useAuthStore.getState(); // Obter usuário autenticado
+      const { authUser } = useAuthStore.getState(); // Obter user autenticado
       if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
         set((state) => ({
           transfers: [...state.transfers, transferData], // Adiciona a transferência ao histórico
