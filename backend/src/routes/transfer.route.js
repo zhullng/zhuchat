@@ -5,7 +5,7 @@ import { protectRoute } from "../middleware/auth.middleware.js"; // Middleware d
 const router = express.Router();
 
 // 🔹 Rota para fazer uma transferência
-// Alteração: O middleware de balance não deve ser aplicado aqui, pois o saldo já está sendo retornado pela função makeTransfer
+// Alteração: O middleware de balance não deve ser aplicado aqui, pois o saldo já está sendo retornado pela função `makeTransfer`
 router.post("/transfer", protectRoute, makeTransfer);
 
 // 🔹 Rota para buscar o histórico de transferências de um usuário

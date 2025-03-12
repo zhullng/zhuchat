@@ -14,7 +14,7 @@ const AccountPage = () => {
   // Função para buscar o histórico de transferências do usuário
   const fetchTransferHistory = async () => {
     try {
-      const response = await axios.get(/api/transfers/history/${authUser._id});
+      const response = await axios.get(`/api/transfers/history/${authUser._id}`);
       if (response && response.data) {
         setTransfers(Array.isArray(response.data) ? response.data : []);
       } else {
