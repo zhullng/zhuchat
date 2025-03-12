@@ -27,26 +27,18 @@ const AccountPage = () => {
   };
 
   // Função para se inscrever nos eventos de transferências do WebSocket
-  const subscribeToTransferUpdates = () => {
-    if (!socket) return;
+const subscribeToTransferUpdates = () => {
+  if (!socket) return;
 
-    socket.on('transfer-update', (transferData) => {
-      const isTransferRelevant = transferData.senderId === authUser._id || transferData.receiverId === authUser._id;
+  socket.on("transfer-update", (transferData) => {
+    setTransfers((prevTransfers) => [...prevTransfers, transferData]);
+    if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
+      const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);
+      useAuthStore.setState({ authUser: { ...authUser, balance: updatedBalance } });
+    }
+  });
+};
 
-      if (isTransferRelevant) {
-        // Atualizar o histórico de transferências com a nova transferência
-        setTransfers((prevTransfers) => [...prevTransfers, transferData]);
-
-        // Se for o usuário autenticado o remetente ou o destinatário, atualizar o saldo
-        if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
-          // Atualizar saldo local
-          const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);
-          // Atualizar saldo na store
-          useAuthStore.setState({ authUser: { ...authUser, balance: updatedBalance } });
-        }
-      }
-    });
-  };
 
   // Função para desinscrever dos eventos de transferências do WebSocket
   const unsubscribeFromTransferUpdates = () => {
@@ -68,41 +60,26 @@ const AccountPage = () => {
   // Submeter o formulário de operações (depositar, transferir, sacar)
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!amount || amount <= 0 || (modalAction === 'transfer' && !receiverEmail)) {
-      toast.error('Todos os campos são obrigatórios');
-      return;
-    }
-
+  
     try {
-      const endpoint =
-        modalAction === 'deposit'
-          ? '/api/transfers/deposit'
-          : modalAction === 'withdraw'
-          ? '/api/transfers/withdraw'
-          : '/api/transfers/transfer';
-
-      const payload =
-        modalAction === 'transfer'
-          ? { senderId: authUser._id, receiverEmail, amount }
-          : { userId: authUser._id, amount };
-
+      const endpoint = modalAction === "deposit"
+        ? "/api/transfers/deposit"
+        : modalAction === "withdraw"
+        ? "/api/transfers/withdraw"
+        : "/api/transfers/transfer";
+  
+      const payload = modalAction === "transfer"
+        ? { senderId: authUser._id, receiverEmail, amount }
+        : { userId: authUser._id, amount };
+  
       const response = await axios.post(endpoint, payload);
-
       toast.success(response.data.message);
-
-      // Fechar o modal e limpar os campos
-      setShowModal(false);
-      setReceiverEmail('');
-      setAmount('');
-
-      // Atualizar o histórico após a operação
-      fetchTransferHistory();
+      fetchTransferHistory(); // Atualizar o histórico após a operação
     } catch (error) {
-      console.error('Erro ao processar operação:', error);
-      toast.error(error.response?.data?.error || 'Erro ao processar a operação');
+      toast.error(error.response?.data?.error || "Erro ao processar a operação");
     }
   };
+  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 pl-20 sm:pl-24 p-4">
