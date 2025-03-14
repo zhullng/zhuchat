@@ -95,17 +95,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       return renderSkeletons(3);
     }
 
-    const safeTransactions = Array.isArray(transactions) ? transactions : [];
-
-    if (safeTransactions.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <Receipt className="size-16 opacity-30 mb-2" />
-          <p className="text-base-content/70">Sem transações para mostrar</p>
-        </div>
-      );
-    }
-
     return safeTransactions.map((transaction) => (
       <div key={transaction._id} className="flex items-center p-4 border-b border-base-300">
         <div className="avatar placeholder">

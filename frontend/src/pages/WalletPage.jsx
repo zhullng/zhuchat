@@ -80,7 +80,7 @@ const WalletPage = () => {
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
                 <div className="overflow-x-auto mb-4">
-                  <div className="tabs tabs-boxed flex w-full">
+                  <div className="tabs tabs-boxed flex w-[96%] mx-auto">
                     {tabs.map(tab => (
                       <div 
                         key={tab.id} 
