@@ -61,8 +61,6 @@ export const makeTransfer = async (req, res) => {
       io.to(receiverSocketId).emit("newTransfer", transferData);
     }
 
-    location.reload();
-
     res.json({
       message: "Transferência realizada com sucesso!",
       transfer: {
@@ -71,7 +69,6 @@ export const makeTransfer = async (req, res) => {
         amount,
         status: "completed",
       },
-      shouldReload: true,
     });
   } catch (error) {
     console.error(error);
@@ -117,12 +114,9 @@ export const depositMoney = async (req, res) => {
 
     await user.save();
 
-    location.reload();
-
     res.json({
       message: "Depósito realizado com sucesso!",
       user: { fullName: user.fullName, balance: user.balance },
-      shouldReload: true,
     });
   } catch (error) {
     console.error(error);
@@ -149,12 +143,9 @@ export const withdrawMoney = async (req, res) => {
 
     await user.save();
 
-    location.reload();
-
     res.json({
       message: "Saque realizado com sucesso!",
       user: { fullName: user.fullName, balance: user.balance },
-      shouldReload: true,
     });
   } catch (error) {
     console.error(error);
