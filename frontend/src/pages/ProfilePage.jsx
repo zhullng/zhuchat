@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit2, ShieldCheck } from "lucide-react";
+import { Camera, Mail, User, Edit2, ShieldCheck, Clock, Shield } from "lucide-react";
+import toast from "react-hot-toast";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
@@ -12,6 +13,7 @@ const ProfilePage = () => {
     gender: ""
   });
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (authUser) {
@@ -27,35 +29,62 @@ const ProfilePage = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
 
-    reader.onload = async () => {
-      const base64Image = reader.result;
-      setSelectedImg(base64Image);
-      await updateProfile({ profilePic: base64Image });
-    };
+      reader.onload = async () => {
+        const base64Image = reader.result;
+        setSelectedImg(base64Image);
+        
+        toast.promise(
+          updateProfile({ profilePic: base64Image }),
+          {
+            loading: 'Atualizando foto...',
+            success: 'Foto atualizada com sucesso!',
+            error: 'Erro ao atualizar foto'
+          }
+        );
+      };
+    } catch (error) {
+      console.error("Erro no upload da imagem:", error);
+      toast.error("Erro ao processar a imagem");
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validar email
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      setErrors({ email: "Formato de email inválido" });
+    // Validação básica
+    if (!formData.fullName?.trim() || !formData.email?.trim()) {
+      setErrors({ submit: "Nome e email são obrigatórios" });
       return;
     }
 
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setErrors({ email: "Email inválido" });
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
       const result = await updateProfile(formData);
-      if (result?.errors) {
-        setErrors(result.errors);
-      } else {
-        setIsModalOpen(false);
-        setErrors({});
+      
+      if (result?.error) {
+        throw new Error(result.error);
       }
+
+      toast.success("Perfil atualizado com sucesso!");
+      setIsModalOpen(false);
+      setErrors({});
+
     } catch (error) {
       console.error("Erro na atualização:", error);
+      toast.error("Erro ao atualizar perfil");
+      setErrors({ submit: "Erro ao atualizar perfil. Tente novamente." });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -129,6 +158,36 @@ const ProfilePage = () => {
             </div>
           </div>
 
+          {/* Seção de informações da conta */}
+          <div className="bg-base-300 rounded-lg p-4 mb-8">
+            <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
+              <Shield className="size-5 text-primary" />
+              Informações da Conta
+            </h2>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-base-content/10">
+                <div className="flex items-center gap-2">
+                  <Clock className="size-4 text-primary/70" />
+                  <span className="text-sm">Membro desde</span>
+                </div>
+                <span className="text-sm font-medium">
+                  {new Date(authUser?.createdAt).toLocaleDateString('pt-PT', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="size-4 text-primary/70" />
+                  <span className="text-sm">Status da Conta</span>
+                </div>
+                <span className="text-sm font-medium text-green-500">Ativa</span>
+              </div>
+            </div>
+          </div>
+
           {/* Botão de Editar */}
           <div className="flex justify-center">
             <button
@@ -191,6 +250,12 @@ const ProfilePage = () => {
                     </select>
                   </div>
 
+                  {errors.submit && (
+                    <div className="alert alert-error">
+                      <span>{errors.submit}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-end gap-2 mt-6">
                     <button
                       type="button"
@@ -199,15 +264,16 @@ const ProfilePage = () => {
                         setErrors({});
                       }}
                       className="btn btn-ghost"
+                      disabled={isSubmitting}
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={isUpdatingProfile}
+                      disabled={isSubmitting}
                     >
-                      {isUpdatingProfile ? 'Salvando...' : 'Salvar Alterações'}
+                      {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
                   </div>
                 </form>
