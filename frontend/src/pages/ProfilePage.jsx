@@ -1,34 +1,28 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit, Save, X, ShieldCheck } from "lucide-react";
+import { Camera, Mail, User, Edit2, ShieldCheck } from "lucide-react";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
-  const [editStates, setEditStates] = useState({
-    fullName: false,
-    email: false,
-    gender: false,
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    gender: "",
+    gender: ""
   });
   const [errors, setErrors] = useState({});
 
-  // Inicializa os dados do formulário com os valores do user autenticado
   useEffect(() => {
     if (authUser) {
       setFormData({
-        fullName: authUser.fullName,
-        email: authUser.email,
-        gender: authUser.gender || "", // Usa o valor do banco de dados ou vazio
+        fullName: authUser.fullName || "",
+        email: authUser.email || "",
+        gender: authUser.gender || ""
       });
     }
   }, [authUser]);
 
-  // Função para upload da imagem de perfil
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -43,33 +37,21 @@ const ProfilePage = () => {
     };
   };
 
-  // Função para atualizar os dados do perfil
-  const handleUpdate = async (field) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validar email
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setErrors({ email: "Formato de email inválido" });
+      return;
+    }
+
     try {
-      // Verifica se o valor foi alterado
-      if (formData[field] === authUser[field]) {
-        setEditStates((prev) => ({ ...prev, [field]: false }));
-        return;
-      }
-
-      // Validação específica para o campo de email
-      let error = null;
-      if (field === "email" && !/\S+@\S+\.\S+/.test(formData.email)) {
-        error = "Formato de email inválido";
-      }
-
-      if (error) {
-        setErrors({ [field]: error });
-        return;
-      }
-
-      // Envia a atualização para o backend
-      const result = await updateProfile({ [field]: formData[field] });
-
+      const result = await updateProfile(formData);
       if (result?.errors) {
         setErrors(result.errors);
       } else {
-        setEditStates((prev) => ({ ...prev, [field]: false }));
+        setIsModalOpen(false);
         setErrors({});
       }
     } catch (error) {
@@ -77,96 +59,33 @@ const ProfilePage = () => {
     }
   };
 
-  // Função genérica para renderizar campos editáveis
-  const renderEditableField = (field, label, icon) => (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-zinc-400 flex items-center gap-2">
-          {icon}
-          {label}
-        </div>
-        {!editStates[field] ? (
-          <button
-            onClick={() => setEditStates((prev) => ({ ...prev, [field]: true }))}
-            className="text-sm text-primary flex items-center gap-1 hover:underline"
-          >
-            <Edit className="w-4 h-4" /> Editar
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleUpdate(field)}
-              className="text-sm text-green-500 flex items-center gap-1"
-            >
-              <Save className="w-4 h-4" /> Salvar
-            </button>
-            <button
-              onClick={() => {
-                setEditStates((prev) => ({ ...prev, [field]: false }));
-                setFormData((prev) => ({ ...prev, [field]: authUser[field] }));
-                setErrors({});
-              }}
-              className="text-sm text-red-500 flex items-center gap-1"
-            >
-              <X className="w-4 h-4" /> Cancelar
-            </button>
-          </div>
-        )}
-      </div>
-
-      {editStates[field] ? (
-        <div className="relative">
-          <input
-            type="text"
-            value={formData[field]}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, [field]: e.target.value }))
-            }
-            className={`w-full px-4 py-2 sm:py-2 md:py-3 bg-base-200 rounded-lg border ${
-              errors[field] ? "border-red-500 pr-20" : ""
-            }`}
-          />
-          {errors[field] && (
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 text-sm">
-              {errors[field]}
-            </span>
-          )}
-        </div>
-      ) : (
-        <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
-          {authUser?.[field] || ""} {/* Exibe o valor do banco de dados ou vazio */}
-        </p>
-      )}
-    </div>
-  );
-
   return (
-    <div className="h-screen pl-16 sm:pl-20 overflow-auto">
+    <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
       <div className="max-w-2xl mx-auto p-4 py-8">
-        <div className="bg-base-300 rounded-xl p-6 space-y-8">
-          <div className="text-center">
+        <div className="bg-base-200 rounded-xl p-6 shadow-lg">
+          <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold">Perfil</h1>
-            <p className="mt-2">Suas informações de perfil</p>
+            <p className="mt-2 text-base-content/70">Suas informações de perfil</p>
           </div>
 
           {/* Seção da imagem de perfil */}
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4 mb-8">
             <div className="relative">
               <img
                 src={selectedImg || authUser?.profilePic || "/avatar.png"}
                 alt="Profile"
-                className="size-32 rounded-full object-cover border-4"
+                className="size-32 rounded-full object-cover border-4 border-base-300"
               />
               <label
                 htmlFor="avatar-upload"
                 className={`
                   absolute bottom-0 right-0 
-                  bg-base-content hover:scale-105
+                  bg-primary hover:bg-primary-focus
                   p-2 rounded-full cursor-pointer 
-                  transition-all duration-200
+                  transition-all duration-200 shadow-lg
                   ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""}`}
               >
-                <Camera className="w-5 h-5 text-base-200" />
+                <Camera className="size-5 text-base-100" />
                 <input
                   type="file"
                   id="avatar-upload"
@@ -177,87 +96,124 @@ const ProfilePage = () => {
                 />
               </label>
             </div>
-            <p className="text-sm text-zinc-400">
-              {isUpdatingProfile
-                ? "Enviando..."
-                : "Clique no ícone da câmera para atualizar sua foto"}
-            </p>
           </div>
 
-          {/* Seção dos campos editáveis */}
-          <div className="space-y-6">
-            {renderEditableField("fullName", "Nome Completo", <ShieldCheck className="w-4 h-4" />)}
-            {renderEditableField("email", "Endereço de Email", <Mail className="w-4 h-4" />)}
-
-            {/* Campo de Género */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-zinc-400 flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Género
+          {/* Informações do Perfil */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="size-5 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">Nome</p>
+                  <p className="text-base-content/70">{authUser?.fullName}</p>
                 </div>
-                {!editStates.gender ? (
-                  <button
-                    onClick={() => setEditStates((prev) => ({ ...prev, gender: true }))}
-                    className="text-sm text-primary flex items-center gap-1 hover:underline"
-                  >
-                    <Edit className="w-4 h-4" /> Editar
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleUpdate("gender")}
-                      className="text-sm text-green-500 flex items-center gap-1"
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Mail className="size-5 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-base-content/70">{authUser?.email}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
+              <div className="flex items-center gap-3">
+                <User className="size-5 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">Género</p>
+                  <p className="text-base-content/70 capitalize">{authUser?.gender || "Não especificado"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Botão de Editar */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="btn btn-primary gap-2"
+            >
+              <Edit2 className="size-5" />
+              Editar Perfil
+            </button>
+          </div>
+
+          {/* Modal de Edição */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold mb-4">Editar Perfil</h3>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Nome Completo</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData(prev => ({...prev, fullName: e.target.value}))}
+                      className="input input-bordered w-full"
+                      placeholder="Seu nome completo"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Email</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
+                      className={`input input-bordered w-full ${errors.email ? 'input-error' : ''}`}
+                      placeholder="seu.email@exemplo.com"
+                    />
+                    {errors.email && (
+                      <span className="text-error text-sm mt-1">{errors.email}</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Género</span>
+                    </label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData(prev => ({...prev, gender: e.target.value}))}
+                      className="select select-bordered w-full"
                     >
-                      <Save className="w-4 h-4" /> Salvar
+                      <option value="">Não especificado</option>
+                      <option value="masculino">Masculino</option>
+                      <option value="feminino">Feminino</option>
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setErrors({});
+                      }}
+                      className="btn btn-ghost"
+                    >
+                      Cancelar
                     </button>
                     <button
-                      onClick={() => {
-                        setEditStates((prev) => ({ ...prev, gender: false }));
-                        setFormData((prev) => ({ ...prev, gender: authUser?.gender }));
-                      }}
-                      className="text-sm text-red-500 flex items-center gap-1"
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isUpdatingProfile}
                     >
-                      <X className="w-4 h-4" /> Cancelar
+                      {isUpdatingProfile ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
                   </div>
-                )}
-              </div>
-
-              {editStates.gender ? (
-                <select
-                  value={formData.gender}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, gender: e.target.value }))
-                  }
-                  className="w-full px-4 py-2.5 bg-base-200 rounded-lg border"
-                >
-                  <option value="">Não especificado</option>
-                  <option value="male">Masculino</option>
-                  <option value="female">Feminino</option>
-                </select>
-              ) : (
-                <p className="px-4 py-2.5 bg-base-200 rounded-lg border capitalize">
-                  {authUser?.gender || "Não especificado"} {/* Exibe o valor do banco de dados ou vazio */}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Seção de informações da conta */}
-          <div className="mt-6 bg-base-300 rounded-xl p-6">
-            <h2 className="text-lg font-medium mb-4">Informações da Conta</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between py-2 border-b border-zinc-700">
-                <span>Membro desde</span>
-                <span>{new Date(authUser?.createdAt).toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span>Status da Conta</span>
-                <span className="text-green-500">Ativa</span>
+                </form>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
