@@ -1,6 +1,6 @@
 import Transfer from "../models/transfer.model.js";
 import User from "../models/user.model.js";
-import { generateQRCode } from "../utils/qrCode.js";
+import { generateQRCode } from "../lib/qrCode.js";
 
 // Transferir por email
 export const createTransfer = async (req, res) => {
