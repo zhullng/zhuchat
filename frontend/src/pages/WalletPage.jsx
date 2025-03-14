@@ -19,10 +19,20 @@ const WalletPage = () => {
     fetchWalletData 
   } = useWalletStore();
 
+  // Buscar dados da carteira ao montar o componente
   useEffect(() => {
-    fetchWalletData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Função para carregar os dados
+    const loadWalletData = async () => {
+      try {
+        await fetchWalletData();
+        console.log('Dados da carteira carregados com sucesso');
+      } catch (error) {
+        console.error('Erro ao carregar dados da carteira:', error);
+      }
+    };
+    
+    loadWalletData();
+  }, [fetchWalletData]);
 
   const tabs = [
     { id: 0, label: 'Depositar', icon: <ArrowDownCircle className="size-4" /> },
@@ -30,6 +40,9 @@ const WalletPage = () => {
     { id: 2, label: 'Transferir', icon: <SendHorizontal className="size-4" /> },
     { id: 3, label: 'Transações', icon: <Receipt className="size-4" /> },
   ];
+
+  // Log para depuração
+  console.log('Saldo atual:', balance);
 
   return (
     <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">

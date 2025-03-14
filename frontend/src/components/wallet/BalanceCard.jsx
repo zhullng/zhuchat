@@ -1,12 +1,18 @@
 import { Wallet, User } from 'lucide-react';
 
 const BalanceCard = ({ balance, userName, isLoading }) => {
+  // Garantir que balance é um número
+  const numericBalance = typeof balance === 'number' ? balance : 0;
+  
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-PT', {
       style: 'currency',
       currency: 'EUR'
     }).format(value);
   };
+  
+  // Log para depuração
+  console.log('Rendering BalanceCard with balance:', numericBalance);
 
   return (
     <div className="card bg-primary text-primary-content shadow-xl">
@@ -20,7 +26,7 @@ const BalanceCard = ({ balance, userName, isLoading }) => {
         {isLoading ? (
           <div className="skeleton h-12 w-4/5 mb-4"></div>
         ) : (
-          <p className="text-3xl font-bold mb-4">{formatCurrency(balance)}</p>
+          <p className="text-3xl font-bold mb-4">{formatCurrency(numericBalance)}</p>
         )}
         
         <div className="divider"></div>

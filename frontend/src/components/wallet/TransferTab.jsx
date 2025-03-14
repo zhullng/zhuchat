@@ -24,7 +24,9 @@ const TransferTab = ({ refreshData, balance }) => {
     if (activeSubTab === 2 && !myQRCode) {
       const loadQRCode = async () => {
         try {
+          console.log('Solicitando QR code...');
           const qrCodeData = await generateQRCode();
+          console.log('QR code recebido:', qrCodeData ? 'Sim' : 'Não');
           setMyQRCode(qrCodeData);
         } catch (error) {
           console.error('Erro ao gerar QR code:', error);

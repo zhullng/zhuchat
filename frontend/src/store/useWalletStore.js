@@ -15,8 +15,8 @@ export const useWalletStore = create((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      // Obter informações do usuário com saldo
-      const userResponse = await axios.get('/api/users/me');
+      // Obter informações do usuário com saldo usando a rota auth/check
+      const userResponse = await axios.get('/api/auth/check');
       
       // Obter histórico de transações
       const transactionsResponse = await axios.get('/api/transactions');
@@ -24,12 +24,19 @@ export const useWalletStore = create((set, get) => ({
       // Obter histórico de transferências
       const transfersResponse = await axios.get('/api/transfers');
       
+      // Garantir que estamos definindo corretamente o saldo do usuário
+      const userBalance = userResponse.data.balance !== undefined 
+        ? userResponse.data.balance 
+        : 0;
+      
       set({ 
-        balance: userResponse.data.balance || 0,
+        balance: userBalance,
         transactions: transactionsResponse.data || [],
         transfers: transfersResponse.data || [],
         isLoading: false
       });
+      
+      console.log('Saldo carregado:', userBalance);
     } catch (error) {
       console.error('Erro ao carregar dados da carteira:', error);
       set({ 
@@ -144,9 +151,16 @@ export const useWalletStore = create((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      const response = await axios.get('/api/transfers/qr-code');
+      // URL corrigida para /api/transfers/qrcode
+      const response = await axios.get('/api/transfers/qrcode');
       
       set({ isLoading: false });
+      
+      // Verificar se a resposta tem os dados esperados
+      if (!response.data || !response.data.qrCode) {
+        throw new Error('Resposta inválida do servidor');
+      }
+      
       return response.data.qrCode;
     } catch (error) {
       console.error('Erro ao gerar QR code:', error);

@@ -17,9 +17,15 @@ export const useAuthStore = create((set, get) => ({
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");
+      // Garantir que o saldo está definido, mesmo que seja zero
+      if (res.data && res.data.balance === undefined) {
+        res.data.balance = 0;
+      }
       set({ authUser: res.data });
+      console.log("Auth check successful, user data:", res.data);
       get().connectSocket();
     } catch (error) {
+      console.error("Auth check failed:", error);
       set({ authUser: null });
     } finally {
       set({ isCheckingAuth: false });
@@ -30,6 +36,10 @@ export const useAuthStore = create((set, get) => ({
     set({ isSigningUp: true });
     try {
       const res = await axiosInstance.post("/auth/signup", data);
+      // Garantir que o saldo está definido
+      if (res.data && res.data.balance === undefined) {
+        res.data.balance = 0;
+      }
       set({ authUser: res.data });
       toast.success("Account created successfully");
       get().connectSocket();
@@ -44,6 +54,10 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoggingIn: true });
     try {
       const res = await axiosInstance.post("/auth/login", data);
+      // Garantir que o saldo está definido
+      if (res.data && res.data.balance === undefined) {
+        res.data.balance = 0;
+      }
       set({ authUser: res.data });
       toast.success("Login successful");
       get().connectSocket();

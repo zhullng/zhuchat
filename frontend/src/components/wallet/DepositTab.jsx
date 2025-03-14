@@ -94,6 +94,19 @@ const DepositTab = ({ refreshData }) => {
       return;
     }
     
+    // Redirecionamento para métodos externos (PayPal, Crypto)
+    if (depositMethod === 'paypal') {
+      // Simulação de redirecionamento para PayPal
+      window.location.href = `https://www.paypal.com/checkoutnow?token=demo-token&amount=${amount}`;
+      return;
+    }
+    
+    if (depositMethod === 'crypto') {
+      // Simulação de redirecionamento para processador de criptomoedas
+      window.location.href = `https://crypto-payment-provider.example/pay?amount=${amount}&currency=EUR`;
+      return;
+    }
+    
     try {
       // Validação específica por método
       if (depositMethod === 'card') {

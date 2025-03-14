@@ -33,10 +33,11 @@ const Navbar = () => {
                 <Wallet className="size-6" /> {/* Ícone de carteira */}
               </Link>
               
-              {/* Botão de pagamento */}
+              {/* Botão de pagamento 
               <Link to="/account" className="btn btn-circle btn-ghost btn-lg">
-                <CreditCard className="size-6" /> {/* Ícone de pagamento */}
+                <CreditCard className="size-6" />
               </Link>
+              */}
 
               {/* Botão de configurações */}
               <Link to="/settings" className="btn btn-circle btn-ghost btn-lg">
