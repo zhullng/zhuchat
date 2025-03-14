@@ -1,8 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Receipt, CreditCard, Building, Wallet, AlertCircle } from 'lucide-react';
 
 const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   const [activeSubTab, setActiveSubTab] = useState(0); // 0: Todas, 1: Transações, 2: Transferências
+
+  // Adicionar logs de debug para verificar os dados recebidos
+  useEffect(() => {
+    console.log('Transactions Tab - Received Data:', {
+      transactions,
+      transfers,
+      userId,
+      isLoading
+    });
+  }, [transactions, transfers, userId, isLoading]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -28,9 +38,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
         return <CreditCard className="size-4" />;
       case 'bank_transfer':
         return <Building className="size-4" />;
-      case 'paypal':
-      case 'crypto':
-        return <Wallet className="size-4" />;
       default:
         return <Wallet className="size-4" />;
     }
@@ -85,7 +92,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       return renderSkeletons(3);
     }
 
-    if (transactions.length === 0) {
+    if (!transactions || transactions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <Receipt className="size-16 opacity-30 mb-2" />
@@ -110,8 +117,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
           <p className="font-medium">
             {transaction.type === 'deposit' ? 'Depósito' : 'Levantamento'} via {
               transaction.method === 'card' ? 'Cartão' :
-              transaction.method === 'bank_transfer' ? 'Transferência Bancária' :
-              transaction.method === 'paypal' ? 'PayPal' : 'Criptomoeda'
+              transaction.method === 'bank_transfer' ? 'Transferência Bancária' : 
+              'Método Desconhecido'
             }
             {transaction.details?.cardLast4 && ` **** ${transaction.details.cardLast4}`}
           </p>
@@ -139,7 +146,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       return renderSkeletons(3);
     }
 
-    if (transfers.length === 0) {
+    if (!transfers || transfers.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <ArrowLeftRight className="size-16 opacity-30 mb-2" />
@@ -190,7 +197,12 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       return renderSkeletons(5);
     }
 
-    if (transactions.length === 0 && transfers.length === 0) {
+    const combinedItems = [
+      ...(transactions || []).map(t => ({ ...t, itemType: 'transaction' })),
+      ...(transfers || []).map(t => ({ ...t, itemType: 'transfer' }))
+    ];
+
+    if (combinedItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <AlertCircle className="size-16 opacity-30 mb-2" />
@@ -199,13 +211,10 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       );
     }
 
-    // Combinar e ordenar por data
-    const allItems = [
-      ...transactions.map(t => ({ ...t, itemType: 'transaction' })),
-      ...transfers.map(t => ({ ...t, itemType: 'transfer' }))
-    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Ordenar por data
+    const sortedItems = combinedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    return allItems.map((item, index) => {
+    return sortedItems.map((item) => {
       if (item.itemType === 'transaction') {
         return (
           <div key={`transaction-${item._id}`} className="flex items-center p-4 border-b border-base-300">
@@ -223,8 +232,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
               <p className="font-medium">
                 {item.type === 'deposit' ? 'Depósito' : 'Levantamento'} via {
                   item.method === 'card' ? 'Cartão' :
-                  item.method === 'bank_transfer' ? 'Transferência Bancária' :
-                  item.method === 'paypal' ? 'PayPal' : 'Criptomoeda'
+                  item.method === 'bank_transfer' ? 'Transferência Bancária' : 
+                  'Método Desconhecido'
                 }
                 {item.details?.cardLast4 && ` **** ${item.details.cardLast4}`}
               </p>

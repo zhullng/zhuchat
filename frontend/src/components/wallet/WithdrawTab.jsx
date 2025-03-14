@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
-import { CreditCard, Wallet, ArrowUpCircle, Building, Mail, Bitcoin } from 'lucide-react';
+import { ArrowUpCircle, Wallet, Building, User } from 'lucide-react';
 import CardDetailsForm from '../CardDetailsForm';
 
 const WithdrawTab = ({ refreshData, balance }) => {
@@ -108,20 +108,6 @@ const WithdrawTab = ({ refreshData, balance }) => {
       } else {
         delete newErrors.bankName;
       }
-    } else if (withdrawMethod === 'paypal') {
-      if (!withdrawDetails.accountNumber || !withdrawDetails.accountNumber.includes('@')) {
-        newErrors.accountNumber = 'Email PayPal inválido';
-        valid = false;
-      } else {
-        delete newErrors.accountNumber;
-      }
-    } else if (withdrawMethod === 'crypto') {
-      if (!withdrawDetails.accountNumber || withdrawDetails.accountNumber.trim().length < 10) {
-        newErrors.accountNumber = 'Endereço de carteira inválido';
-        valid = false;
-      } else {
-        delete newErrors.accountNumber;
-      }
     }
     
     setErrors(newErrors);
@@ -131,13 +117,11 @@ const WithdrawTab = ({ refreshData, balance }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validar o montante para todos os métodos
     if (!validateAmount()) {
       return;
     }
     
     try {
-      // Validação específica por método
       if (withdrawMethod === 'card') {
         if (!validateCardDetails()) {
           return;
@@ -152,11 +136,9 @@ const WithdrawTab = ({ refreshData, balance }) => {
         await withdraw(parseFloat(amount), withdrawMethod, withdrawDetails);
       }
       
-      // Limpar formulário após levantamento bem-sucedido
       resetForm();
       if (refreshData) refreshData();
     } catch (error) {
-      // Erro já tratado no store
       console.error(error);
     }
   };
@@ -198,8 +180,6 @@ const WithdrawTab = ({ refreshData, balance }) => {
         >
           <option value="card">Cartão</option>
           <option value="bank_transfer">Transferência Bancária</option>
-          <option value="paypal">PayPal</option>
-          <option value="crypto">Criptomoeda</option>
         </select>
       </div>
       
@@ -225,7 +205,7 @@ const WithdrawTab = ({ refreshData, balance }) => {
           setCardDetails={setCardDetails}
           errors={errors}
         />
-      ) : withdrawMethod === 'bank_transfer' ? (
+      ) : (
         <div className="space-y-4">
           <div className="form-control">
             <label className="label">
@@ -295,52 +275,6 @@ const WithdrawTab = ({ refreshData, balance }) => {
               value={withdrawDetails.swiftCode}
               onChange={(e) => setWithdrawDetails({...withdrawDetails, swiftCode: e.target.value})}
             />
-          </div>
-        </div>
-      ) : withdrawMethod === 'paypal' ? (
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text">Email PayPal</span>
-          </label>
-          <div className="input-group">
-            <span>
-              <Mail className="size-5" />
-            </span>
-            <input
-              type="email"
-              className={`input input-bordered w-full ${errors.accountNumber ? 'input-error' : ''}`}
-              placeholder="email@exemplo.com"
-              value={withdrawDetails.accountNumber}
-              onChange={(e) => setWithdrawDetails({...withdrawDetails, accountNumber: e.target.value})}
-            />
-          </div>
-          {errors.accountNumber && <span className="text-error text-sm mt-1">{errors.accountNumber}</span>}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Endereço da Carteira</span>
-            </label>
-            <div className="input-group">
-              <span>
-                <Bitcoin className="size-5" />
-              </span>
-              <input
-                type="text"
-                className={`input input-bordered w-full ${errors.accountNumber ? 'input-error' : ''}`}
-                placeholder="Endereço da carteira"
-                value={withdrawDetails.accountNumber}
-                onChange={(e) => setWithdrawDetails({...withdrawDetails, accountNumber: e.target.value})}
-              />
-            </div>
-            {errors.accountNumber && <span className="text-error text-sm mt-1">{errors.accountNumber}</span>}
-          </div>
-          
-          <div className="alert alert-warning">
-            <div>
-              <p>Certifique-se de que o endereço está correto, pois as transações em criptomoeda são irreversíveis.</p>
-            </div>
           </div>
         </div>
       )}

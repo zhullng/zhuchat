@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
-import { CreditCard, Wallet, ArrowDownCircle } from 'lucide-react';
+import { CreditCard, Building } from 'lucide-react';
 import CardDetailsForm from '../CardDetailsForm';
 
 const DepositTab = ({ refreshData }) => {
@@ -89,26 +89,11 @@ const DepositTab = ({ refreshData }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validar o montante para todos os métodos
     if (!validateAmount()) {
       return;
     }
     
-    // Redirecionamento para métodos externos (PayPal, Crypto)
-    if (depositMethod === 'paypal') {
-      // Simulação de redirecionamento para PayPal
-      window.location.href = `https://www.paypal.com/checkoutnow?token=demo-token&amount=${amount}`;
-      return;
-    }
-    
-    if (depositMethod === 'crypto') {
-      // Simulação de redirecionamento para processador de criptomoedas
-      window.location.href = `https://crypto-payment-provider.example/pay?amount=${amount}&currency=EUR`;
-      return;
-    }
-    
     try {
-      // Validação específica por método
       if (depositMethod === 'card') {
         if (!validateCardDetails()) {
           return;
@@ -127,11 +112,9 @@ const DepositTab = ({ refreshData }) => {
         );
       }
       
-      // Limpar formulário após depósito bem-sucedido
       resetForm();
       if (refreshData) refreshData();
     } catch (error) {
-      // Erro já tratado no store
       console.error(error);
     }
   };
@@ -164,8 +147,6 @@ const DepositTab = ({ refreshData }) => {
         >
           <option value="card">Cartão de Crédito/Débito</option>
           <option value="bank_transfer">Transferência Bancária</option>
-          <option value="paypal">PayPal</option>
-          <option value="crypto">Criptomoeda</option>
         </select>
       </div>
       
@@ -191,19 +172,24 @@ const DepositTab = ({ refreshData }) => {
           setCardDetails={setCardDetails}
           errors={errors}
         />
-      ) : depositMethod === 'bank_transfer' ? (
+      ) : (
         <div className="space-y-4">
           <div className="form-control">
             <label className="label">
               <span className="label-text">Referência da Transferência</span>
             </label>
-            <input
-              type="text"
-              className={`input input-bordered w-full ${errors.reference ? 'input-error' : ''}`}
-              placeholder="Referência"
-              value={bankDetails.reference}
-              onChange={(e) => setBankDetails({...bankDetails, reference: e.target.value})}
-            />
+            <div className="input-group">
+              <span>
+                <Building className="size-5" />
+              </span>
+              <input
+                type="text"
+                className={`input input-bordered w-full ${errors.reference ? 'input-error' : ''}`}
+                placeholder="Referência"
+                value={bankDetails.reference}
+                onChange={(e) => setBankDetails({...bankDetails, reference: e.target.value})}
+              />
+            </div>
             {errors.reference && <span className="text-error text-sm mt-1">{errors.reference}</span>}
           </div>
           
@@ -216,18 +202,6 @@ const DepositTab = ({ refreshData }) => {
             </div>
           </div>
         </div>
-      ) : depositMethod === 'paypal' ? (
-        <div className="alert alert-info">
-          <div>
-            <p>Será redirecionado para o PayPal para concluir o depósito após clicar no botão abaixo.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="alert alert-info">
-          <div>
-            <p>Será redirecionado para processar seu depósito em criptomoeda após clicar no botão abaixo.</p>
-          </div>
-        </div>
       )}
       
       <button
@@ -235,7 +209,7 @@ const DepositTab = ({ refreshData }) => {
         className={`btn btn-primary w-full ${isLoading ? 'loading' : ''}`}
         disabled={isLoading}
       >
-        {!isLoading && (depositMethod === 'card' ? <CreditCard className="size-5 mr-2" /> : <Wallet className="size-5 mr-2" />)}
+        {!isLoading && <CreditCard className="size-5 mr-2" />}
         {isLoading ? 'Processando...' : 'Depositar Fundos'}
       </button>
     </form>
