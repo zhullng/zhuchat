@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
 import { CreditCard, Wallet, ArrowDownCircle } from 'lucide-react';
-import CardDetailsForm from './CardDetailsForm';
+import CardDetailsForm from '../CardDetailsForm';
 
 const DepositTab = ({ refreshData }) => {
   const [depositMethod, setDepositMethod] = useState('card');

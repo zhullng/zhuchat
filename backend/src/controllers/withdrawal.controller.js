@@ -3,7 +3,7 @@ import Transaction from "../models/transaction.model.js";
 import { validateCard } from "../lib/paymentValidation.js";
 
 // Função para levantar fundos para cartão
-export const withdrawFunds = async (req, res) => {
+const withdrawFunds = async (req, res) => {
   console.log("withdrawFunds iniciado", req.body);
   try {
     const { amount, cardDetails } = req.body;
@@ -109,7 +109,7 @@ export const withdrawFunds = async (req, res) => {
 };
 
 // Função para levantar fundos com outros métodos
-export const withdrawWithOtherMethod = async (req, res) => {
+const withdrawWithOtherMethod = async (req, res) => {
   console.log("withdrawWithOtherMethod iniciado", req.body);
   try {
     const { amount, method, details } = req.body;
@@ -207,7 +207,7 @@ export const withdrawWithOtherMethod = async (req, res) => {
 };
 
 // Obter histórico de transações
-export const getTransactionHistory = async (req, res) => {
+const getTransactionHistory = async (req, res) => {
   console.log("getTransactionHistory iniciado");
   try {
     const userId = req.user?._id;
@@ -249,4 +249,14 @@ export const getTransactionHistory = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? errorDetails : undefined
     });
   }
+};
+
+// Exportar com duas abordagens diferentes para compatibilidade
+export { withdrawFunds, withdrawWithOtherMethod, getTransactionHistory };
+
+// Também exportar como default para permitir a importação do módulo completo
+export default {
+  withdrawFunds,
+  withdrawWithOtherMethod,
+  getTransactionHistory
 };
