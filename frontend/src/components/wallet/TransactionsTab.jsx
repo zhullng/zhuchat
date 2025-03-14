@@ -1,18 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Receipt, CreditCard, Building, Wallet, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ArrowLeftRight, Search } from 'lucide-react';
 
-const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
-  const [activeSubTab, setActiveSubTab] = useState(0);
-
-  // Debug para verificar os dados recebidos
-  useEffect(() => {
-    console.log('TransactionsTab - Props:', {
-      transactionsCount: transactions?.length,
-      transfersCount: transfers?.length,
-      userId,
-      isLoading
-    });
-  }, [transactions, transfers, userId, isLoading]);
+const TransactionsTab = ({ transfers, userId, isLoading }) => {
+  const [searchTerm, setSearchTerm] = useState('');
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -30,17 +20,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       style: 'currency',
       currency: 'EUR'
     }).format(value);
-  };
-
-  const getMethodIcon = (method) => {
-    switch(method) {
-      case 'card':
-        return <CreditCard className="size-4" />;
-      case 'bank_transfer':
-        return <Building className="size-4" />;
-      default:
-        return <Wallet className="size-4" />;
-    }
   };
 
   const getStatusClass = (status) => {
@@ -86,71 +65,39 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     ));
   };
 
-  const renderTransactions = () => {
-    if (isLoading) {
-      return renderSkeletons(3);
-    }
+  // Filtrar transferências baseado no termo de pesquisa
+  const filteredTransfers = useMemo(() => {
+    if (!transfers || !Array.isArray(transfers)) return [];
+    
+    if (!searchTerm.trim()) return transfers;
 
-    const safeTransactions = Array.isArray(transactions) ? transactions : [];
-    console.log('Rendering transactions:', safeTransactions.length);
-
-    if (safeTransactions.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <Receipt className="size-16 text-gray-300 mb-2" />
-          <p className="text-gray-500">Sem transações para mostrar</p>
-        </div>
-      );
-    }
-
-    return safeTransactions.map((transaction) => (
-      <div key={transaction._id} className="flex items-center p-4 border-b border-base-300">
-        <div className="avatar placeholder">
-          <div className={`size-10 rounded-full ${transaction.type === 'deposit' ? 'bg-green-50' : 'bg-red-50'}`}>
-            {transaction.type === 'deposit' ? (
-              <ArrowDownCircle className="size-6 text-green-500" />
-            ) : (
-              <ArrowUpCircle className="size-6 text-red-500" />
-            )}
-          </div>
-        </div>
+    const normalizedSearch = searchTerm.toLowerCase().trim();
+    
+    return transfers.filter(transfer => {
+      const isSender = transfer.sender._id === userId;
+      const personName = isSender 
+        ? (transfer.receiver.fullName || transfer.receiver.username || '').toLowerCase()
+        : (transfer.sender.fullName || transfer.sender.username || '').toLowerCase();
         
-        <div className="ml-4 flex-1">
-          <p className="font-medium line-clamp-1">
-            {transaction.type === 'deposit' ? 'Depósito' : 'Levantamento'} via {
-              transaction.method === 'card' ? 'Cartão' :
-              transaction.method === 'bank_transfer' ? 'Transferência Bancária' : 
-              'Método Desconhecido'
-            }
-            {transaction.details?.cardLast4 && ` **** ${transaction.details.cardLast4}`}
-          </p>
-          <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
-        </div>
-        
-        <div className="text-right">
-          <p className={`font-semibold ${transaction.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
-            {transaction.type === 'deposit' ? '+' : '-'}{formatCurrency(transaction.amount)}
-          </p>
-          <div className="flex justify-end mt-1">
-            <div className={getStatusClass(transaction.status)}>
-              {getMethodIcon(transaction.method)}
-              <span className="ml-1">{getStatusText(transaction.status)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    ));
-  };
+      return personName.includes(normalizedSearch);
+    });
+  }, [transfers, searchTerm, userId]);
 
   const renderTransfers = () => {
     if (isLoading) {
       return renderSkeletons(3);
     }
 
-    const safeTransfers = Array.isArray(transfers) ? transfers : [];
-    console.log('Rendering transfers:', safeTransfers.length);
-
-    if (safeTransfers.length === 0) {
+    if (filteredTransfers.length === 0) {
+      if (searchTerm) {
+        return (
+          <div className="flex flex-col items-center justify-center py-8">
+            <Search className="size-16 text-gray-300 mb-2" />
+            <p className="text-gray-500">Nenhuma transferência encontrada com "{searchTerm}"</p>
+          </div>
+        );
+      }
+      
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <ArrowLeftRight className="size-16 text-gray-300 mb-2" />
@@ -159,7 +106,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       );
     }
 
-    return safeTransfers.map((transfer) => {
+    return filteredTransfers.map((transfer) => {
       const isSender = transfer.sender._id === userId;
       
       return (
@@ -195,138 +142,23 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     });
   };
 
-  const renderAllItems = () => {
-    if (isLoading) {
-      return renderSkeletons(5);
-    }
-
-    const safeTransactions = Array.isArray(transactions) ? transactions : [];
-    const safeTransfers = Array.isArray(transfers) ? transfers : [];
-
-    const combinedItems = [
-      ...safeTransactions.map(t => ({ ...t, itemType: 'transaction' })),
-      ...safeTransfers.map(t => ({ ...t, itemType: 'transfer' }))
-    ];
-
-    if (combinedItems.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <AlertCircle className="size-16 text-gray-300 mb-2" />
-          <p className="text-gray-500">Sem itens para mostrar</p>
-        </div>
-      );
-    }
-
-    const sortedItems = combinedItems.sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
-    );
-
-    return sortedItems.map((item) => {
-      if (item.itemType === 'transaction') {
-        return (
-          <div key={`transaction-${item._id}`} className="flex items-center p-4 border-b border-base-300">
-            <div className="avatar placeholder">
-              <div className={`size-10 rounded-full ${item.type === 'deposit' ? 'bg-green-50' : 'bg-red-50'}`}>
-                {item.type === 'deposit' ? (
-                  <ArrowDownCircle className="size-6 text-green-500" />
-                ) : (
-                  <ArrowUpCircle className="size-6 text-red-500" />
-                )}
-              </div>
-            </div>
-            
-            <div className="ml-4 flex-1">
-              <p className="font-medium line-clamp-1">
-                {item.type === 'deposit' ? 'Depósito' : 'Levantamento'} via {
-                  item.method === 'card' ? 'Cartão' :
-                  item.method === 'bank_transfer' ? 'Transferência Bancária' : 
-                  'Método Desconhecido'
-                }
-                {item.details?.cardLast4 && ` **** ${item.details.cardLast4}`}
-              </p>
-              <p className="text-sm text-gray-500">{formatDate(item.createdAt)}</p>
-            </div>
-            
-            <div className="text-right">
-              <p className={`font-semibold ${item.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
-                {item.type === 'deposit' ? '+' : '-'}{formatCurrency(item.amount)}
-              </p>
-              <div className="flex justify-end mt-1">
-                <div className={getStatusClass(item.status)}>
-                  {getMethodIcon(item.method)}
-                  <span className="ml-1">{getStatusText(item.status)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      } else {
-        const isSender = item.sender._id === userId;
-        
-        return (
-          <div key={`transfer-${item._id}`} className="flex items-center p-4 border-b border-base-300">
-            <div className="avatar placeholder">
-              <div className={`size-10 rounded-full ${isSender ? 'bg-red-50' : 'bg-green-50'}`}>
-                <ArrowLeftRight className={`size-6 ${isSender ? 'text-red-500' : 'text-green-500'}`} />
-              </div>
-            </div>
-            
-            <div className="ml-4 flex-1">
-              <p className="font-medium line-clamp-1">
-                {isSender ? 'Transferência para ' : 'Recebido de '}
-                <strong>
-                  {isSender ? item.receiver.fullName || item.receiver.username : item.sender.fullName || item.sender.username}
-                </strong>
-              </p>
-              <p className="text-sm text-gray-500">{formatDate(item.createdAt)}</p>
-            </div>
-            
-            <div className="text-right">
-              <p className={`font-semibold ${isSender ? 'text-red-500' : 'text-green-500'}`}>
-                {isSender ? '-' : '+'}{formatCurrency(item.amount)}
-              </p>
-              <div className="flex justify-end mt-1">
-                <div className={getStatusClass(item.status)}>
-                  {getStatusText(item.status)}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-    });
-  };
-
   return (
     <div className="space-y-4 bg-white rounded-lg p-1">
-      <div className="tabs tabs-boxed flex">
-        <button 
-          className={`tab flex-1 px-0 md:px-1 ${activeSubTab === 0 ? 'tab-active' : ''}`}
-          onClick={() => setActiveSubTab(0)}
-        >
-          <span className="hidden sm:inline">Todas</span>
-          <span className="sm:hidden">Todas</span>
-        </button>
-        <button 
-          className={`tab flex-1 px-0 md:px-1 ${activeSubTab === 1 ? 'tab-active' : ''}`}
-          onClick={() => setActiveSubTab(1)}
-        >
-          <span className="hidden sm:inline">Depósitos/Levantamentos</span>
-          <span className="sm:hidden">Dep./Lev.</span>
-        </button>
-        <button 
-          className={`tab flex-1 px-0 md:px-1 ${activeSubTab === 2 ? 'tab-active' : ''}`}
-          onClick={() => setActiveSubTab(2)}
-        >
-          <span className="hidden sm:inline">Transferências</span>
-          <span className="sm:hidden">Transf.</span>
-        </button>
+      {/* Campo de pesquisa */}
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Pesquisar por nome..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="input input-bordered w-full pr-10"
+        />
+        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 size-5 text-gray-400" />
       </div>
-      
+
+      {/* Lista de transferências */}
       <div className="max-h-[60vh] overflow-y-auto">
-        {activeSubTab === 0 && renderAllItems()}
-        {activeSubTab === 1 && renderTransactions()}
-        {activeSubTab === 2 && renderTransfers()}
+        {renderTransfers()}
       </div>
     </div>
   );
