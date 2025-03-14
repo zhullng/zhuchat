@@ -137,25 +137,25 @@ const TransferTab = ({ refreshData, balance }) => {
       
       <div className="tabs tabs-boxed">
         <button 
-          className={`tab ${activeSubTab === 0 ? 'tab-active' : ''}`}
+          className={`tab flex-1 gap-2 ${activeSubTab === 0 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(0)}
         >
-          <Mail className="size-4 mr-1" />
-          Por Email
+          <Mail className="size-4" />
+          <span className="hidden md:inline">Por Email</span>
         </button>
         <button 
-          className={`tab ${activeSubTab === 1 ? 'tab-active' : ''}`}
+          className={`tab flex-1 gap-2 ${activeSubTab === 1 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(1)}
         >
-          <Scan className="size-4 mr-1" />
-          Por QR Code
+          <Scan className="size-4" />
+          <span className="hidden md:inline">Por QR Code</span>
         </button>
         <button 
-          className={`tab ${activeSubTab === 2 ? 'tab-active' : ''}`}
+          className={`tab flex-1 gap-2 ${activeSubTab === 2 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(2)}
         >
-          <QrCode className="size-4 mr-1" />
-          Meu QR Code
+          <QrCode className="size-4" />
+          <span className="hidden md:inline">Meu QR Code</span>
         </button>
       </div>
       

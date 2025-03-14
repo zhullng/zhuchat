@@ -4,35 +4,40 @@ import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Receipt, CreditCard, Bu
 const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   const [activeSubTab, setActiveSubTab] = useState(0); // 0: Todas, 1: Transações, 2: Transferências
 
-  // Adicionar logs detalhados de debug
+  // Debug para verificar renderização e props
   useEffect(() => {
-    console.log('TransactionsTab - Received Props:', {
-      transactions: transactions ? transactions.length : 'No transactions',
-      transfers: transfers ? transfers.length : 'No transfers',
+    console.log('TransactionsTab - FULL DEBUG:', {
+      transactions: transactions ? JSON.stringify(transactions) : 'No transactions',
+      transfersCount: transfers ? transfers.length : 'No transfers',
       userId,
-      isLoading
+      isLoading,
+      transactionsType: typeof transactions,
+      transactionsLength: transactions ? transactions.length : 'N/A'
     });
 
-    // Log do tipo de cada transação
-    if (transactions) {
+    // Log de conteúdo detalhado
+    if (transactions && transactions.length > 0) {
       transactions.forEach((tx, index) => {
-        console.log(`Transaction ${index}:`, {
+        console.log(`Transaction ${index} DETAILS:`, {
+          _id: tx._id,
           type: tx.type,
           method: tx.method,
           amount: tx.amount,
-          status: tx.status
+          status: tx.status,
+          fullObject: JSON.stringify(tx)
         });
       });
     }
 
-    // Log do tipo de cada transferência
-    if (transfers) {
+    if (transfers && transfers.length > 0) {
       transfers.forEach((transfer, index) => {
-        console.log(`Transfer ${index}:`, {
+        console.log(`Transfer ${index} DETAILS:`, {
+          _id: transfer._id,
           sender: transfer.sender?._id,
           receiver: transfer.receiver?._id,
           amount: transfer.amount,
-          status: transfer.status
+          status: transfer.status,
+          fullObject: JSON.stringify(transfer)
         });
       });
     }
@@ -112,6 +117,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
 
   // Renderizar transações (depósitos/levantamentos)
   const renderTransactions = () => {
+    console.log('Rendering Transactions - Count:', transactions ? transactions.length : 'No transactions');
+
     if (isLoading) {
       return renderSkeletons(3);
     }
@@ -166,6 +173,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
 
   // Renderizar transferências
   const renderTransfers = () => {
+    console.log('Rendering Transfers - Count:', transfers ? transfers.length : 'No transfers');
+
     if (isLoading) {
       return renderSkeletons(3);
     }
@@ -217,6 +226,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
 
   // Renderizar todas as transações e transferências combinadas
   const renderAllItems = () => {
+    console.log('Rendering ALL ITEMS');
+
     if (isLoading) {
       return renderSkeletons(5);
     }
@@ -238,7 +249,9 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     // Ordenar por data
     const sortedItems = combinedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    return sortedItems.map((item) => {
+    return sortedItems.map((item, index) => {
+      console.log(`Rendering item ${index}:`, item);
+      
       if (item.itemType === 'transaction') {
         return (
           <div key={`transaction-${item._id}`} className="flex items-center p-4 border-b border-base-300">
@@ -316,28 +329,28 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
 
   return (
     <div className="space-y-4 bg-white rounded-lg p-4">
-      <div className="tabs tabs-boxed">
+      <div className="tabs tabs-boxed flex">
         <button 
-          className={`tab ${activeSubTab === 0 ? 'tab-active' : ''}`}
+          className={`tab flex-1 ${activeSubTab === 0 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(0)}
         >
           Todas
         </button>
         <button 
-          className={`tab ${activeSubTab === 1 ? 'tab-active' : ''}`}
+          className={`tab flex-1 ${activeSubTab === 1 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(1)}
         >
           Depósitos/Levantamentos
         </button>
         <button 
-          className={`tab ${activeSubTab === 2 ? 'tab-active' : ''}`}
+          className={`tab flex-1 ${activeSubTab === 2 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(2)}
         >
           Transferências
         </button>
       </div>
       
-      <div className="">
+      <div className="max-h-[60vh] overflow-y-auto">
         {activeSubTab === 0 && renderAllItems()}
         {activeSubTab === 1 && renderTransactions()}
         {activeSubTab === 2 && renderTransfers()}

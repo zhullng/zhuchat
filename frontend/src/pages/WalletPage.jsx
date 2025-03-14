@@ -88,10 +88,11 @@ const WalletPage = () => {
                         data-tip={tab.tooltip}
                       >
                         <button
-                          className={`tab flex-1 gap-1 ${activeTab === tab.id ? 'tab-active' : ''}`}
+                          className={`tab flex-1 gap-2 ${activeTab === tab.id ? 'tab-active' : ''}`}
                           onClick={() => setActiveTab(tab.id)}
                         >
                           {tab.icon}
+                          <span className="hidden md:inline">{tab.label}</span>
                         </button>
                       </div>
                     ))}
