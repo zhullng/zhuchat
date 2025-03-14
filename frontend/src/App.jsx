@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage"; 
 import ProfilePage from "./pages/ProfilePage"; 
 import AccountPage from './pages/AccountPage'; 
+import ThemePage from "./pages/ThemePage";
 import WalletPage from './pages/WalletPage'; // Nova página de carteira
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
@@ -48,6 +49,8 @@ const App = () => {
         <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
         <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/profile" element={<SettingsProfilePage />} />
+        <Route path="/theme" element={<ThemePage />} />
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/wallet" element={authUser ? <WalletPage /> : <Navigate to="/login" />} />

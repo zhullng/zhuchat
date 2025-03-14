@@ -6,14 +6,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/\S+@\S+\.\S+/, 'Email inválido']
     },
     fullName: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       minlength: 3,
-      maxlength: 20,
+      maxlength: 50,
     },
     password: {
       type: String,
@@ -26,19 +28,46 @@ const userSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["masculino", "feminino"],
+      enum: ["masculino", "feminino", "outro", "prefiro não dizer"],
+      default: "não especificado",
+    },
+    phone: {
+      type: String,
+      trim: true,
       default: "",
+      validate: {
+        validator: function(v) {
+          // International phone number validation
+          // Optional input, but if provided, must be valid
+          return v === "" || /^(\+|00)?[1-9]\d{1,14}$/.test(v.replace(/[\s-().]/g, ''));
+        },
+        message: props => `${props.value} não é um número de telefone válido!`
+      }
+    },
+    country: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: ""
     },
     balance: {
       type: Number,
-      default: 0, // Saldo do user
+      default: 0,
+      min: 0
     },
     stripeCustomerId: {
       type: String,
-      unique: true, // Garantir que cada user tem um ID Stripe único
+      unique: true,
+      sparse: true
     },
   },
-  { timestamps: true }
+  { 
+    timestamps: true 
+  }
 );
 
 const User = mongoose.model("User", userSchema);

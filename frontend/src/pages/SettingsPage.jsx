@@ -32,7 +32,7 @@ const SettingsPage = () => {
           id: 'password',
           label: 'Alterar Senha',
           icon: <KeyRound className="size-4" />,
-          onClick: () => navigate('/settings/security/password')
+          onClick: () => navigate('/security/password')
         }
       ]
     },
@@ -40,7 +40,7 @@ const SettingsPage = () => {
       id: 'theme',
       label: 'Tema',
       icon: <Palette className="size-5" />,
-      onClick: () => navigate('/settings/theme')
+      onClick: () => navigate('/theme')
     },
     {
       id: 'privacy',
@@ -51,7 +51,7 @@ const SettingsPage = () => {
           id: 'blocked',
           label: 'Perfis Bloqueados',
           icon: <Eye className="size-4" />,
-          onClick: () => navigate('/settings/privacy/blocked')
+          onClick: () => navigate('/privacy/blocked')
         }
       ]
     }
