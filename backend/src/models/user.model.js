@@ -1,19 +1,23 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
-    email: {
+    fullName: {
+      type: String,
+      required: true,
+    },
+    username: {
       type: String,
       required: true,
       unique: true,
     },
-    fullName: {
+    email: {
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
       trim: true,
-      minlength: 3,
-      maxlength: 20,
     },
     password: {
       type: String,
@@ -24,22 +28,37 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    gender: {
-      type: String,
-      enum: ["male", "female"],
-      default: "",
-    },
+    // Campos da carteira
     balance: {
       type: Number,
-      default: 0, // Saldo do user
+      default: 0,
+      min: 0,
     },
     stripeCustomerId: {
       type: String,
-      unique: true, // Garantir que cada user tem um ID Stripe único
+      default: null,
     },
   },
   { timestamps: true }
 );
+
+// Método para comparar senhas
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Middleware para hash de senha antes de salvar
+userSchema.pre("save", async function (next) {
+  // Só faz hash se a senha foi modificada
+  if (!this.isModified("password")) {
+    return next();
+  }
+
+  // Hash da senha
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
 
 const User = mongoose.model("User", userSchema);
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from "react-router-dom"; // Importando useNavigate
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, Settings, MessageCircle, CreditCard } from "lucide-react";
+import { LogOut, Settings, MessageCircle, CreditCard, Wallet } from "lucide-react";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
@@ -28,7 +28,12 @@ const Navbar = () => {
         <div className="flex flex-col gap-4">
           {authUser && (
             <>
-              {/* Novo botão de pagamento */}
+              {/* Botão da carteira */}
+              <Link to="/wallet" className="btn btn-circle btn-ghost btn-lg">
+                <Wallet className="size-6" /> {/* Ícone de carteira */}
+              </Link>
+              
+              {/* Botão de pagamento */}
               <Link to="/account" className="btn btn-circle btn-ghost btn-lg">
                 <CreditCard className="size-6" /> {/* Ícone de pagamento */}
               </Link>

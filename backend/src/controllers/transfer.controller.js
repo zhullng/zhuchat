@@ -1,154 +1,144 @@
-import User from "../models/user.model.js";
 import Transfer from "../models/transfer.model.js";
-import { getReceiverSocketId, io } from "../lib/socket.js";
+import User from "../models/user.model.js";
+import { generateQRCode } from "../lib/qrCode.js";
 
-// 🔹 FAZER TRANSFERÊNCIA
-// 🔹 FAZER TRANSFERÊNCIA
-export const makeTransfer = async (req, res) => {
-  const { receiverEmail, amount } = req.body;
-  const { id: receiverId } = req.params; // ID do user destinatário
-  const senderId = req.user._id; // ID do user remetente
+// Transferir por email
+export const createTransfer = async (req, res) => {
   try {
-    if (!senderId || !receiverEmail || !amount || amount <= 0) {
-      return res.status(400).json({ error: "Dados inválidos para transferência" });
+    const { receiverEmail, amount } = req.body;
+    const senderId = req.user._id;
+
+    // Verificar se o valor é válido
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Montante inválido" });
     }
 
-    const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
-    if (!emailRegex.test(receiverEmail)) {
-      return res.status(400).json({ error: "Formato de e-mail inválido" });
+    // Encontrar o destinatário pelo email
+    const receiver = await User.findOne({ email: receiverEmail });
+    if (!receiver) {
+      return res.status(404).json({ message: "Destinatário não encontrado" });
     }
 
+    // Não permitir transferências para si mesmo
+    if (receiver._id.toString() === senderId.toString()) {
+      return res.status(400).json({ message: "Não pode transferir para si mesmo" });
+    }
+
+    // Verificar se o remetente tem saldo suficiente
     const sender = await User.findById(senderId);
-    const receiver = await User.findOne({ email: receiverEmail }); // Alterado de findById para findOne
-    
-    if (!sender || !receiver) {
-      return res.status(404).json({ error: "Remetente ou destinatário não encontrado" });
-    }
-
-    if (senderId === receiver._id.toString()) {
-      return res.status(400).json({ error: "Não é possível transferir para si próprio" });
-    }
-
     if (sender.balance < amount) {
-      return res.status(400).json({ error: "Saldo insuficiente" });
+      return res.status(400).json({ message: "Saldo insuficiente" });
     }
 
-    sender.balance -= Number(amount);
-    receiver.balance += Number(amount);
-    await sender.save();
-    await receiver.save();
-
+    // Criar transferência
     const transfer = new Transfer({
-      sender: sender._id,
+      sender: senderId,
       receiver: receiver._id,
       amount,
-      status: "completed",
+      status: "completed"
     });
+
     await transfer.save();
 
-    const transferData = {
-      sender: { fullName: sender.fullName, balance: sender.balance },
-      receiver: { fullName: receiver.fullName, balance: receiver.balance },
-      amount,
-      status: "completed",
-    };
+    // Atualizar saldos
+    await User.findByIdAndUpdate(senderId, { $inc: { balance: -amount } });
+    await User.findByIdAndUpdate(receiver._id, { $inc: { balance: amount } });
 
-    // Buscar o socketId do destinatário
-    const receiverSocketId = getReceiverSocketId(receiver._id); // Aqui buscamos o socketId
-
-    if (receiverSocketId) {
-      // Emitindo o evento com os dados da transferência para o destinatário
-      io.to(receiverSocketId).emit("newTransfer", transferData);
-    }
-
-    res.json({
-      message: "Transferência realizada com sucesso!",
-      transfer: {
-        sender: { fullName: sender.fullName, balance: sender.balance },
-        receiver: { fullName: receiver.fullName, balance: receiver.balance },
-        amount,
-        status: "completed",
-      },
+    res.status(201).json({
+      message: "Transferência concluída com sucesso",
+      transfer
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao processar transferência" });
+    console.log("Error in createTransfer controller: ", error.message);
+    res.status(500).json({ message: "Erro no servidor" });
   }
 };
 
-
-
-// 🔹 HISTÓRICO DE TRANSFERÊNCIAS
+// Obter histórico de transferências
 export const getTransferHistory = async (req, res) => {
-  const { userId } = req.params;
-
   try {
-    if (!userId) return res.status(400).json({ error: "ID do usuário é obrigatório" });
+    const userId = req.user._id;
 
     const transfers = await Transfer.find({
-      $or: [{ sender: userId }, { receiver: userId }],
+      $or: [{ sender: userId }, { receiver: userId }]
     })
-      .populate("sender receiver", "fullName email")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .populate("sender", "fullName email")
+      .populate("receiver", "fullName email");
 
-    res.json(transfers.length > 0 ? transfers : { message: "Nenhuma transferência encontrada" });
+    res.status(200).json(transfers);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao buscar histórico de transferências" });
+    console.log("Error in getTransferHistory controller: ", error.message);
+    res.status(500).json({ message: "Erro no servidor" });
   }
 };
 
-
-export const depositMoney = async (req, res) => {
-  const { userId, amount } = req.body;
-
+// Transferir por QR Code
+export const transferByQRCode = async (req, res) => {
   try {
-    if (!userId || !amount || amount <= 0) {
-      return res.status(400).json({ error: "Valor inválido para depósito" });
+    const { qrData, amount } = req.body;
+    const senderId = req.user._id;
+
+    // Verificar se o valor é válido
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Montante inválido" });
     }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    // Descodificar QR para obter ID do destinatário
+    const receiverId = qrData;
 
-    user.balance += Number(amount); // Garantindo que ambos sejam números
+    // Verificar se o destinatário existe
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ message: "Destinatário não encontrado" });
+    }
 
-    await user.save();
+    // Não permitir transferências para si mesmo
+    if (receiver._id.toString() === senderId.toString()) {
+      return res.status(400).json({ message: "Não pode transferir para si mesmo" });
+    }
 
-    res.json({
-      message: "Depósito realizado com sucesso!",
-      user: { fullName: user.fullName, balance: user.balance },
+    // Verificar se o remetente tem saldo suficiente
+    const sender = await User.findById(senderId);
+    if (sender.balance < amount) {
+      return res.status(400).json({ message: "Saldo insuficiente" });
+    }
+
+    // Criar transferência
+    const transfer = new Transfer({
+      sender: senderId,
+      receiver: receiverId,
+      amount,
+      status: "completed"
+    });
+
+    await transfer.save();
+
+    // Atualizar saldos
+    await User.findByIdAndUpdate(senderId, { $inc: { balance: -amount } });
+    await User.findByIdAndUpdate(receiverId, { $inc: { balance: amount } });
+
+    res.status(201).json({
+      message: "Transferência via QR Code concluída com sucesso",
+      transfer
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao processar depósito" });
+    console.log("Error in transferByQRCode controller: ", error.message);
+    res.status(500).json({ message: "Erro no servidor" });
   }
 };
 
-export const withdrawMoney = async (req, res) => {
-  const { userId, amount } = req.body;
-
+// Gerar QR Code para o utilizador
+export const generateUserQRCode = async (req, res) => {
   try {
-    if (!userId || !amount || amount <= 0) {
-      return res.status(400).json({ error: "Valor inválido para saque" });
-    }
+    const userId = req.user._id;
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    // Gerar QR code com o ID do utilizador
+    const qrCode = await generateQRCode(userId.toString());
 
-    if (user.balance < amount) {
-      return res.status(400).json({ error: "Saldo insuficiente" });
-    }
-
-    user.balance -= Number(amount); // Garantindo que ambos sejam números
-
-    await user.save();
-
-    res.json({
-      message: "Saque realizado com sucesso!",
-      user: { fullName: user.fullName, balance: user.balance },
-    });
+    res.status(200).json({ qrCode });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao processar saque" });
+    console.log("Error in generateUserQRCode controller: ", error.message);
+    res.status(500).json({ message: "Erro no servidor" });
   }
 };
