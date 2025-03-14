@@ -46,23 +46,22 @@ export const makeTransfer = async (req, res) => {
     });
     await transfer.save();
 
-    location.reload();
-
+    
     const transferData = {
       sender: { fullName: sender.fullName, balance: sender.balance },
       receiver: { fullName: receiver.fullName, balance: receiver.balance },
       amount,
       status: "completed",
     };
-
+    
     // Buscar o socketId do destinatário
     const receiverSocketId = getReceiverSocketId(receiver._id); // Aqui buscamos o socketId
-
+    
     if (receiverSocketId) {
       // Emitindo o evento com os dados da transferência para o destinatário
       io.to(receiverSocketId).emit("newTransfer", transferData);
     }
-
+    
     res.json({
       message: "Transferência realizada com sucesso!",
       transfer: {
@@ -72,6 +71,7 @@ export const makeTransfer = async (req, res) => {
         status: "completed",
       },
     });
+    location.reload();
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erro ao processar transferência" });
