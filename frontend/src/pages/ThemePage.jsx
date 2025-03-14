@@ -1,37 +1,45 @@
+import { useState } from 'react'; 
+import { useNavigate } from 'react-router-dom';
 import { THEMES } from "../constants"; 
-import { useThemeStore } from "../store/useThemeStore"; // Importa o estado do tema e a função para alterar o tema
-import { Send } from "lucide-react"; // Importa o ícone de envio de mensagem
+import { useThemeStore } from "../store/useThemeStore";
+import { Send, ArrowLeft } from "lucide-react";
 
-// Mensagens de exemplo para visualização no chat
 const PREVIEW_MESSAGES = [
   { id: 1, content: "Hey! How's it going?", isSent: false },
   { id: 2, content: "I'm doing great! ZhuChat is the best chat app I've ever used!", isSent: true },
 ];
 
 const ThemePage = () => {
-  // Recebe o tema atual e a função para alterá-lo do store
+  const navigate = useNavigate();
   const { theme, setTheme } = useThemeStore();
 
   return (
     <div className="h-screen container mx-auto px-4 pt-5 max-w-5xl overflow-auto">
       <div className="space-y-6 pl-16 sm:pl-20">
+        {/* Back button added */}
+        <button 
+          onClick={() => navigate('/settings')}
+          className="flex items-center gap-2 text-base-content/70 hover:text-base-content mb-4"
+        >
+          <ArrowLeft className="size-5" />
+          <span>Voltar</span>
+        </button>
+
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold">Theme</h2>
           <p className="text-sm text-base-content/70">Choose a theme for your chat interface</p>
         </div>
 
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-          {/* Mapeia os temas e cria um botão para cada um */}
           {THEMES.map((t) => (
             <button
-              key={t} // Usa o nome do tema como chave
+              key={t}
               className={`
                 group flex flex-col items-center gap-1.5 p-2 rounded-lg transition-colors
                 ${theme === t ? "bg-base-200" : "hover:bg-base-200/50"}
               `}
-              onClick={() => setTheme(t)} // Atualiza o tema ao clicar no botão
+              onClick={() => setTheme(t)}
             >
-              {/* Pré-visualização do tema */}
               <div className="relative h-6 sm:h-8 w-full rounded-md overflow-hidden" data-theme={t}>
                 <div className="absolute inset-0 grid grid-cols-4 gap-px p-1">
                   <div className="rounded bg-primary"></div>
@@ -41,7 +49,7 @@ const ThemePage = () => {
                 </div>
               </div>
               <span className="text-[11px] font-medium truncate w-full text-center">
-                {t.charAt(0).toUpperCase() + t.slice(1)} {/* Nome do tema em formato legível */}
+                {t.charAt(0).toUpperCase() + t.slice(1)}
               </span>
             </button>
           ))}

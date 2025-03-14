@@ -222,6 +222,13 @@ const SettingsProfilePage = () => {
   return (
     <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
       <div className="max-w-2xl mx-auto p-4 py-8">
+        <button 
+          onClick={() => navigate('/settings')}
+          className="flex items-center gap-2 text-base-content/70 hover:text-base-content mb-4"
+        >
+          <ArrowLeft className="size-5" />
+          <span>Voltar</span>
+        </button>
         <div className="bg-base-200 rounded-xl p-6 shadow-lg">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold">Perfil</h1>
