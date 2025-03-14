@@ -21,20 +21,29 @@ export const useWalletStore = create((set, get) => ({
       
       // Obter histórico de transferências
       const transfersResponse = await axios.get('/api/transfers');
-            
+      
+      // Validar se as respostas são arrays
+      const transactionsData = Array.isArray(transactionsResponse.data) 
+        ? transactionsResponse.data 
+        : [];
+      
+      const transfersData = Array.isArray(transfersResponse.data) 
+        ? transfersResponse.data 
+        : [];
+      
       const userBalance = userResponse.data.balance !== undefined 
         ? userResponse.data.balance 
         : 0;
       
       set({ 
         balance: userBalance,
-        transactions: transactionsResponse.data || [],
-        transfers: transfersResponse.data || [],
+        transactions: transactionsData,
+        transfers: transfersData,
         isLoading: false
       });
       
-      console.log('Transactions loaded:', (transactionsResponse.data || []).length);
-      console.log('Transfers loaded:', (transfersResponse.data || []).length);
+      console.log('Transactions loaded:', transactionsData.length);
+      console.log('Transfers loaded:', transfersData.length);
     } catch (error) {
       console.error('Erro ao carregar dados da carteira:', error);
       set({ 
@@ -146,11 +155,12 @@ export const useWalletStore = create((set, get) => ({
       throw error;
     }
   },
-   
+  
   generateQRCode: async () => {
     try {
       set({ isLoading: true, error: null });
-            
+      
+      // URL corrigida para /api/transfers/qrcode
       const response = await axios.get('/api/transfers/qrcode');
       
       set({ isLoading: false });

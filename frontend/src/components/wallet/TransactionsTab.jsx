@@ -95,6 +95,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       return renderSkeletons(3);
     }
 
+    const safeTransactions = Array.isArray(transactions) ? transactions : [];
+
+    if (safeTransactions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8">
+          <Receipt className="size-16 opacity-30 mb-2" />
+          <p className="text-base-content/70">Sem transações para mostrar</p>
+        </div>
+      );
+    }
+
     return safeTransactions.map((transaction) => (
       <div key={transaction._id} className="flex items-center p-4 border-b border-base-300">
         <div className="avatar placeholder">
@@ -296,22 +307,25 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     <div className="space-y-4 bg-white rounded-lg p-4">
       <div className="tabs tabs-boxed flex">
         <button 
-          className={`tab flex-1 ${activeSubTab === 0 ? 'tab-active' : ''}`}
+          className={`tab flex-1 px-0 md:px-4 ${activeSubTab === 0 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(0)}
         >
-          Todas
+          <span className="hidden sm:inline">Todas</span>
+          <span className="sm:hidden">To</span>
         </button>
         <button 
-          className={`tab flex-1 ${activeSubTab === 1 ? 'tab-active' : ''}`}
+          className={`tab flex-1 px-0 md:px-4 ${activeSubTab === 1 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(1)}
         >
-          Depósitos/Levantamentos
+          <span className="hidden sm:inline">Depósitos/Levantamentos</span>
+          <span className="sm:hidden">D/L</span>
         </button>
         <button 
-          className={`tab flex-1 ${activeSubTab === 2 ? 'tab-active' : ''}`}
+          className={`tab flex-1 px-0 md:px-4 ${activeSubTab === 2 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(2)}
         >
-          Transferências
+          <span className="hidden sm:inline">Transferências</span>
+          <span className="sm:hidden">Tr</span>
         </button>
       </div>
       
