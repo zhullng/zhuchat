@@ -7,6 +7,7 @@ import ProfilePage from "./pages/ProfilePage";
 import AccountPage from './pages/AccountPage'; 
 import ThemePage from "./pages/ThemePage";
 import WalletPage from './pages/WalletPage'; // Nova página de carteira
+import SettingsProfilePage from './pages/SettingsProfilePage'; 
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
