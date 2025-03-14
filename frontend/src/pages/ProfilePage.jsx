@@ -230,16 +230,16 @@ const ProfilePage = () => {
 
           {/* Seção da imagem de perfil */}
           <div className="flex flex-col items-center gap-4 mb-8">
-            <div className="relative">
+            <div className="relative w-32 h-32"> {/* Define tamanho fixo para o container */}
               <img
                 src={selectedImg || authUser?.profilePic || "/avatar.png"}
                 alt="Profile"
-                className="size-32 rounded-full object-cover border-4 border-base-300"
+                className="w-full h-full rounded-full object-cover border-4 border-base-300"
               />
               <label
                 htmlFor="avatar-upload"
                 className={`
-                  absolute bottom-0 right-0 
+                  absolute -bottom-2 -right-2 
                   bg-primary hover:bg-primary-focus
                   p-2 rounded-full cursor-pointer 
                   transition-all duration-200 shadow-lg
@@ -256,10 +256,11 @@ const ProfilePage = () => {
                   disabled={isUpdatingProfile}
                 />
               </label>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Clique para alterar foto (Máx: 50MB)
-              </p>
             </div>
+            {/* Texto movido para fora do container relativo */}
+            <p className="text-xs text-base-content/70 text-center">
+              Clique para alterar foto (Máx: 50MB)
+            </p>
           </div>
 
           {/* Informações do Perfil */}
