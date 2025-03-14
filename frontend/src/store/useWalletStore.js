@@ -10,12 +10,10 @@ export const useWalletStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
-  // Ações
   fetchWalletData: async () => {
     try {
       set({ isLoading: true, error: null });
       
-      // Obter informações do usuário com saldo usando a rota auth/check
       const userResponse = await axios.get('/api/auth/check');
       
       // Obter histórico de transações
@@ -24,24 +22,35 @@ export const useWalletStore = create((set, get) => ({
       // Obter histórico de transferências
       const transfersResponse = await axios.get('/api/transfers');
       
-      // Garantir que estamos definindo corretamente o saldo do usuário
+      // Validar se as respostas são arrays
+      const transactionsData = Array.isArray(transactionsResponse.data) 
+        ? transactionsResponse.data 
+        : [];
+      
+      const transfersData = Array.isArray(transfersResponse.data) 
+        ? transfersResponse.data 
+        : [];
+      
       const userBalance = userResponse.data.balance !== undefined 
         ? userResponse.data.balance 
         : 0;
       
       set({ 
         balance: userBalance,
-        transactions: transactionsResponse.data || [],
-        transfers: transfersResponse.data || [],
+        transactions: transactionsData,
+        transfers: transfersData,
         isLoading: false
       });
       
-      console.log('Saldo carregado:', userBalance);
+      console.log('Transactions loaded:', transactionsData.length);
+      console.log('Transfers loaded:', transfersData.length);
     } catch (error) {
       console.error('Erro ao carregar dados da carteira:', error);
       set({ 
         isLoading: false, 
-        error: error.response?.data?.message || 'Erro ao carregar dados da carteira'
+        error: error.response?.data?.message || 'Erro ao carregar dados da carteira',
+        transactions: [],
+        transfers: []
       });
       toast.error('Não foi possível carregar os dados da carteira');
     }

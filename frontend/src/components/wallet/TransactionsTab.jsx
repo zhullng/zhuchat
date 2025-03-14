@@ -115,15 +115,16 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     ));
   };
 
-  // Renderizar transações (depósitos/levantamentos)
   const renderTransactions = () => {
-    console.log('Rendering Transactions - Count:', transactions ? transactions.length : 'No transactions');
-
+    console.log('Rendering Transactions - Count:', Array.isArray(transactions) ? transactions.length : 'Not an array');
+  
     if (isLoading) {
       return renderSkeletons(3);
     }
-
-    if (!transactions || transactions.length === 0) {
+  
+    const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  
+    if (safeTransactions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <Receipt className="size-16 opacity-30 mb-2" />
@@ -132,7 +133,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       );
     }
 
-    return transactions.map((transaction) => (
+    return safeTransactions.map((transaction) => (
       <div key={transaction._id} className="flex items-center p-4 border-b border-base-300">
         <div className="avatar placeholder">
           <div className={`size-10 rounded-full ${transaction.type === 'deposit' ? 'bg-success/20' : 'bg-error/20'}`}>
@@ -172,14 +173,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   };
 
   // Renderizar transferências
-  const renderTransfers = () => {
-    console.log('Rendering Transfers - Count:', transfers ? transfers.length : 'No transfers');
-
+ 
+const renderTransfers = () => {
+    console.log('Rendering Transfers - Count:', Array.isArray(transfers) ? transfers.length : 'Not an array');
+  
     if (isLoading) {
       return renderSkeletons(3);
     }
-
-    if (!transfers || transfers.length === 0) {
+  
+    const safeTransfers = Array.isArray(transfers) ? transfers : [];
+  
+    if (safeTransfers.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <ArrowLeftRight className="size-16 opacity-30 mb-2" />
@@ -187,8 +191,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
         </div>
       );
     }
-
-    return transfers.map((transfer) => {
+  
+    return safeTransfers.map((transfer) => {
       const isSender = transfer.sender._id === userId;
       
       return (
@@ -224,19 +228,22 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     });
   };
 
-  // Renderizar todas as transações e transferências combinadas
   const renderAllItems = () => {
     console.log('Rendering ALL ITEMS');
-
+  
     if (isLoading) {
       return renderSkeletons(5);
     }
-
+  
+    // Garantir que transactions e transfers sejam arrays, mesmo se undefined
+    const safeTransactions = Array.isArray(transactions) ? transactions : [];
+    const safeTransfers = Array.isArray(transfers) ? transfers : [];
+  
     const combinedItems = [
-      ...(transactions || []).map(t => ({ ...t, itemType: 'transaction' })),
-      ...(transfers || []).map(t => ({ ...t, itemType: 'transfer' }))
+      ...safeTransactions.map(t => ({ ...t, itemType: 'transaction' })),
+      ...safeTransfers.map(t => ({ ...t, itemType: 'transfer' }))
     ];
-
+  
     if (combinedItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
