@@ -547,10 +547,17 @@ const SettingsProfilePage = () => {
             className="btn btn-primary"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
-          </button>
+           {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
-      </form>
+      </div>
     </div>
-  </div>
-)}
+  );
+};
+
+export default SettingsProfilePage;
