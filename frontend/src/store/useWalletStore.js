@@ -147,7 +147,6 @@ export const useWalletStore = create((set, get) => ({
     }
   },
    
-  
   generateQRCode: async () => {
     try {
       set({ isLoading: true, error: null });
