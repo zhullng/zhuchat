@@ -33,10 +33,30 @@ const WalletPage = () => {
   }, [fetchWalletData]);
 
   const tabs = [
-    { id: 0, label: 'Depositar', icon: <ArrowDownCircle className="size-4" /> },
-    { id: 1, label: 'Levantar', icon: <ArrowUpCircle className="size-4" /> },
-    { id: 2, label: 'Transferir', icon: <SendHorizontal className="size-4" /> },
-    { id: 3, label: 'Transações', icon: <Receipt className="size-4" /> },
+    { 
+      id: 0, 
+      label: 'Depositar', 
+      icon: <ArrowDownCircle className="size-6" />,
+      tooltip: 'Adicionar Fundos'
+    },
+    { 
+      id: 1, 
+      label: 'Levantar', 
+      icon: <ArrowUpCircle className="size-6" />,
+      tooltip: 'Retirar Fundos'
+    },
+    { 
+      id: 2, 
+      label: 'Transferir', 
+      icon: <SendHorizontal className="size-6" />,
+      tooltip: 'Enviar Dinheiro'
+    },
+    { 
+      id: 3, 
+      label: 'Transações', 
+      icon: <Receipt className="size-6" />,
+      tooltip: 'Histórico'
+    },
   ];
 
   return (
@@ -62,15 +82,18 @@ const WalletPage = () => {
                 <div className="overflow-x-auto mb-4">
                   <div className="tabs tabs-boxed flex">
                     {tabs.map(tab => (
-                      <button
-                        key={tab.id}
-                        className={`flex-1 tab gap-1 ${activeTab === tab.id ? 'tab-active' : ''}`}
-                        onClick={() => setActiveTab(tab.id)}
+                      <div 
+                        key={tab.id} 
+                        className="tooltip" 
+                        data-tip={tab.tooltip}
                       >
-                        {tab.icon}
-                        <span className="hidden sm:inline">{tab.label}</span>
-                        <span className="sm:hidden">{tab.label.charAt(0)}</span>
-                      </button>
+                        <button
+                          className={`tab flex-1 gap-1 ${activeTab === tab.id ? 'tab-active' : ''}`}
+                          onClick={() => setActiveTab(tab.id)}
+                        >
+                          {tab.icon}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
