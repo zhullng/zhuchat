@@ -119,7 +119,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
         </div>
         
         <div className="ml-4 flex-1">
-          <p className="font-medium">
+          <p className="font-medium line-clamp-1">
             {transaction.type === 'deposit' ? 'Depósito' : 'Levantamento'} via {
               transaction.method === 'card' ? 'Cartão' :
               transaction.method === 'bank_transfer' ? 'Transferência Bancária' : 
@@ -127,11 +127,11 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
             }
             {transaction.details?.cardLast4 && ` **** ${transaction.details.cardLast4}`}
           </p>
-          <p className="text-sm opacity-70">{formatDate(transaction.createdAt)}</p>
+          <p className="text-sm opacity-70 line-clamp-1">{formatDate(transaction.createdAt)}</p>
         </div>
         
         <div className="text-right">
-          <p className={`font-semibold ${transaction.type === 'deposit' ? 'text-success' : 'text-error'}`}>
+          <p className={`font-semibold line-clamp-1 ${transaction.type === 'deposit' ? 'text-success' : 'text-error'}`}>
             {transaction.type === 'deposit' ? '+' : '-'}{formatCurrency(transaction.amount)}
           </p>
           <div className="flex justify-end mt-1">
@@ -175,17 +175,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
           </div>
           
           <div className="ml-4 flex-1">
-            <p className="font-medium">
+            <p className="font-medium line-clamp-1">
               {isSender ? 'Transferência para ' : 'Recebido de '}
               <strong>
                 {isSender ? transfer.receiver.fullName || transfer.receiver.username : transfer.sender.fullName || transfer.sender.username}
               </strong>
             </p>
-            <p className="text-sm opacity-70">{formatDate(transfer.createdAt)}</p>
+            <p className="text-sm opacity-70 line-clamp-1">{formatDate(transfer.createdAt)}</p>
           </div>
           
           <div className="text-right">
-            <p className={`font-semibold ${isSender ? 'text-error' : 'text-success'}`}>
+            <p className={`font-semibold line-clamp-1 ${isSender ? 'text-error' : 'text-success'}`}>
               {isSender ? '-' : '+'}{formatCurrency(transfer.amount)}
             </p>
             <div className="flex justify-end mt-1">
@@ -242,7 +242,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
             </div>
             
             <div className="ml-4 flex-1">
-              <p className="font-medium">
+              <p className="font-medium line-clamp-1">
                 {item.type === 'deposit' ? 'Depósito' : 'Levantamento'} via {
                   item.method === 'card' ? 'Cartão' :
                   item.method === 'bank_transfer' ? 'Transferência Bancária' : 
@@ -250,11 +250,11 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
                 }
                 {item.details?.cardLast4 && ` **** ${item.details.cardLast4}`}
               </p>
-              <p className="text-sm opacity-70">{formatDate(item.createdAt)}</p>
+              <p className="text-sm opacity-70 line-clamp-1">{formatDate(item.createdAt)}</p>
             </div>
             
             <div className="text-right">
-              <p className={`font-semibold ${item.type === 'deposit' ? 'text-success' : 'text-error'}`}>
+              <p className={`font-semibold line-clamp-1 ${item.type === 'deposit' ? 'text-success' : 'text-error'}`}>
                 {item.type === 'deposit' ? '+' : '-'}{formatCurrency(item.amount)}
               </p>
               <div className="flex justify-end mt-1">
@@ -278,17 +278,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
             </div>
             
             <div className="ml-4 flex-1">
-              <p className="font-medium">
+              <p className="font-medium line-clamp-1">
                 {isSender ? 'Transferência para ' : 'Recebido de '}
                 <strong>
                   {isSender ? item.receiver.fullName || item.receiver.username : item.sender.fullName || item.sender.username}
                 </strong>
               </p>
-              <p className="text-sm opacity-70">{formatDate(item.createdAt)}</p>
+              <p className="text-sm opacity-70 line-clamp-1">{formatDate(item.createdAt)}</p>
             </div>
             
             <div className="text-right">
-              <p className={`font-semibold ${isSender ? 'text-error' : 'text-success'}`}>
+              <p className={`font-semibold line-clamp-1 ${isSender ? 'text-error' : 'text-success'}`}>
                 {isSender ? '-' : '+'}{formatCurrency(item.amount)}
               </p>
               <div className="flex justify-end mt-1">

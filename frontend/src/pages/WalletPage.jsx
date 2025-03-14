@@ -61,7 +61,7 @@ const WalletPage = () => {
 
   return (
     <div className="flex min-h-screen pt-16 pl-20 sm:pl-24 sm:pt-0 overflow-x-hidden">
-      <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
+      <div className="flex-1 mx-auto px-4 py-6 w-[96%] max-w-7xl">
         <div className="flex items-center mb-6">
           <Wallet className="size-6 mr-2" />
           <h1 className="text-2xl font-bold">Minha Carteira</h1>
