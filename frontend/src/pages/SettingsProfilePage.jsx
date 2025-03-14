@@ -383,121 +383,174 @@ const SettingsProfilePage = () => {
             </button>
           </div>
 
-          {/* Edit Profile Modal */}
-          {isModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Editar Perfil</h3>
-                  <button
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      setErrors({});
-                      setFormData({
-                        fullName: authUser.fullName || "",
-                        email: authUser.email || "",
-                        gender: authUser.gender || ""
-                      });
-                    }}
-                    className="btn btn-ghost btn-sm btn-circle"
-                  >
-                    ✕
-                  </button>
-                </div>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Nome Completo</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => {
-                        setFormData(prev => ({...prev, fullName: e.target.value}));
-                        setErrors(prev => ({...prev, fullName: ""}));
-                      }}
-                      className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`}
-                      placeholder="Seu nome completo"
-                    />
-                    {errors.fullName && (
-                      <span className="text-error text-sm mt-1">{errors.fullName}</span>
-                    )}
-                  </div>
+       {/* Edit Profile Modal */}
+{isModalOpen && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Editar Perfil</h3>
+        <button
+          onClick={() => {
+            setIsModalOpen(false);
+            setErrors({});
+            setFormData({
+              fullName: authUser.fullName || "",
+              email: authUser.email || "",
+              gender: authUser.gender || "",
+              phone: authUser.phone || "",
+              country: authUser.country || "",
+              city: authUser.city || ""
+            });
+          }}
+          className="btn btn-ghost btn-sm btn-circle"
+        >
+          ✕
+        </button>
+      </div>
 
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Email</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => {
-                        setFormData(prev => ({...prev, email: e.target.value}));
-                        setErrors(prev => ({...prev, email: ""}));
-                      }}
-                      className={`input input-bordered w-full ${errors.email ? 'input-error' : ''}`}
-                      placeholder="seu.email@exemplo.com"
-                    />
-                    {errors.email && (
-                      <span className="text-error text-sm mt-1">{errors.email}</span>
-                    )}
-                  </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+        <label className="label">
+            <span className="label-text">Nome Completo</span>
+        </label>
+        <input
+            type="text"
+            value={formData.fullName}
+            onChange={(e) => {
+            setFormData(prev => ({...prev, fullName: e.target.value}));
+            setErrors(prev => ({...prev, fullName: ""}));
+            }}
+            className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`}
+            placeholder="Seu nome completo"
+        />
+        {errors.fullName && (
+            <span className="text-error text-sm mt-1">{errors.fullName}</span>
+        )}
+        </div>
 
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Género</span>
-                    </label>
-                    <select
-                      value={formData.gender}
-                      onChange={(e) => {
-                        setFormData(prev => ({...prev, gender: e.target.value}));
-                        setErrors(prev => ({...prev, gender: ""}));
-                      }}
-                      className={`select select-bordered w-full ${errors.gender ? 'select-error' : ''}`}
-                    >
-                      <option value="">Não especificado</option>
-                      <option value="masculino">Masculino</option>
-                      <option value="feminino">Feminino</option>
-                    </select>
-                    {errors.gender && (
-                      <span className="text-error text-sm mt-1">{errors.gender}</span>
-                    )}
-                  </div>
+        <div>
+        <label className="label">
+            <span className="label-text">Email</span>
+        </label>
+        <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => {
+            setFormData(prev => ({...prev, email: e.target.value}));
+            setErrors(prev => ({...prev, email: ""}));
+            }}
+            className={`input input-bordered w-full ${errors.email ? 'input-error' : ''}`}
+            placeholder="seu.email@exemplo.com"
+        />
+        {errors.email && (
+            <span className="text-error text-sm mt-1">{errors.email}</span>
+        )}
+        </div>
 
-                  <div className="flex justify-end gap-2 mt-6">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModalOpen(false);
-                        setErrors({});
-                        setFormData({
-                          fullName: authUser.fullName || "",
-                          email: authUser.email || "",
-                          gender: authUser.gender || ""
-                        });
-                      }}
-                      className="btn btn-ghost"
-                      disabled={isSubmitting}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
+        <div>
+        <label className="label">
+            <span className="label-text">Género</span>
+        </label>
+        <select
+            value={formData.gender}
+            onChange={(e) => {
+            setFormData(prev => ({...prev, gender: e.target.value}));
+            setErrors(prev => ({...prev, gender: ""}));
+            }}
+            className={`select select-bordered w-full ${errors.gender ? 'select-error' : ''}`}
+        >
+            <option value="">Não especificado</option>
+            <option value="masculino">Masculino</option>
+            <option value="feminino">Feminino</option>
+        </select>
+        {errors.gender && (
+            <span className="text-error text-sm mt-1">{errors.gender}</span>
+        )}
+        </div>
+
+        {/* New Phone Field */}
+        <div>
+          <label className="label">
+            <span className="label-text">Telemóvel</span>
+          </label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => {
+              setFormData(prev => ({...prev, phone: e.target.value}));
+              setErrors(prev => ({...prev, phone: ""}));
+            }}
+            className={`input input-bordered w-full ${errors.phone ? 'input-error' : ''}`}
+            placeholder="Seu número de telefone"
+          />
+          {errors.phone && (
+            <span className="text-error text-sm mt-1">{errors.phone}</span>
           )}
         </div>
-      </div>
-    </div>
-  );
-};
 
-export default SettingsProfilePage;
+        {/* New Country Field */}
+        <div>
+          <label className="label">
+            <span className="label-text">País</span>
+          </label>
+          <input
+            type="text"
+            value={formData.country}
+            onChange={(e) => {
+              setFormData(prev => ({...prev, country: e.target.value}));
+              setErrors(prev => ({...prev, country: ""}));
+            }}
+            className="input input-bordered w-full"
+            placeholder="Seu país"
+          />
+        </div>
+
+        {/* New City Field */}
+        <div>
+          <label className="label">
+            <span className="label-text">Cidade</span>
+          </label>
+          <input
+            type="text"
+            value={formData.city}
+            onChange={(e) => {
+              setFormData(prev => ({...prev, city: e.target.value}));
+              setErrors(prev => ({...prev, city: ""}));
+            }}
+            className="input input-bordered w-full"
+            placeholder="Sua cidade"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={() => {
+              setIsModalOpen(false);
+              setErrors({});
+              setFormData({
+                fullName: authUser.fullName || "",
+                email: authUser.email || "",
+                gender: authUser.gender || "",
+                phone: authUser.phone || "",
+                country: authUser.country || "",
+                city: authUser.city || ""
+              });
+            }}
+            className="btn btn-ghost"
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
