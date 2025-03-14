@@ -46,6 +46,8 @@ export const makeTransfer = async (req, res) => {
     });
     await transfer.save();
 
+    location.reload();
+
     const transferData = {
       sender: { fullName: sender.fullName, balance: sender.balance },
       receiver: { fullName: receiver.fullName, balance: receiver.balance },
