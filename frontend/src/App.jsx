@@ -8,6 +8,7 @@ import AccountPage from './pages/AccountPage';
 import ThemePage from "./pages/ThemePage";
 import WalletPage from './pages/WalletPage'; // Nova página de carteira
 import SettingsProfilePage from './pages/SettingsProfilePage'; 
+import ChangePasswordPage from './pages/ChangePasswordPage'; 
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
@@ -52,6 +53,7 @@ const App = () => {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/profile" element={<SettingsProfilePage />} />
         <Route path="/theme" element={<ThemePage />} />
+        <Route path="/security/password" element={<ChangePasswordPage />} />
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/wallet" element={authUser ? <WalletPage /> : <Navigate to="/login" />} />
