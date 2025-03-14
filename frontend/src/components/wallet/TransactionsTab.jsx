@@ -4,14 +4,38 @@ import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Receipt, CreditCard, Bu
 const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   const [activeSubTab, setActiveSubTab] = useState(0); // 0: Todas, 1: Transações, 2: Transferências
 
-  // Adicionar logs de debug para verificar os dados recebidos
+  // Adicionar logs detalhados de debug
   useEffect(() => {
-    console.log('Transactions Tab - Received Data:', {
-      transactions,
-      transfers,
+    console.log('TransactionsTab - Received Props:', {
+      transactions: transactions ? transactions.length : 'No transactions',
+      transfers: transfers ? transfers.length : 'No transfers',
       userId,
       isLoading
     });
+
+    // Log do tipo de cada transação
+    if (transactions) {
+      transactions.forEach((tx, index) => {
+        console.log(`Transaction ${index}:`, {
+          type: tx.type,
+          method: tx.method,
+          amount: tx.amount,
+          status: tx.status
+        });
+      });
+    }
+
+    // Log do tipo de cada transferência
+    if (transfers) {
+      transfers.forEach((transfer, index) => {
+        console.log(`Transfer ${index}:`, {
+          sender: transfer.sender?._id,
+          receiver: transfer.receiver?._id,
+          amount: transfer.amount,
+          status: transfer.status
+        });
+      });
+    }
   }, [transactions, transfers, userId, isLoading]);
 
   const formatDate = (dateString) => {
@@ -291,7 +315,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-white rounded-lg p-4">
       <div className="tabs tabs-boxed">
         <button 
           className={`tab ${activeSubTab === 0 ? 'tab-active' : ''}`}
@@ -313,7 +337,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
         </button>
       </div>
       
-      <div className="card bg-base-200">
+      <div className="">
         {activeSubTab === 0 && renderAllItems()}
         {activeSubTab === 1 && renderTransactions()}
         {activeSubTab === 2 && renderTransfers()}
