@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { Camera, Mail, User, Edit2, ShieldCheck, Clock, Shield, Phone, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
+import { countries } from 'countries-list';
+import cities from 'cities-list';
 
 const SettingsProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
@@ -17,6 +19,27 @@ const SettingsProfilePage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Prepare countries list
+  const countriesList = useMemo(() => {
+    return Object.entries(countries)
+      .map(([code, country]) => ({
+        code,
+        name: country.name
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  // Prepare cities list based on selected country
+  const citiesList = useMemo(() => {
+    if (!formData.country) return [];
+    
+    return Object.keys(cities)
+      .filter(city => 
+        city.toLowerCase().includes(formData.country.toLowerCase())
+      )
+      .sort();
+  }, [formData.country]);
 
   // Initialize form data when user is available
   useEffect(() => {
@@ -178,9 +201,22 @@ const SettingsProfilePage = () => {
       newErrors.gender = "Género inválido";
     }
 
+    // Optional country validation
+    if (formData.country && !countriesList.some(c => c.name === formData.country)) {
+        newErrors.country = "País inválido";
+    }
+
+    // Optional city validation
+    if (formData.city && formData.country) {
+        const validCities = citiesList;
+        if (!validCities.includes(formData.city)) {
+        newErrors.city = "Cidade inválida para o país selecionado";
+        }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+    };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -383,30 +419,30 @@ const SettingsProfilePage = () => {
             </button>
           </div>
 
-       {/* Edit Profile Modal */}
-{isModalOpen && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Editar Perfil</h3>
-        <button
-          onClick={() => {
-            setIsModalOpen(false);
-            setErrors({});
-            setFormData({
-              fullName: authUser.fullName || "",
-              email: authUser.email || "",
-              gender: authUser.gender || "",
-              phone: authUser.phone || "",
-              country: authUser.country || "",
-              city: authUser.city || ""
-            });
-          }}
-          className="btn btn-ghost btn-sm btn-circle"
-        >
-          ✕
-        </button>
-      </div>
+    {/* Edit Profile Modal */}
+    {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Editar Perfil</h3>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setErrors({});
+                  setFormData({
+                    fullName: authUser.fullName || "",
+                    email: authUser.email || "",
+                    gender: authUser.gender || "",
+                    phone: authUser.phone || "",
+                    country: authUser.country || "",
+                    city: authUser.city || ""
+                  });
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
 
     <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -488,39 +524,77 @@ const SettingsProfilePage = () => {
           )}
         </div>
 
-        {/* New Country Field */}
-        <div>
-          <label className="label">
-            <span className="label-text">País</span>
-          </label>
-          <input
-            type="text"
-            value={formData.country}
-            onChange={(e) => {
-              setFormData(prev => ({...prev, country: e.target.value}));
-              setErrors(prev => ({...prev, country: ""}));
-            }}
-            className="input input-bordered w-full"
-            placeholder="Seu país"
-          />
-        </div>
+           {/* Country Dropdown */}
+           <div>
+                <label className="label">
+                  <span className="label-text">País</span>
+                </label>
+                <select
+                  value={formData.country}
+                  onChange={(e) => {
+                    setFormData(prev => ({
+                      ...prev, 
+                      country: e.target.value,
+                      city: "" // Reset city when country changes
+                    }));
+                    setErrors(prev => ({...prev, country: ""}));
+                  }}
+                  className={`select select-bordered w-full ${errors.country ? 'select-error' : ''}`}
+                >
+                  <option value="">Selecione um País</option>
+                  {countriesList.map(country => (
+                    <option key={country.code} value={country.name}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.country && (
+                  <span className="text-error text-sm mt-1">{errors.country}</span>
+                )}
+              </div>
 
-        {/* New City Field */}
-        <div>
-          <label className="label">
-            <span className="label-text">Cidade</span>
-          </label>
-          <input
-            type="text"
-            value={formData.city}
-            onChange={(e) => {
-              setFormData(prev => ({...prev, city: e.target.value}));
-              setErrors(prev => ({...prev, city: ""}));
-            }}
-            className="input input-bordered w-full"
-            placeholder="Sua cidade"
-          />
-        </div>
+              {/* City Dropdown (Dynamic based on Country) */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Cidade</span>
+                </label>
+                {formData.country ? (
+                  <select
+                    value={formData.city}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev, 
+                        city: e.target.value
+                      }));
+                      setErrors(prev => ({...prev, city: ""}));
+                    }}
+                    className={`select select-bordered w-full ${errors.city ? 'select-error' : ''}`}
+                    disabled={!formData.country}
+                  >
+                    <option value="">Selecione uma Cidade</option>
+                    {citiesList.map(city => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, city: e.target.value}));
+                      setErrors(prev => ({...prev, city: ""}));
+                    }}
+                    className="input input-bordered w-full"
+                    placeholder="Selecione um país primeiro"
+                    disabled
+                  />
+                )}
+                {errors.city && (
+                  <span className="text-error text-sm mt-1">{errors.city}</span>
+                )}
+              </div>
 
         <div className="flex justify-end gap-2 mt-6">
           <button
@@ -550,7 +624,7 @@ const SettingsProfilePage = () => {
            {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
                   </div>
-                </form>
+                  </form>
               </div>
             </div>
           )}
