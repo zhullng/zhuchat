@@ -1,9 +1,20 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit2, ShieldCheck, Clock, Shield } from "lucide-react";
+import { 
+  Camera, 
+  Mail, 
+  User, 
+  Edit2, 
+  ShieldCheck, 
+  Clock, 
+  Shield,
+  ArrowLeft // Add this import
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 const SettingsProfilePage = () => {
+  const navigate = useNavigate(); // Add this line
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
