@@ -19,9 +19,7 @@ const WalletPage = () => {
     fetchWalletData 
   } = useWalletStore();
 
-  // Buscar dados da carteira ao montar o componente
   useEffect(() => {
-    // Função para carregar os dados
     const loadWalletData = async () => {
       try {
         await fetchWalletData();
@@ -41,57 +39,54 @@ const WalletPage = () => {
     { id: 3, label: 'Transações', icon: <Receipt className="size-4" /> },
   ];
 
-  // Log para depuração
-  console.log('Saldo atual:', balance);
-
   return (
-    <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
-      <div className="flex items-center mb-6">
-        <Wallet className="size-6 mr-2" />
-        <h1 className="text-2xl font-bold">Minha Carteira</h1>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Cartão de saldo */}
-        <div className="md:col-span-1">
-          <BalanceCard 
-            balance={balance} 
-            userName={authUser?.fullName || authUser?.username || 'Utilizador'} 
-            isLoading={isLoading} 
-          />
+    <div className="flex min-h-screen pt-16 sm:pt-0">
+      <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
+        <div className="flex items-center mb-6">
+          <Wallet className="size-6 mr-2" />
+          <h1 className="text-2xl font-bold">Minha Carteira</h1>
         </div>
 
-        {/* Painel de operações */}
-        <div className="md:col-span-2">
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body">
-              {/* Tabs */}
-              <div className="tabs tabs-boxed mb-4">
-                {tabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    className={`tab gap-1 ${activeTab === tab.id ? 'tab-active' : ''}`}
-                    onClick={() => setActiveTab(tab.id)}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1 order-1 lg:order-none">
+            <BalanceCard 
+              balance={balance} 
+              userName={authUser?.fullName || authUser?.username || 'Utilizador'} 
+              isLoading={isLoading} 
+            />
+          </div>
 
-              {/* Conteúdo das tabs */}
-              <div className="p-2">
-                {activeTab === 0 && <DepositTab refreshData={fetchWalletData} />}
-                {activeTab === 1 && <WithdrawTab refreshData={fetchWalletData} balance={balance} />}
-                {activeTab === 2 && <TransferTab refreshData={fetchWalletData} balance={balance} />}
-                {activeTab === 3 && (
-                  <TransactionsTab 
-                    transactions={transactions} 
-                    transfers={transfers} 
-                    userId={authUser?._id} 
-                    isLoading={isLoading} 
-                  />
-                )}
+          <div className="lg:col-span-2 order-2 lg:order-none">
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body">
+                <div className="overflow-x-auto mb-4">
+                  <div className="tabs tabs-boxed flex">
+                    {tabs.map(tab => (
+                      <button
+                        key={tab.id}
+                        className={`flex-1 tab gap-1 ${activeTab === tab.id ? 'tab-active' : ''}`}
+                        onClick={() => setActiveTab(tab.id)}
+                      >
+                        {tab.icon}
+                        <span className="hidden sm:inline">{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-2">
+                  {activeTab === 0 && <DepositTab refreshData={fetchWalletData} />}
+                  {activeTab === 1 && <WithdrawTab refreshData={fetchWalletData} balance={balance} />}
+                  {activeTab === 2 && <TransferTab refreshData={fetchWalletData} balance={balance} />}
+                  {activeTab === 3 && (
+                    <TransactionsTab 
+                      transactions={transactions} 
+                      transfers={transfers} 
+                      userId={authUser?._id} 
+                      isLoading={isLoading} 
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
