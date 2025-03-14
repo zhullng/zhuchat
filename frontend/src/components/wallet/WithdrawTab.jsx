@@ -1,22 +1,15 @@
 import { useState } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
-import { ArrowUpCircle, Wallet, Building, User } from 'lucide-react';
+import { ArrowUpCircle, Wallet } from 'lucide-react';
 import CardDetailsForm from '../CardDetailsForm';
 
 const WithdrawTab = ({ refreshData, balance }) => {
-  const [withdrawMethod, setWithdrawMethod] = useState('card');
   const [amount, setAmount] = useState('');
   const [cardDetails, setCardDetails] = useState({
     number: '',
     expiry: '',
     cvc: '',
     name: ''
-  });
-  const [withdrawDetails, setWithdrawDetails] = useState({
-    accountNumber: '',
-    accountName: '',
-    bankName: '',
-    swiftCode: ''
   });
   const [errors, setErrors] = useState({});
   
@@ -83,58 +76,15 @@ const WithdrawTab = ({ refreshData, balance }) => {
     return valid;
   };
 
-  const validateWithdrawDetails = () => {
-    let valid = true;
-    const newErrors = { ...errors };
-    
-    if (withdrawMethod === 'bank_transfer') {
-      if (!withdrawDetails.accountNumber || withdrawDetails.accountNumber.trim() === '') {
-        newErrors.accountNumber = 'Número de conta obrigatório';
-        valid = false;
-      } else {
-        delete newErrors.accountNumber;
-      }
-      
-      if (!withdrawDetails.accountName || withdrawDetails.accountName.trim() === '') {
-        newErrors.accountName = 'Nome do titular obrigatório';
-        valid = false;
-      } else {
-        delete newErrors.accountName;
-      }
-      
-      if (!withdrawDetails.bankName || withdrawDetails.bankName.trim() === '') {
-        newErrors.bankName = 'Nome do banco obrigatório';
-        valid = false;
-      } else {
-        delete newErrors.bankName;
-      }
-    }
-    
-    setErrors(newErrors);
-    return valid;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateAmount()) {
+    if (!validateAmount() || !validateCardDetails()) {
       return;
     }
     
     try {
-      if (withdrawMethod === 'card') {
-        if (!validateCardDetails()) {
-          return;
-        }
-        
-        await withdraw(parseFloat(amount), 'card', cardDetails);
-      } else {
-        if (!validateWithdrawDetails()) {
-          return;
-        }
-        
-        await withdraw(parseFloat(amount), withdrawMethod, withdrawDetails);
-      }
+      await withdraw(parseFloat(amount), 'card', cardDetails);
       
       resetForm();
       if (refreshData) refreshData();
@@ -151,12 +101,6 @@ const WithdrawTab = ({ refreshData, balance }) => {
       cvc: '',
       name: ''
     });
-    setWithdrawDetails({
-      accountNumber: '',
-      accountName: '',
-      bankName: '',
-      swiftCode: ''
-    });
     setErrors({});
   };
 
@@ -167,20 +111,6 @@ const WithdrawTab = ({ refreshData, balance }) => {
           <Wallet className="size-5 mr-2" />
           <p>Saldo disponível: <strong>{formatCurrency(balance)}</strong></p>
         </div>
-      </div>
-      
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text">Método de Levantamento</span>
-        </label>
-        <select 
-          className="select select-bordered w-full" 
-          value={withdrawMethod}
-          onChange={(e) => setWithdrawMethod(e.target.value)}
-        >
-          <option value="card">Cartão</option>
-          <option value="bank_transfer">Transferência Bancária</option>
-        </select>
       </div>
       
       <div className="form-control">
@@ -199,85 +129,11 @@ const WithdrawTab = ({ refreshData, balance }) => {
         {errors.amount && <span className="text-error text-sm mt-1">{errors.amount}</span>}
       </div>
       
-      {withdrawMethod === 'card' ? (
-        <CardDetailsForm 
-          cardDetails={cardDetails}
-          setCardDetails={setCardDetails}
-          errors={errors}
-        />
-      ) : (
-        <div className="space-y-4">
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Número de Conta</span>
-            </label>
-            <div className="input-group">
-              <span>
-                <Building className="size-5" />
-              </span>
-              <input
-                type="text"
-                className={`input input-bordered w-full ${errors.accountNumber ? 'input-error' : ''}`}
-                placeholder="Número de Conta / IBAN"
-                value={withdrawDetails.accountNumber}
-                onChange={(e) => setWithdrawDetails({...withdrawDetails, accountNumber: e.target.value})}
-              />
-            </div>
-            {errors.accountNumber && <span className="text-error text-sm mt-1">{errors.accountNumber}</span>}
-          </div>
-          
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Nome do Titular</span>
-            </label>
-            <div className="input-group">
-              <span>
-                <User className="size-5" />
-              </span>
-              <input
-                type="text"
-                className={`input input-bordered w-full ${errors.accountName ? 'input-error' : ''}`}
-                placeholder="Nome do Titular"
-                value={withdrawDetails.accountName}
-                onChange={(e) => setWithdrawDetails({...withdrawDetails, accountName: e.target.value})}
-              />
-            </div>
-            {errors.accountName && <span className="text-error text-sm mt-1">{errors.accountName}</span>}
-          </div>
-          
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Banco</span>
-            </label>
-            <div className="input-group">
-              <span>
-                <Building className="size-5" />
-              </span>
-              <input
-                type="text"
-                className={`input input-bordered w-full ${errors.bankName ? 'input-error' : ''}`}
-                placeholder="Nome do Banco"
-                value={withdrawDetails.bankName}
-                onChange={(e) => setWithdrawDetails({...withdrawDetails, bankName: e.target.value})}
-              />
-            </div>
-            {errors.bankName && <span className="text-error text-sm mt-1">{errors.bankName}</span>}
-          </div>
-          
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Código SWIFT/BIC (opcional)</span>
-            </label>
-            <input
-              type="text"
-              className="input input-bordered w-full"
-              placeholder="Código SWIFT/BIC"
-              value={withdrawDetails.swiftCode}
-              onChange={(e) => setWithdrawDetails({...withdrawDetails, swiftCode: e.target.value})}
-            />
-          </div>
-        </div>
-      )}
+      <CardDetailsForm 
+        cardDetails={cardDetails}
+        setCardDetails={setCardDetails}
+        errors={errors}
+      />
       
       <button
         type="submit"

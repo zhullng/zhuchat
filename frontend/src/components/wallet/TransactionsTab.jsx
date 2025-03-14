@@ -14,33 +14,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       transactionsType: typeof transactions,
       transactionsLength: transactions ? transactions.length : 'N/A'
     });
-
-    // Log de conteúdo detalhado
-    if (transactions && transactions.length > 0) {
-      transactions.forEach((tx, index) => {
-        console.log(`Transaction ${index} DETAILS:`, {
-          _id: tx._id,
-          type: tx.type,
-          method: tx.method,
-          amount: tx.amount,
-          status: tx.status,
-          fullObject: JSON.stringify(tx)
-        });
-      });
-    }
-
-    if (transfers && transfers.length > 0) {
-      transfers.forEach((transfer, index) => {
-        console.log(`Transfer ${index} DETAILS:`, {
-          _id: transfer._id,
-          sender: transfer.sender?._id,
-          receiver: transfer.receiver?._id,
-          amount: transfer.amount,
-          status: transfer.status,
-          fullObject: JSON.stringify(transfer)
-        });
-      });
-    }
   }, [transactions, transfers, userId, isLoading]);
 
   const formatDate = (dateString) => {
@@ -117,13 +90,13 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
 
   const renderTransactions = () => {
     console.log('Rendering Transactions - Count:', Array.isArray(transactions) ? transactions.length : 'Not an array');
-  
+
     if (isLoading) {
       return renderSkeletons(3);
     }
-  
+
     const safeTransactions = Array.isArray(transactions) ? transactions : [];
-  
+
     if (safeTransactions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
@@ -172,17 +145,15 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     ));
   };
 
-  // Renderizar transferências
- 
-const renderTransfers = () => {
+  const renderTransfers = () => {
     console.log('Rendering Transfers - Count:', Array.isArray(transfers) ? transfers.length : 'Not an array');
-  
+
     if (isLoading) {
       return renderSkeletons(3);
     }
-  
+
     const safeTransfers = Array.isArray(transfers) ? transfers : [];
-  
+
     if (safeTransfers.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
@@ -191,7 +162,7 @@ const renderTransfers = () => {
         </div>
       );
     }
-  
+
     return safeTransfers.map((transfer) => {
       const isSender = transfer.sender._id === userId;
       
@@ -230,20 +201,20 @@ const renderTransfers = () => {
 
   const renderAllItems = () => {
     console.log('Rendering ALL ITEMS');
-  
+
     if (isLoading) {
       return renderSkeletons(5);
     }
-  
+
     // Garantir que transactions e transfers sejam arrays, mesmo se undefined
     const safeTransactions = Array.isArray(transactions) ? transactions : [];
     const safeTransfers = Array.isArray(transfers) ? transfers : [];
-  
+
     const combinedItems = [
       ...safeTransactions.map(t => ({ ...t, itemType: 'transaction' })),
       ...safeTransfers.map(t => ({ ...t, itemType: 'transfer' }))
     ];
-  
+
     if (combinedItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
@@ -256,9 +227,7 @@ const renderTransfers = () => {
     // Ordenar por data
     const sortedItems = combinedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    return sortedItems.map((item, index) => {
-      console.log(`Rendering item ${index}:`, item);
-      
+    return sortedItems.map((item) => {
       if (item.itemType === 'transaction') {
         return (
           <div key={`transaction-${item._id}`} className="flex items-center p-4 border-b border-base-300">

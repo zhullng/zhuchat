@@ -80,15 +80,15 @@ const WalletPage = () => {
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
                 <div className="overflow-x-auto mb-4">
-                  <div className="tabs tabs-boxed flex">
+                  <div className="tabs tabs-boxed flex w-full">
                     {tabs.map(tab => (
                       <div 
                         key={tab.id} 
-                        className="tooltip" 
+                        className="tooltip flex-1" 
                         data-tip={tab.tooltip}
                       >
                         <button
-                          className={`tab flex-1 gap-2 ${activeTab === tab.id ? 'tab-active' : ''}`}
+                          className={`tab w-full flex-1 gap-2 ${activeTab === tab.id ? 'tab-active' : ''}`}
                           onClick={() => setActiveTab(tab.id)}
                         >
                           {tab.icon}
