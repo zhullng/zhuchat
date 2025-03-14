@@ -79,14 +79,15 @@ const ProfilePage = () => {
     setIsSubmitting(true);
 
     try {
-      // Criar objeto apenas com campos que foram modificados
+      // Preparar dados para atualização
       const updatedFields = {};
       
-      if (formData.fullName !== authUser.fullName) {
+      // Verificar e incluir apenas campos que foram modificados
+      if (formData.fullName?.trim() !== authUser.fullName) {
         updatedFields.fullName = formData.fullName.trim();
       }
       
-      if (formData.email !== authUser.email) {
+      if (formData.email?.trim() !== authUser.email) {
         updatedFields.email = formData.email.trim();
       }
       
@@ -94,20 +95,19 @@ const ProfilePage = () => {
         updatedFields.gender = formData.gender;
       }
 
-      // Se não houver alterações, apenas fechar o modal
+      // Se não houver alterações, fechar o modal
       if (Object.keys(updatedFields).length === 0) {
+        toast.info("Nenhuma alteração detectada");
         setIsModalOpen(false);
         return;
       }
 
+      // Fazer a atualização em uma única chamada
       const result = await updateProfile(updatedFields);
-      
-      if (result?.error) {
-        throw new Error(result.error);
-      }
 
       if (result?.errors) {
         setErrors(result.errors);
+        Object.values(result.errors).forEach(error => toast.error(error));
         return;
       }
 
@@ -117,7 +117,7 @@ const ProfilePage = () => {
 
     } catch (error) {
       console.error("Erro na atualização:", error);
-      toast.error(error.message || "Erro ao atualizar perfil");
+      toast.error("Erro ao atualizar perfil. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -173,6 +173,7 @@ const ProfilePage = () => {
                 </div>
               </div>
             </div>
+
             <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
               <div className="flex items-center gap-3">
                 <Mail className="size-5 text-primary" />
@@ -182,6 +183,7 @@ const ProfilePage = () => {
                 </div>
               </div>
             </div>
+
             <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
               <div className="flex items-center gap-3">
                 <User className="size-5 text-primary" />
@@ -238,7 +240,23 @@ const ProfilePage = () => {
           {isModalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 className="text-lg font-semibold mb-4">Editar Perfil</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Editar Perfil</h3>
+                  <button
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setErrors({});
+                      setFormData({
+                        fullName: authUser.fullName || "",
+                        email: authUser.email || "",
+                        gender: authUser.gender || ""
+                      });
+                    }}
+                    className="btn btn-ghost btn-sm btn-circle"
+                  >
+                    ✕
+                  </button>
+                </div>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -299,12 +317,6 @@ const ProfilePage = () => {
                       <span className="text-error text-sm mt-1">{errors.gender}</span>
                     )}
                   </div>
-
-                  {errors.submit && (
-                    <div className="alert alert-error">
-                      <span>{errors.submit}</span>
-                    </div>
-                  )}
 
                   <div className="flex justify-end gap-2 mt-6">
                     <button
