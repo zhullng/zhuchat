@@ -99,7 +99,7 @@ const WalletPage = () => {
                   </div>
                 </div>
 
-                <div className="p-2 max-h-[70vh] overflow-y-auto">
+                <div className="p-1 max-h-[70vh] overflow-y-auto">
                   {activeTab === 0 && <DepositTab refreshData={fetchWalletData} />}
                   {activeTab === 1 && <WithdrawTab refreshData={fetchWalletData} balance={balance} />}
                   {activeTab === 2 && <TransferTab refreshData={fetchWalletData} balance={balance} />}
