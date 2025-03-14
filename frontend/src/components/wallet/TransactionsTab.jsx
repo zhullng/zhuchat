@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Receipt, CreditCard, Building, Wallet, AlertCircle } from 'lucide-react';
 
 const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   const [activeSubTab, setActiveSubTab] = useState(0);
+
+  // Debug para verificar os dados recebidos
+  useEffect(() => {
+    console.log('TransactionsTab - Props:', {
+      transactionsCount: transactions?.length,
+      transfersCount: transfers?.length,
+      userId,
+      isLoading
+    });
+  }, [transactions, transfers, userId, isLoading]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -82,6 +92,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     }
 
     const safeTransactions = Array.isArray(transactions) ? transactions : [];
+    console.log('Rendering transactions:', safeTransactions.length);
 
     if (safeTransactions.length === 0) {
       return (
@@ -137,6 +148,7 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     }
 
     const safeTransfers = Array.isArray(transfers) ? transfers : [];
+    console.log('Rendering transfers:', safeTransfers.length);
 
     if (safeTransfers.length === 0) {
       return (
