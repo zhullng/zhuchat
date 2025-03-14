@@ -159,38 +159,104 @@ export const updateProfile = async (req, res) => {
     const updates = req.body;
     const errors = {};
 
-    // Verifica se o email já está em uso
-    if (updates.email) {
-      const emailExists = await User.findOne({
-        email: updates.email,
-        _id: { $ne: userId }, // Verifica se o email pertence a outro user
-      });
-      if (emailExists) {
-        errors.email = "Email já está em uso";
+    console.log("Atualizando perfil - Dados recebidos:", updates);
+
+    // Validação dos campos
+    if (updates.fullName !== undefined) {
+      if (!updates.fullName.trim()) {
+        errors.fullName = "Nome é obrigatório";
+      } else if (updates.fullName.trim().length < 3) {
+        errors.fullName = "Nome deve ter no mínimo 3 caracteres";
       }
     }
 
-    // Impede que a senha seja atualizada diretamente sem hash
-    if (updates.password) {
-      return res.status(400).json({ message: "Password cannot be updated this way" });
+    if (updates.email !== undefined) {
+      if (!updates.email.trim()) {
+        errors.email = "Email é obrigatório";
+      } else if (!/\S+@\S+\.\S+/.test(updates.email)) {
+        errors.email = "Formato de email inválido";
+      } else {
+        // Verifica se o email já está em uso
+        const emailExists = await User.findOne({
+          email: updates.email.trim().toLowerCase(),
+          _id: { $ne: userId }
+        });
+        if (emailExists) {
+          errors.email = "Email já está em uso";
+        }
+      }
     }
 
+    if (updates.gender !== undefined) {
+      if (updates.gender && !["masculino", "feminino"].includes(updates.gender)) {
+        errors.gender = "Gênero inválido";
+      }
+    }
+
+    // Impede atualização de campos não permitidos
+    const allowedUpdates = ['fullName', 'email', 'gender', 'profilePic'];
+    const receivedUpdates = Object.keys(updates);
+    const invalidUpdates = receivedUpdates.filter(key => !allowedUpdates.includes(key));
+
+    if (invalidUpdates.length > 0) {
+      console.log("Tentativa de atualização de campos não permitidos:", invalidUpdates);
+      return res.status(400).json({ 
+        message: `Campos não permitidos: ${invalidUpdates.join(', ')}` 
+      });
+    }
+
+    // Retorna erros de validação se houver
     if (Object.keys(errors).length > 0) {
+      console.log("Erros de validação:", errors);
       return res.status(400).json({ errors });
     }
 
-    // Atualiza os dados do user
+    // Limpa e prepara os dados para atualização
+    const cleanUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'string') {
+          const trimmedValue = value.trim();
+          if (trimmedValue !== '') {
+            acc[key] = key === 'email' ? trimmedValue.toLowerCase() : trimmedValue;
+          }
+        } else {
+          acc[key] = value;
+        }
+      }
+      return acc;
+    }, {});
+
+    console.log("Dados limpos para atualização:", cleanUpdates);
+
+    if (Object.keys(cleanUpdates).length === 0) {
+      return res.status(400).json({ message: "Nenhum dado válido para atualização" });
+    }
+
+    // Atualiza os dados do usuário
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      updates,
-      { new: true, runValidators: true } // `runValidators` garante que regras do modelo sejam respeitadas
-    ).select('-password');
+      { $set: cleanUpdates },
+      { 
+        new: true, 
+        runValidators: true,
+        select: '-password'
+      }
+    );
 
+    if (!updatedUser) {
+      console.log("Usuário não encontrado para atualização:", userId);
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    console.log("Perfil atualizado com sucesso:", updatedUser);
     res.status(200).json(updatedUser);
 
   } catch (error) {
-    console.error("Error updating profile:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Erro na atualização do perfil:", error);
+    res.status(500).json({ 
+      message: "Erro ao atualizar perfil",
+      error: error.message 
+    });
   }
 };
 

@@ -15,6 +15,7 @@ const ProfilePage = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Inicializar os dados do formulário quando o usuário estiver disponível
   useEffect(() => {
     if (authUser) {
       setFormData({
@@ -37,17 +38,16 @@ const ProfilePage = () => {
         const base64Image = reader.result;
         setSelectedImg(base64Image);
         
-        toast.promise(
-          updateProfile({ profilePic: base64Image }),
-          {
-            loading: 'Atualizando foto...',
-            success: 'Foto atualizada com sucesso!',
-            error: 'Erro ao atualizar foto'
-          }
-        );
+        try {
+          await updateProfile({ profilePic: base64Image });
+          toast.success('Foto atualizada com sucesso!');
+        } catch (error) {
+          console.error('Erro ao atualizar foto:', error);
+          toast.error('Erro ao atualizar foto');
+        }
       };
     } catch (error) {
-      console.error("Erro no upload da imagem:", error);
+      console.error("Erro ao processar imagem:", error);
       toast.error("Erro ao processar a imagem");
     }
   };
@@ -55,14 +55,23 @@ const ProfilePage = () => {
   const validateForm = () => {
     const newErrors = {};
 
+    // Validação do nome
     if (!formData.fullName?.trim()) {
       newErrors.fullName = "Nome é obrigatório";
+    } else if (formData.fullName.trim().length < 3) {
+      newErrors.fullName = "Nome deve ter no mínimo 3 caracteres";
     }
 
+    // Validação do email
     if (!formData.email?.trim()) {
       newErrors.email = "Email é obrigatório";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email inválido";
+    }
+
+    // Validação do gênero
+    if (formData.gender && !["masculino", "feminino"].includes(formData.gender)) {
+      newErrors.gender = "Gênero inválido";
     }
 
     setErrors(newErrors);
@@ -79,35 +88,31 @@ const ProfilePage = () => {
     setIsSubmitting(true);
 
     try {
-      // Preparar dados para atualização
-      const updatedFields = {};
-      
-      // Verificar e incluir apenas campos que foram modificados
-      if (formData.fullName?.trim() !== authUser.fullName) {
-        updatedFields.fullName = formData.fullName.trim();
-      }
-      
-      if (formData.email?.trim() !== authUser.email) {
-        updatedFields.email = formData.email.trim();
-      }
-      
-      if (formData.gender !== authUser.gender) {
-        updatedFields.gender = formData.gender;
-      }
+      // Preparar dados para atualização (remover espaços e campos não alterados)
+      const updatedFields = Object.entries(formData).reduce((acc, [key, value]) => {
+        const trimmedValue = value?.trim?.() ?? value;
+        if (trimmedValue !== authUser[key]) {
+          acc[key] = trimmedValue;
+        }
+        return acc;
+      }, {});
 
-      // Se não houver alterações, fechar o modal
+      // Se não houver alterações
       if (Object.keys(updatedFields).length === 0) {
         toast.info("Nenhuma alteração detectada");
         setIsModalOpen(false);
         return;
       }
 
-      // Fazer a atualização em uma única chamada
+      console.log('Enviando dados para atualização:', updatedFields);
+
       const result = await updateProfile(updatedFields);
 
       if (result?.errors) {
         setErrors(result.errors);
-        Object.values(result.errors).forEach(error => toast.error(error));
+        Object.values(result.errors).forEach(error => 
+          toast.error(error)
+        );
         return;
       }
 
@@ -117,7 +122,8 @@ const ProfilePage = () => {
 
     } catch (error) {
       console.error("Erro na atualização:", error);
-      toast.error("Erro ao atualizar perfil. Tente novamente.");
+      const errorMessage = error.response?.data?.message || "Erro ao atualizar perfil";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
