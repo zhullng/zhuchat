@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Mail, User, Edit2, ShieldCheck, Clock, Shield, Phone, MapPin } from "lucide-react";
+import { Camera, Mail, User, Edit2, ShieldCheck, Clock, Shield } from "lucide-react";
 import toast from "react-hot-toast";
-import { countries } from 'countries-list';
-import cities from 'cities-list';
 
 const SettingsProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
@@ -12,59 +10,33 @@ const SettingsProfilePage = () => {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    gender: "",
-    phone: "",
-    country: "",
-    city: ""
+    gender: ""
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Prepare countries list
-  const countriesList = useMemo(() => {
-    return Object.entries(countries)
-      .map(([code, country]) => ({
-        code,
-        name: country.name
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, []);
-
-  // Prepare cities list based on selected country
-  const citiesList = useMemo(() => {
-    if (!formData.country) return [];
-    
-    return Object.keys(cities)
-      .filter(city => 
-        city.toLowerCase().includes(formData.country.toLowerCase())
-      )
-      .sort();
-  }, [formData.country]);
-
-  // Initialize form data when user is available
+  // Inicializar os dados do formulário quando o User estiver disponível
   useEffect(() => {
     if (authUser) {
       setFormData({
         fullName: authUser.fullName || "",
         email: authUser.email || "",
-        gender: authUser.gender || "",
-        phone: authUser.phone || "",
-        country: authUser.country || "",
-        city: authUser.city || ""
+        gender: authUser.gender || ""
       });
     }
   }, [authUser]);
 
-  // Previous image upload and compression logic remains the same...
   const validateImage = (file) => {
-    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    // Aumentando para 50MB para permitir imagens de alta qualidade
+    const maxSize = 50 * 1024 * 1024; // 50MB em bytes
     
+    // Formatos permitidos - incluindo formatos de alta qualidade
     const allowedTypes = [
       'image/jpeg', 
       'image/png', 
       'image/webp',
-      'image/heic', 
-      'image/heif'
+      'image/heic', // Formato HEIC da Apple
+      'image/heif'  // Formato HEIF de alta eficiência
     ];
     
     if (!allowedTypes.includes(file.type)) {
@@ -173,50 +145,28 @@ const SettingsProfilePage = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate full name
+    // Validação do nome
     if (!formData.fullName?.trim()) {
       newErrors.fullName = "Nome é obrigatório";
     } else if (formData.fullName.trim().length < 3) {
       newErrors.fullName = "Nome deve ter no mínimo 3 caracteres";
     }
 
-    // Validate email
+    // Validação do email
     if (!formData.email?.trim()) {
       newErrors.email = "Email é obrigatório";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email inválido";
     }
 
-    // Validate phone (optional, but if provided must be valid)
-    if (formData.phone?.trim()) {
-      const phoneRegex = /^(\+|00)?[1-9]\d{1,14}$/;
-      const cleanedPhone = formData.phone.replace(/[\s-().]/g, '');
-      if (!phoneRegex.test(cleanedPhone)) {
-        newErrors.phone = "Número de telefone inválido";
-      }
-    }
-
-    // Validate gender
-    if (formData.gender && !["masculino", "feminino", "outro", "prefiro não dizer"].includes(formData.gender)) {
-      newErrors.gender = "Género inválido";
-    }
-
-    // Optional country validation
-    if (formData.country && !countriesList.some(c => c.name === formData.country)) {
-        newErrors.country = "País inválido";
-    }
-
-    // Optional city validation
-    if (formData.city && formData.country) {
-        const validCities = citiesList;
-        if (!validCities.includes(formData.city)) {
-        newErrors.city = "Cidade inválida para o país selecionado";
-        }
+    // Validação do gênero
+    if (formData.gender && !["masculino", "feminino"].includes(formData.gender)) {
+      newErrors.gender = "Gênero inválido";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-    };
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -228,7 +178,7 @@ const SettingsProfilePage = () => {
     setIsSubmitting(true);
 
     try {
-      // Prepare data for update (remove spaces and unchanged fields)
+      // Preparar dados para atualização (remover espaços e campos não alterados)
       const updatedFields = Object.entries(formData).reduce((acc, [key, value]) => {
         const trimmedValue = value?.trim?.() ?? value;
         if (trimmedValue !== authUser[key]) {
@@ -237,7 +187,7 @@ const SettingsProfilePage = () => {
         return acc;
       }, {});
 
-      // If no changes
+      // Se não houver alterações
       if (Object.keys(updatedFields).length === 0) {
         toast.info("Nenhuma alteração detectada");
         setIsModalOpen(false);
@@ -278,9 +228,9 @@ const SettingsProfilePage = () => {
             <p className="mt-2 text-base-content/70">Suas informações de perfil</p>
           </div>
 
-          {/* Profile Image Section (remains the same) */}
+          {/* Seção da imagem de perfil */}
           <div className="flex flex-col items-center gap-4 mb-8">
-            <div className="relative w-32 h-32">
+            <div className="relative w-32 h-32"> {/* Define tamanho fixo para o container */}
               <img
                 src={selectedImg || authUser?.profilePic || "/avatar.png"}
                 alt="Profile"
@@ -307,12 +257,13 @@ const SettingsProfilePage = () => {
                 />
               </label>
             </div>
+            {/* Texto movido para fora do container relativo */}
             <p className="text-xs text-base-content/70 text-center">
               Clique para alterar foto (Máx: 50MB)
             </p>
           </div>
 
-          {/* Profile Information */}
+          {/* Informações do Perfil */}
           <div className="space-y-4 mb-8">
             <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
               <div className="flex items-center gap-3">
@@ -343,42 +294,9 @@ const SettingsProfilePage = () => {
                 </div>
               </div>
             </div>
-
-            {/* New Phone Section */}
-            <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
-              <div className="flex items-center gap-3">
-                <Phone className="size-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Telemóvel</p>
-                  <p className="text-base-content/70">{authUser?.phone || "Não especificado"}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* New Country Section */}
-            <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
-              <div className="flex items-center gap-3">
-                <MapPin className="size-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">País</p>
-                  <p className="text-base-content/70">{authUser?.country || "Não especificado"}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* New City Section */}
-            <div className="flex items-center justify-between p-4 bg-base-300 rounded-lg">
-              <div className="flex items-center gap-3">
-                <MapPin className="size-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Cidade</p>
-                  <p className="text-base-content/70">{authUser?.city || "Não especificado"}</p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Account Information Section (remains the same) */}
+          {/* Seção de informações da conta */}
           <div className="bg-base-300 rounded-lg p-4 mb-8">
             <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
               <Shield className="size-5 text-primary" />
@@ -408,7 +326,7 @@ const SettingsProfilePage = () => {
             </div>
           </div>
 
-          {/* Edit Profile Button */}
+          {/* Botão de Editar */}
           <div className="flex justify-center">
             <button
               onClick={() => setIsModalOpen(true)}
@@ -419,212 +337,114 @@ const SettingsProfilePage = () => {
             </button>
           </div>
 
-    {/* Edit Profile Modal */}
-    {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Editar Perfil</h3>
-              <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setErrors({});
-                  setFormData({
-                    fullName: authUser.fullName || "",
-                    email: authUser.email || "",
-                    gender: authUser.gender || "",
-                    phone: authUser.phone || "",
-                    country: authUser.country || "",
-                    city: authUser.city || ""
-                  });
-                }}
-                className="btn btn-ghost btn-sm btn-circle"
-              >
-                ✕
-              </button>
-            </div>
-
-    <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-        <label className="label">
-            <span className="label-text">Nome Completo</span>
-        </label>
-        <input
-            type="text"
-            value={formData.fullName}
-            onChange={(e) => {
-            setFormData(prev => ({...prev, fullName: e.target.value}));
-            setErrors(prev => ({...prev, fullName: ""}));
-            }}
-            className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`}
-            placeholder="Seu nome completo"
-        />
-        {errors.fullName && (
-            <span className="text-error text-sm mt-1">{errors.fullName}</span>
-        )}
-        </div>
-
-        <div>
-        <label className="label">
-            <span className="label-text">Email</span>
-        </label>
-        <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => {
-            setFormData(prev => ({...prev, email: e.target.value}));
-            setErrors(prev => ({...prev, email: ""}));
-            }}
-            className={`input input-bordered w-full ${errors.email ? 'input-error' : ''}`}
-            placeholder="seu.email@exemplo.com"
-        />
-        {errors.email && (
-            <span className="text-error text-sm mt-1">{errors.email}</span>
-        )}
-        </div>
-
-        <div>
-        <label className="label">
-            <span className="label-text">Género</span>
-        </label>
-        <select
-            value={formData.gender}
-            onChange={(e) => {
-            setFormData(prev => ({...prev, gender: e.target.value}));
-            setErrors(prev => ({...prev, gender: ""}));
-            }}
-            className={`select select-bordered w-full ${errors.gender ? 'select-error' : ''}`}
-        >
-            <option value="">Não especificado</option>
-            <option value="masculino">Masculino</option>
-            <option value="feminino">Feminino</option>
-        </select>
-        {errors.gender && (
-            <span className="text-error text-sm mt-1">{errors.gender}</span>
-        )}
-        </div>
-
-        {/* New Phone Field */}
-        <div>
-          <label className="label">
-            <span className="label-text">Telemóvel</span>
-          </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => {
-              setFormData(prev => ({...prev, phone: e.target.value}));
-              setErrors(prev => ({...prev, phone: ""}));
-            }}
-            className={`input input-bordered w-full ${errors.phone ? 'input-error' : ''}`}
-            placeholder="Seu número de telefone"
-          />
-          {errors.phone && (
-            <span className="text-error text-sm mt-1">{errors.phone}</span>
-          )}
-        </div>
-
-           {/* Country Dropdown */}
-           <div>
-                <label className="label">
-                  <span className="label-text">País</span>
-                </label>
-                <select
-                  value={formData.country}
-                  onChange={(e) => {
-                    setFormData(prev => ({
-                      ...prev, 
-                      country: e.target.value,
-                      city: "" // Reset city when country changes
-                    }));
-                    setErrors(prev => ({...prev, country: ""}));
-                  }}
-                  className={`select select-bordered w-full ${errors.country ? 'select-error' : ''}`}
-                >
-                  <option value="">Selecione um País</option>
-                  {countriesList.map(country => (
-                    <option key={country.code} value={country.name}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.country && (
-                  <span className="text-error text-sm mt-1">{errors.country}</span>
-                )}
-              </div>
-
-              {/* City Dropdown (Dynamic based on Country) */}
-              <div>
-                <label className="label">
-                  <span className="label-text">Cidade</span>
-                </label>
-                {formData.country ? (
-                  <select
-                    value={formData.city}
-                    onChange={(e) => {
-                      setFormData(prev => ({
-                        ...prev, 
-                        city: e.target.value
-                      }));
-                      setErrors(prev => ({...prev, city: ""}));
+          {/* Modal de Edição */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Editar Perfil</h3>
+                  <button
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setErrors({});
+                      setFormData({
+                        fullName: authUser.fullName || "",
+                        email: authUser.email || "",
+                        gender: authUser.gender || ""
+                      });
                     }}
-                    className={`select select-bordered w-full ${errors.city ? 'select-error' : ''}`}
-                    disabled={!formData.country}
+                    className="btn btn-ghost btn-sm btn-circle"
                   >
-                    <option value="">Selecione uma Cidade</option>
-                    {citiesList.map(city => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => {
-                      setFormData(prev => ({...prev, city: e.target.value}));
-                      setErrors(prev => ({...prev, city: ""}));
-                    }}
-                    className="input input-bordered w-full"
-                    placeholder="Selecione um país primeiro"
-                    disabled
-                  />
-                )}
-                {errors.city && (
-                  <span className="text-error text-sm mt-1">{errors.city}</span>
-                )}
-              </div>
+                    ✕
+                  </button>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Nome Completo</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => {
+                        setFormData(prev => ({...prev, fullName: e.target.value}));
+                        setErrors(prev => ({...prev, fullName: ""}));
+                      }}
+                      className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`}
+                      placeholder="Seu nome completo"
+                    />
+                    {errors.fullName && (
+                      <span className="text-error text-sm mt-1">{errors.fullName}</span>
+                    )}
+                  </div>
 
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            type="button"
-            onClick={() => {
-              setIsModalOpen(false);
-              setErrors({});
-              setFormData({
-                fullName: authUser.fullName || "",
-                email: authUser.email || "",
-                gender: authUser.gender || "",
-                phone: authUser.phone || "",
-                country: authUser.country || "",
-                city: authUser.city || ""
-              });
-            }}
-            className="btn btn-ghost"
-            disabled={isSubmitting}
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isSubmitting}
-          >
-           {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Email</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => {
+                        setFormData(prev => ({...prev, email: e.target.value}));
+                        setErrors(prev => ({...prev, email: ""}));
+                      }}
+                      className={`input input-bordered w-full ${errors.email ? 'input-error' : ''}`}
+                      placeholder="seu.email@exemplo.com"
+                    />
+                    {errors.email && (
+                      <span className="text-error text-sm mt-1">{errors.email}</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Género</span>
+                    </label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => {
+                        setFormData(prev => ({...prev, gender: e.target.value}));
+                        setErrors(prev => ({...prev, gender: ""}));
+                      }}
+                      className={`select select-bordered w-full ${errors.gender ? 'select-error' : ''}`}
+                    >
+                      <option value="">Não especificado</option>
+                      <option value="masculino">Masculino</option>
+                      <option value="feminino">Feminino</option>
+                    </select>
+                    {errors.gender && (
+                      <span className="text-error text-sm mt-1">{errors.gender}</span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setErrors({});
+                        setFormData({
+                          fullName: authUser.fullName || "",
+                          email: authUser.email || "",
+                          gender: authUser.gender || ""
+                        });
+                      }}
+                      className="btn btn-ghost"
+                      disabled={isSubmitting}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
                   </div>
-                  </form>
+                </form>
               </div>
             </div>
           )}
