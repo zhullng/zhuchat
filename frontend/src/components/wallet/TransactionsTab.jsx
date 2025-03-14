@@ -1,20 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Receipt, CreditCard, Building, Wallet, AlertCircle } from 'lucide-react';
 
 const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
-  const [activeSubTab, setActiveSubTab] = useState(0); // 0: Todas, 1: Transações, 2: Transferências
-
-  // Debug para verificar renderização e props
-  useEffect(() => {
-    console.log('TransactionsTab - FULL DEBUG:', {
-      transactions: transactions ? JSON.stringify(transactions) : 'No transactions',
-      transfersCount: transfers ? transfers.length : 'No transfers',
-      userId,
-      isLoading,
-      transactionsType: typeof transactions,
-      transactionsLength: transactions ? transactions.length : 'N/A'
-    });
-  }, [transactions, transfers, userId, isLoading]);
+  const [activeSubTab, setActiveSubTab] = useState(0);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -45,16 +33,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusClass = (status) => {
+    const baseClasses = "badge badge-sm";
     switch(status) {
       case 'completed':
-        return 'badge-success';
+        return `${baseClasses} bg-green-100 text-green-800`;
       case 'pending':
-        return 'badge-warning';
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
       case 'failed':
-        return 'badge-error';
+        return `${baseClasses} bg-red-100 text-red-800`;
       default:
-        return 'badge-ghost';
+        return `${baseClasses} bg-gray-100 text-gray-800`;
     }
   };
 
@@ -71,7 +60,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     }
   };
 
-  // Renderizar skeletons para carregamento
   const renderSkeletons = (count) => {
     return Array(count).fill().map((_, index) => (
       <div key={index} className="flex items-center p-4 border-b border-base-300">
@@ -89,8 +77,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   };
 
   const renderTransactions = () => {
-    console.log('Rendering Transactions - Count:', Array.isArray(transactions) ? transactions.length : 'Not an array');
-
     if (isLoading) {
       return renderSkeletons(3);
     }
@@ -100,8 +86,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     if (safeTransactions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
-          <Receipt className="size-16 opacity-30 mb-2" />
-          <p className="text-base-content/70">Sem transações para mostrar</p>
+          <Receipt className="size-16 text-gray-300 mb-2" />
+          <p className="text-gray-500">Sem transações para mostrar</p>
         </div>
       );
     }
@@ -109,11 +95,11 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     return safeTransactions.map((transaction) => (
       <div key={transaction._id} className="flex items-center p-4 border-b border-base-300">
         <div className="avatar placeholder">
-          <div className={`size-10 rounded-full ${transaction.type === 'deposit' ? 'bg-success/20' : 'bg-error/20'}`}>
+          <div className={`size-10 rounded-full ${transaction.type === 'deposit' ? 'bg-green-50' : 'bg-red-50'}`}>
             {transaction.type === 'deposit' ? (
-              <ArrowDownCircle className="size-6 text-success" />
+              <ArrowDownCircle className="size-6 text-green-500" />
             ) : (
-              <ArrowUpCircle className="size-6 text-error" />
+              <ArrowUpCircle className="size-6 text-red-500" />
             )}
           </div>
         </div>
@@ -127,17 +113,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
             }
             {transaction.details?.cardLast4 && ` **** ${transaction.details.cardLast4}`}
           </p>
-          <p className="text-sm opacity-70 line-clamp-1">{formatDate(transaction.createdAt)}</p>
+          <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
         </div>
         
         <div className="text-right">
-          <p className={`font-semibold line-clamp-1 ${transaction.type === 'deposit' ? 'text-success' : 'text-error'}`}>
+          <p className={`font-semibold ${transaction.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
             {transaction.type === 'deposit' ? '+' : '-'}{formatCurrency(transaction.amount)}
           </p>
           <div className="flex justify-end mt-1">
-            <div className={`badge ${getStatusColor(transaction.status)} badge-sm gap-1`}>
+            <div className={getStatusClass(transaction.status)}>
               {getMethodIcon(transaction.method)}
-              <span>{getStatusText(transaction.status)}</span>
+              <span className="ml-1">{getStatusText(transaction.status)}</span>
             </div>
           </div>
         </div>
@@ -146,8 +132,6 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   };
 
   const renderTransfers = () => {
-    console.log('Rendering Transfers - Count:', Array.isArray(transfers) ? transfers.length : 'Not an array');
-
     if (isLoading) {
       return renderSkeletons(3);
     }
@@ -157,8 +141,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     if (safeTransfers.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
-          <ArrowLeftRight className="size-16 opacity-30 mb-2" />
-          <p className="text-base-content/70">Sem transferências para mostrar</p>
+          <ArrowLeftRight className="size-16 text-gray-300 mb-2" />
+          <p className="text-gray-500">Sem transferências para mostrar</p>
         </div>
       );
     }
@@ -169,8 +153,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
       return (
         <div key={transfer._id} className="flex items-center p-4 border-b border-base-300">
           <div className="avatar placeholder">
-            <div className={`size-10 rounded-full ${isSender ? 'bg-error/20' : 'bg-success/20'}`}>
-              <ArrowLeftRight className={`size-6 ${isSender ? 'text-error' : 'text-success'}`} />
+            <div className={`size-10 rounded-full ${isSender ? 'bg-red-50' : 'bg-green-50'}`}>
+              <ArrowLeftRight className={`size-6 ${isSender ? 'text-red-500' : 'text-green-500'}`} />
             </div>
           </div>
           
@@ -181,15 +165,15 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
                 {isSender ? transfer.receiver.fullName || transfer.receiver.username : transfer.sender.fullName || transfer.sender.username}
               </strong>
             </p>
-            <p className="text-sm opacity-70 line-clamp-1">{formatDate(transfer.createdAt)}</p>
+            <p className="text-sm text-gray-500">{formatDate(transfer.createdAt)}</p>
           </div>
           
           <div className="text-right">
-            <p className={`font-semibold line-clamp-1 ${isSender ? 'text-error' : 'text-success'}`}>
+            <p className={`font-semibold ${isSender ? 'text-red-500' : 'text-green-500'}`}>
               {isSender ? '-' : '+'}{formatCurrency(transfer.amount)}
             </p>
             <div className="flex justify-end mt-1">
-              <div className={`badge ${getStatusColor(transfer.status)} badge-sm`}>
+              <div className={getStatusClass(transfer.status)}>
                 {getStatusText(transfer.status)}
               </div>
             </div>
@@ -200,13 +184,10 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   };
 
   const renderAllItems = () => {
-    console.log('Rendering ALL ITEMS');
-
     if (isLoading) {
       return renderSkeletons(5);
     }
 
-    // Garantir que transactions e transfers sejam arrays, mesmo se undefined
     const safeTransactions = Array.isArray(transactions) ? transactions : [];
     const safeTransfers = Array.isArray(transfers) ? transfers : [];
 
@@ -218,25 +199,26 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
     if (combinedItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
-          <AlertCircle className="size-16 opacity-30 mb-2" />
-          <p className="text-base-content/70">Sem itens para mostrar</p>
+          <AlertCircle className="size-16 text-gray-300 mb-2" />
+          <p className="text-gray-500">Sem itens para mostrar</p>
         </div>
       );
     }
 
-    // Ordenar por data
-    const sortedItems = combinedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const sortedItems = combinedItems.sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
 
     return sortedItems.map((item) => {
       if (item.itemType === 'transaction') {
         return (
           <div key={`transaction-${item._id}`} className="flex items-center p-4 border-b border-base-300">
             <div className="avatar placeholder">
-              <div className={`size-10 rounded-full ${item.type === 'deposit' ? 'bg-success/20' : 'bg-error/20'}`}>
+              <div className={`size-10 rounded-full ${item.type === 'deposit' ? 'bg-green-50' : 'bg-red-50'}`}>
                 {item.type === 'deposit' ? (
-                  <ArrowDownCircle className="size-6 text-success" />
+                  <ArrowDownCircle className="size-6 text-green-500" />
                 ) : (
-                  <ArrowUpCircle className="size-6 text-error" />
+                  <ArrowUpCircle className="size-6 text-red-500" />
                 )}
               </div>
             </div>
@@ -250,17 +232,17 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
                 }
                 {item.details?.cardLast4 && ` **** ${item.details.cardLast4}`}
               </p>
-              <p className="text-sm opacity-70 line-clamp-1">{formatDate(item.createdAt)}</p>
+              <p className="text-sm text-gray-500">{formatDate(item.createdAt)}</p>
             </div>
             
             <div className="text-right">
-              <p className={`font-semibold line-clamp-1 ${item.type === 'deposit' ? 'text-success' : 'text-error'}`}>
+              <p className={`font-semibold ${item.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
                 {item.type === 'deposit' ? '+' : '-'}{formatCurrency(item.amount)}
               </p>
               <div className="flex justify-end mt-1">
-                <div className={`badge ${getStatusColor(item.status)} badge-sm gap-1`}>
+                <div className={getStatusClass(item.status)}>
                   {getMethodIcon(item.method)}
-                  <span>{getStatusText(item.status)}</span>
+                  <span className="ml-1">{getStatusText(item.status)}</span>
                 </div>
               </div>
             </div>
@@ -272,8 +254,8 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
         return (
           <div key={`transfer-${item._id}`} className="flex items-center p-4 border-b border-base-300">
             <div className="avatar placeholder">
-              <div className={`size-10 rounded-full ${isSender ? 'bg-error/20' : 'bg-success/20'}`}>
-                <ArrowLeftRight className={`size-6 ${isSender ? 'text-error' : 'text-success'}`} />
+              <div className={`size-10 rounded-full ${isSender ? 'bg-red-50' : 'bg-green-50'}`}>
+                <ArrowLeftRight className={`size-6 ${isSender ? 'text-red-500' : 'text-green-500'}`} />
               </div>
             </div>
             
@@ -284,15 +266,15 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
                   {isSender ? item.receiver.fullName || item.receiver.username : item.sender.fullName || item.sender.username}
                 </strong>
               </p>
-              <p className="text-sm opacity-70 line-clamp-1">{formatDate(item.createdAt)}</p>
+              <p className="text-sm text-gray-500">{formatDate(item.createdAt)}</p>
             </div>
             
             <div className="text-right">
-              <p className={`font-semibold line-clamp-1 ${isSender ? 'text-error' : 'text-success'}`}>
+              <p className={`font-semibold ${isSender ? 'text-red-500' : 'text-green-500'}`}>
                 {isSender ? '-' : '+'}{formatCurrency(item.amount)}
               </p>
               <div className="flex justify-end mt-1">
-                <div className={`badge ${getStatusColor(item.status)} badge-sm`}>
+                <div className={getStatusClass(item.status)}>
                   {getStatusText(item.status)}
                 </div>
               </div>
