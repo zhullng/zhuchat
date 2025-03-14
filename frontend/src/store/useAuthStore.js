@@ -41,10 +41,10 @@ export const useAuthStore = create((set, get) => ({
         res.data.balance = 0;
       }
       set({ authUser: res.data });
-      toast.success("Account created successfully");
+      toast.success("Conta criada com sucesso!");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Signup failed");
+      toast.error(error.response?.data?.message || "Falha no resgitro!");
     } finally {
       set({ isSigningUp: false });
     }
@@ -59,10 +59,10 @@ export const useAuthStore = create((set, get) => ({
         res.data.balance = 0;
       }
       set({ authUser: res.data });
-      toast.success("Login successful");
+      toast.success("Sessão iniciada!");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      toast.error(error.response?.data?.message || "Falha no início de sessão!");
     } finally {
       set({ isLoggingIn: false });
     }
@@ -72,10 +72,10 @@ export const useAuthStore = create((set, get) => ({
     try {
       await axiosInstance.post("/auth/logout");
       set({ authUser: null });
-      toast.success("Logged out successfully");
+      toast.success("Desconectado com sucesso!");
       get().disconnectSocket();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Logout failed");
+      toast.error(error.response?.data?.message || "Falha ao desconectar!");
     }
   },
 
@@ -86,10 +86,8 @@ export const useAuthStore = create((set, get) => ({
       set((state) => ({
         authUser: { ...state.authUser, ...res.data }
       }));
-      toast.success("Profile updated successfully");
     } catch (error) {
       console.error("Profile update error:", error);
-      toast.error(error.response?.data?.message || "Update failed");
     } finally {
       set({ isUpdatingProfile: false });
     }

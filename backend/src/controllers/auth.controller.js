@@ -232,7 +232,7 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ message: "Nenhum dado válido para atualização" });
     }
 
-    // Atualiza os dados do usuário
+    // Atualiza os dados do User
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: cleanUpdates },
@@ -244,8 +244,8 @@ export const updateProfile = async (req, res) => {
     );
 
     if (!updatedUser) {
-      console.log("Usuário não encontrado para atualização:", userId);
-      return res.status(404).json({ message: "Usuário não encontrado" });
+      console.log("User não encontrado para atualização:", userId);
+      return res.status(404).json({ message: "User não encontrado" });
     }
 
     console.log("Perfil atualizado com sucesso:", updatedUser);

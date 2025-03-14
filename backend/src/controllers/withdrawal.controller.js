@@ -28,12 +28,12 @@ const withdrawFunds = async (req, res) => {
     // Verificar se o user existe antes de verificar o saldo
     const user = await User.findById(userId);
     if (!user) {
-      console.error("Usuário não encontrado:", userId);
-      return res.status(404).json({ message: "Usuário não encontrado" });
+      console.error("User não encontrado:", userId);
+      return res.status(404).json({ message: "User não encontrado" });
     }
 
-    console.log("Usuário encontrado:", user.username || user.email);
-    console.log("Saldo do usuário:", user.balance);
+    console.log("User encontrado:", user.username || user.email);
+    console.log("Saldo do User:", user.balance);
 
     // Verificar saldo
     if (user.balance < amount) {
@@ -134,12 +134,12 @@ const withdrawWithOtherMethod = async (req, res) => {
     // Verificar se o user existe antes de verificar o saldo
     const user = await User.findById(userId);
     if (!user) {
-      console.error("Usuário não encontrado:", userId);
-      return res.status(404).json({ message: "Usuário não encontrado" });
+      console.error("User não encontrado:", userId);
+      return res.status(404).json({ message: "User não encontrado" });
     }
 
-    console.log("Usuário encontrado:", user.username || user.email);
-    console.log("Saldo do usuário:", user.balance);
+    console.log("User encontrado:", user.username || user.email);
+    console.log("Saldo do User:", user.balance);
 
     // Verificar saldo
     if (user.balance < amount) {

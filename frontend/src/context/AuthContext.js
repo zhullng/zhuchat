@@ -7,14 +7,14 @@ export const AuthProvider = ({ children }) => {
   const [authUser, setAuthUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Carregar usuário autenticado
+  // Carregar User autenticado
   useEffect(() => {
     const checkUserLoggedIn = async () => {
       try {
         const response = await axios.get('/api/auth/me');
         setAuthUser(response.data);
       } catch (error) {
-        console.error('Erro ao verificar usuário autenticado:', error);
+        console.error('Erro ao verificar User autenticado:', error);
         setAuthUser(null);
       } finally {
         setLoading(false);
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Verificar se o usuário está autenticado
+  // Verificar se o User está autenticado
   const isAuthenticated = () => {
     return !!authUser;
   };

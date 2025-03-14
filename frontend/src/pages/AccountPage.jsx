@@ -12,7 +12,7 @@ const AccountPage = () => {
   const { authUser, socket } = useAuthStore();
  
   
-  // Função para buscar o histórico de transferências do usuário
+  // Função para buscar o histórico de transferências do User
   const fetchTransferHistory = async () => {
     try {
       const response = await axios.get(`/api/transfers/history/${authUser._id}`);
@@ -38,7 +38,7 @@ const AccountPage = () => {
         // Atualizar o histórico de transferências com a nova transferência
         setTransfers((prevTransfers) => [...prevTransfers, transferData]);
 
-        // Se for o usuário autenticado o remetente ou o destinatário, atualizar o saldo
+        // Se for o User autenticado o remetente ou o destinatário, atualizar o saldo
         if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
           // Atualizar saldo local
           const updatedBalance = authUser.balance + (transferData.senderId === authUser._id ? -transferData.amount : transferData.amount);

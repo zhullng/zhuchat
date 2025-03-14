@@ -15,7 +15,7 @@ const ProfilePage = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Inicializar os dados do formulário quando o usuário estiver disponível
+  // Inicializar os dados do formulário quando o User estiver disponível
   useEffect(() => {
     if (authUser) {
       setFormData({
@@ -26,29 +26,119 @@ const ProfilePage = () => {
     }
   }, [authUser]);
 
+  const validateImage = (file) => {
+    // Aumentando para 50MB para permitir imagens de alta qualidade
+    const maxSize = 50 * 1024 * 1024; // 50MB em bytes
+    
+    // Formatos permitidos - incluindo formatos de alta qualidade
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/png', 
+      'image/webp',
+      'image/heic', // Formato HEIC da Apple
+      'image/heif'  // Formato HEIF de alta eficiência
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Formato inválido. Use JPEG, PNG, WebP, HEIC ou HEIF');
+    }
+    
+    if (file.size > maxSize) {
+      const sizeMB = maxSize / (1024 * 1024);
+      throw new Error(`Imagem muito grande. Máximo de ${sizeMB}MB`);
+    }
+    
+    return true;
+  };
+  
+  const compressImage = async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+  
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+  
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+  
+          // Define tamanho máximo mantendo proporção
+          const MAX_WIDTH = 2560;
+          const MAX_HEIGHT = 1440;
+          let width = img.width;
+          let height = img.height;
+  
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+  
+          canvas.width = width;
+          canvas.height = height;
+  
+          // Desenha imagem redimensionada
+          ctx.drawImage(img, 0, 0, width, height);
+  
+          // Converte para JPEG com qualidade 0.9 (90%)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          resolve(compressedDataUrl);
+        };
+  
+        img.onerror = (error) => reject(error);
+      };
+  
+      reader.onerror = (error) => reject(error);
+    });
+  };
+  
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
+  
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-
-      reader.onload = async () => {
-        const base64Image = reader.result;
-        setSelectedImg(base64Image);
+      validateImage(file);
+  
+      const loadingToast = toast.loading('Processando imagem...', {
+        duration: Infinity // Permanece até ser explicitamente removido
+      });
+  
+      try {
+        // Comprime a imagem se necessário
+        const processedImage = await compressImage(file);
         
-        try {
-          await updateProfile({ profilePic: base64Image });
-          toast.success('Foto atualizada com sucesso!');
-        } catch (error) {
-          console.error('Erro ao atualizar foto:', error);
-          toast.error('Erro ao atualizar foto');
-        }
-      };
+        // Atualiza o preview
+        setSelectedImg(processedImage);
+        
+        // Atualiza o toast para indicar o upload
+        toast.loading('Enviando imagem...', {
+          id: loadingToast
+        });
+        
+        // Envia para o servidor
+        await updateProfile({ profilePic: processedImage });
+        
+        toast.dismiss(loadingToast);
+        toast.success('Foto atualizada com sucesso!');
+      } catch (error) {
+        console.error('Erro ao processar/enviar imagem:', error);
+        toast.dismiss(loadingToast);
+        toast.error('Erro ao atualizar foto. Tente novamente.');
+        setSelectedImg(null);
+      }
+  
     } catch (error) {
       console.error("Erro ao processar imagem:", error);
-      toast.error("Erro ao processar a imagem");
+      toast.error(error.message || "Erro ao processar a imagem");
+      e.target.value = "";
     }
   };
 
@@ -154,17 +244,21 @@ const ProfilePage = () => {
                   p-2 rounded-full cursor-pointer 
                   transition-all duration-200 shadow-lg
                   ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""}`}
+                title="Formatos aceitos: JPEG, PNG, WebP, HEIC, HEIF. Tamanho máximo: 50MB"
               >
                 <Camera className="size-5 text-base-100" />
                 <input
                   type="file"
                   id="avatar-upload"
                   className="hidden"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                   onChange={handleImageUpload}
                   disabled={isUpdatingProfile}
                 />
               </label>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Clique para alterar foto (Máx: 50MB)
+              </p>
             </div>
           </div>
 
