@@ -40,7 +40,7 @@ const WalletPage = () => {
   ];
 
   return (
-    <div className="flex min-h-screen pt-16 pl-20 sm:pl-24 sm:pt-0">
+    <div className="flex min-h-screen pt-16 pl-20 sm:pl-24 sm:pt-0 overflow-x-hidden">
       <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
         <div className="flex items-center mb-6">
           <Wallet className="size-6 mr-2" />
@@ -69,12 +69,13 @@ const WalletPage = () => {
                       >
                         {tab.icon}
                         <span className="hidden sm:inline">{tab.label}</span>
+                        <span className="sm:hidden">{tab.label.charAt(0)}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="p-2">
+                <div className="p-2 max-h-[70vh] overflow-y-auto">
                   {activeTab === 0 && <DepositTab refreshData={fetchWalletData} />}
                   {activeTab === 1 && <WithdrawTab refreshData={fetchWalletData} balance={balance} />}
                   {activeTab === 2 && <TransferTab refreshData={fetchWalletData} balance={balance} />}
