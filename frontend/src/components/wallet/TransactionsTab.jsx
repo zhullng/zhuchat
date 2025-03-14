@@ -304,28 +304,28 @@ const TransactionsTab = ({ transactions, transfers, userId, isLoading }) => {
   };
 
   return (
-    <div className="space-y-4 bg-white rounded-lg p-4">
+    <div className="space-y-4 bg-white rounded-lg p-1">
       <div className="tabs tabs-boxed flex">
         <button 
-          className={`tab flex-1 px-0 md:px-4 ${activeSubTab === 0 ? 'tab-active' : ''}`}
+          className={`tab flex-1 px-0 md:px-1 ${activeSubTab === 0 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(0)}
         >
           <span className="hidden sm:inline">Todas</span>
-          <span className="sm:hidden">To</span>
+          <span className="sm:hidden">Todas</span>
         </button>
         <button 
-          className={`tab flex-1 px-0 md:px-4 ${activeSubTab === 1 ? 'tab-active' : ''}`}
+          className={`tab flex-1 px-0 md:px-1 ${activeSubTab === 1 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(1)}
         >
           <span className="hidden sm:inline">Depósitos/Levantamentos</span>
-          <span className="sm:hidden">D/L</span>
+          <span className="sm:hidden">Dep./Lev.</span>
         </button>
         <button 
-          className={`tab flex-1 px-0 md:px-4 ${activeSubTab === 2 ? 'tab-active' : ''}`}
+          className={`tab flex-1 px-0 md:px-1 ${activeSubTab === 2 ? 'tab-active' : ''}`}
           onClick={() => setActiveSubTab(2)}
         >
           <span className="hidden sm:inline">Transferências</span>
-          <span className="sm:hidden">Tr</span>
+          <span className="sm:hidden">Transf.</span>
         </button>
       </div>
       
