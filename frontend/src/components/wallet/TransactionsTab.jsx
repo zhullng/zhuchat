@@ -118,7 +118,9 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
           </div>
           
           <div className="ml-4 flex-1">
-            <p className="font-medium line-clamp-1">
+  
+          <p className="font-medium">
+          
               {isSender ? 'Para ' : 'De '}
               <strong>
                 {isSender ? transfer.receiver.fullName || transfer.receiver.username : transfer.sender.fullName || transfer.sender.username}
