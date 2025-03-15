@@ -61,7 +61,7 @@ const WalletPage = () => {
 
   return (
     <div className="flex min-h-screen pt-16 pl-20 sm:pl-24 sm:pt-0 overflow-x-hidden">
-      <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
+      <div className="flex-1 container mx-auto px-1 py-6 max-w-6xl">
         <div className="flex items-center mb-6">
           <Wallet className="size-6 mr-2" />
           <h1 className="text-2xl font-bold">Minha Carteira</h1>
@@ -80,7 +80,7 @@ const WalletPage = () => {
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
                 <div className="overflow-x-auto mb-4">
-                  <div className="tabs tabs-boxed flex w-full space-x-2">
+                  <div className="tabs tabs-boxed flex w-full">
                     {tabs.map(tab => (
                       <div 
                         key={tab.id} 
@@ -88,23 +88,17 @@ const WalletPage = () => {
                         data-tip={tab.tooltip}
                       >
                         <button
-                          className={`
-                            tab w-full flex-1 gap-2 
-                            ${activeTab === tab.id ? 'tab-active' : ''}
-                            py-3 sm:py-2 text-sm  # Increased padding, adjusted text size
-                            min-w-[80px] sm:min-w-0  # Minimum width for mobile
-                          `}
+                          className={`tab w-full flex-1 gap-2 ${activeTab === tab.id ? 'tab-active' : ''}`}
                           onClick={() => setActiveTab(tab.id)}
                         >
                           {tab.icon}
                           <span className="hidden md:inline">{tab.label}</span>
-                          <span className="inline md:hidden">{tab.label.split(' ')[0]}</span>  {/* Show first word on mobile */}
                         </button>
                       </div>
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="p-1 max-h-[70vh] overflow-y-auto">
                   {activeTab === 0 && <DepositTab refreshData={fetchWalletData} />}
                   {activeTab === 1 && <WithdrawTab refreshData={fetchWalletData} balance={balance} />}
