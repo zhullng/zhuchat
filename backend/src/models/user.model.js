@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["masculino", "feminino"],
+      enum: ["male", "female"],
       default: "",
     },
     balance: {

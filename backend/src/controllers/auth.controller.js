@@ -235,7 +235,7 @@ export const updateProfile = async (req, res) => {
     // Atualiza os dados do User
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { $set: cleanUpdates },
+      { $set: cleanUpdates }, 
       { 
         new: true, 
         runValidators: true,
