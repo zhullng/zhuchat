@@ -9,6 +9,8 @@ import ThemePage from "./pages/ThemePage";
 import WalletPage from './pages/WalletPage'; // Nova página de carteira
 import SettingsProfilePage from './pages/SettingsProfilePage'; 
 import ChangePasswordPage from './pages/ChangePasswordPage'; 
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
@@ -57,6 +59,10 @@ const App = () => {
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/wallet" element={authUser ? <WalletPage /> : <Navigate to="/login" />} />
+
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+
       </Routes>
 
       <Toaster /> 

@@ -105,7 +105,7 @@ const SignUpPage = () => {
                 <input
                   type="email"
                   className="input input-bordered w-full pl-10"
-                  placeholder="voce@exemplo.com"
+                  placeholder="nome@exemplo.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -157,7 +157,7 @@ const SignUpPage = () => {
             <p className="text-base-content/60">
               Já tem uma conta?{" "}
               <Link to="/login" className="link link-primary">
-                Iniciar sessão
+                Bem Vindo
               </Link>
             </p>
           </div>

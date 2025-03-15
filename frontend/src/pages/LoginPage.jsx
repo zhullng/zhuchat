@@ -82,9 +82,9 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-center">
               <Link to="/forgot-password" className="text-sm font-medium text-primary hover:underline">
-                Esqueceu a palavra-passe?
+                Esqueceu-se da palavra-passe?
               </Link>
             </div>
 
