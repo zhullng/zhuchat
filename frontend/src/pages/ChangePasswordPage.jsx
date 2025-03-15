@@ -1,71 +1,66 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { KeyRound, ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { useAuthStore } from '../store/useAuthStore';
+import { useState } from "react";
+import { useAuthStore } from "../store/useAuthStore";
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
-const ChangePasswordPage = () => {
+const PasswordChangePage = () => {
   const navigate = useNavigate();
   const { updatePassword } = useAuthStore();
-  
-  const [formData, setFormData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmNewPassword: ''
-  });
-  const [errors, setErrors] = useState({});
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState({
-    currentPassword: false,
-    newPassword: false,
-    confirmNewPassword: false
+
+  const [formData, setFormData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
-  // Validate password complexity
   const validatePassword = (password) => {
     const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{6,}$/;
     return complexityRegex.test(password);
   };
 
-  // Form validation
   const validateForm = () => {
-    const newErrors = {};
-
-    // Current password check
-    if (!formData.currentPassword?.trim()) {
-      newErrors.currentPassword = "Senha atual é obrigatória";
+    if (!formData.currentPassword) {
+      toast.error("Palavra-passe atual é obrigatória");
+      return false;
     }
 
-    // New password checks
-    if (!formData.newPassword?.trim()) {
-      newErrors.newPassword = "Nova senha é obrigatória";
-    } else if (formData.newPassword.length < 6) {
-      newErrors.newPassword = "Nova senha deve ter no mínimo 6 caracteres";
-    } else if (!validatePassword(formData.newPassword)) {
-      newErrors.newPassword = "Senha deve conter maiúsculas, minúsculas e números";
+    if (!formData.newPassword) {
+      toast.error("Nova palavra-passe é obrigatória");
+      return false;
     }
 
-    // Confirm new password check
-    if (!formData.confirmNewPassword?.trim()) {
-      newErrors.confirmNewPassword = "Confirmação de senha é obrigatória";
-    } else if (formData.newPassword !== formData.confirmNewPassword) {
-      newErrors.confirmNewPassword = "Senhas não coincidem";
+    if (formData.newPassword.length < 6) {
+      toast.error("Nova palavra-passe deve ter pelo menos 6 caracteres");
+      return false;
     }
 
-    // Prevent using the same password
+    if (!validatePassword(formData.newPassword)) {
+      toast.error("Nova palavra-passe deve conter letras maiúsculas, minúsculas e números");
+      return false;
+    }
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      toast.error("As palavras-passe não coincidem");
+      return false;
+    }
+
     if (formData.currentPassword === formData.newPassword) {
-      newErrors.newPassword = "Nova senha deve ser diferente da senha atual";
+      toast.error("A nova palavra-passe deve ser diferente da atual");
+      return false;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form
+
     if (!validateForm()) {
       return;
     }
@@ -73,67 +68,29 @@ const ChangePasswordPage = () => {
     setIsSubmitting(true);
 
     try {
-      // Call update password method from auth store
-      const result = await updatePassword({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
-      });
+      const { currentPassword, newPassword } = formData;
+      const result = await updatePassword({ currentPassword, newPassword });
 
-      // Handle successful password change
       if (result.success) {
-        toast.success("Senha atualizada com sucesso!");
-        navigate('/settings');
-      } else {
-        // Handle specific error messages from backend
-        const errorMessage = result.message || "Erro ao atualizar senha";
-        toast.error(errorMessage);
-        
-        // Check for specific error scenarios
-        if (errorMessage.includes('senha atual')) {
-          setErrors(prev => ({
-            ...prev, 
-            currentPassword: "Senha atual incorreta"
-          }));
-        }
+        // Limpar o formulário
+        setFormData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
       }
     } catch (error) {
-      console.error("Erro na atualização da senha:", error);
-      toast.error("Erro ao atualizar senha. Tente novamente.");
+      console.error("Erro ao alterar palavra-passe:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear specific error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  // Toggle password visibility
-  const togglePasswordVisibility = (field) => {
-    setShowPassword(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-  };
-
   return (
     <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
       <div className="max-w-2xl mx-auto p-4 py-8">
-        <button 
-          onClick={() => navigate('/settings')}
+        <button
+          onClick={() => navigate("/settings")}
           className="flex items-center gap-2 text-base-content/70 hover:text-base-content mb-4"
         >
           <ArrowLeft className="size-5" />
@@ -142,138 +99,130 @@ const ChangePasswordPage = () => {
 
         <div className="bg-base-200 rounded-xl p-6 shadow-lg">
           <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="bg-primary/10 p-4 rounded-full">
-                <KeyRound className="size-8 text-primary" />
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Shield className="size-8 text-primary" />
               </div>
-            </div>
-            <h1 className="text-2xl font-semibold">Alterar Senha</h1>
-            <p className="mt-2 text-base-content/70">Atualize sua senha de forma segura</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Current Password */}
-            <div>
-              <label className="label">
-                <span className="label-text">Senha Atual</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword.currentPassword ? 'text' : 'password'}
-                  name="currentPassword"
-                  value={formData.currentPassword}
-                  onChange={handleChange}
-                  className={`
-                    input input-bordered w-full 
-                    ${errors.currentPassword ? 'input-error' : ''}
-                  `}
-                  placeholder="Digite sua senha atual"
-                />
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
-                <button
-                  type="button"
-                  onClick={() => togglePasswordVisibility('currentPassword')}
-                  className="absolute right-10 top-1/2 -translate-y-1/2 text-base-content/50"
-                >
-                  {showPassword.currentPassword ? (
-                    <EyeOff className="size-5" />
-                  ) : (
-                    <Eye className="size-5" />
-                  )}
-                </button>
-              </div>
-              {errors.currentPassword && (
-                <span className="text-error text-sm mt-1">
-                  {errors.currentPassword}
-                </span>
-              )}
-            </div>
-
-            {/* New Password */}
-            <div>
-              <label className="label">
-                <span className="label-text">Nova Senha</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword.newPassword ? 'text' : 'password'}
-                  name="newPassword"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  className={`
-                    input input-bordered w-full 
-                    ${errors.newPassword ? 'input-error' : ''}
-                  `}
-                  placeholder="Digite sua nova senha"
-                />
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
-                <button
-                  type="button"
-                  onClick={() => togglePasswordVisibility('newPassword')}
-                  className="absolute right-10 top-1/2 -translate-y-1/2 text-base-content/50"
-                >
-                  {showPassword.newPassword ? (
-                    <EyeOff className="size-5" />
-                  ) : (
-                    <Eye className="size-5" />
-                  )}
-                </button>
-              </div>
-              {errors.newPassword && (
-                <span className="text-error text-sm mt-1">
-                  {errors.newPassword}
-                </span>
-              )}
-              <p className="text-xs text-base-content/70 mt-1">
-                Sua senha deve conter: maiúsculas, minúsculas e números
+              <h1 className="text-2xl font-semibold mt-2">Alterar Palavra-passe</h1>
+              <p className="text-base-content/70">
+                Atualize a sua palavra-passe para manter a sua conta segura
               </p>
             </div>
+          </div>
 
-            {/* Confirm New Password */}
-            <div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="form-control">
               <label className="label">
-                <span className="label-text">Confirmar Nova Senha</span>
+                <span className="label-text font-medium">Palavra-passe Atual</span>
               </label>
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="size-5 text-base-content/40" />
+                </div>
                 <input
-                  type={showPassword.confirmNewPassword ? 'text' : 'password'}
-                  name="confirmNewPassword"
-                  value={formData.confirmNewPassword}
-                  onChange={handleChange}
-                  className={`
-                    input input-bordered w-full 
-                    ${errors.confirmNewPassword ? 'input-error' : ''}
-                  `}
-                  placeholder="Confirme sua nova senha"
+                  type={showCurrentPassword ? "text" : "password"}
+                  className="input input-bordered w-full pl-10"
+                  placeholder="••••••••"
+                  value={formData.currentPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, currentPassword: e.target.value })
+                  }
                 />
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
                 <button
                   type="button"
-                  onClick={() => togglePasswordVisibility('confirmNewPassword')}
-                  className="absolute right-10 top-1/2 -translate-y-1/2 text-base-content/50"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 >
-                  {showPassword.confirmNewPassword ? (
-                    <EyeOff className="size-5" />
+                  {showCurrentPassword ? (
+                    <EyeOff className="size-5 text-base-content/40" />
                   ) : (
-                    <Eye className="size-5" />
+                    <Eye className="size-5 text-base-content/40" />
                   )}
                 </button>
               </div>
-              {errors.confirmNewPassword && (
-                <span className="text-error text-sm mt-1">
-                  {errors.confirmNewPassword}
-                </span>
-              )}
             </div>
 
-            {/* Submit Button */}
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium">Nova Palavra-passe</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="size-5 text-base-content/40" />
+                </div>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  className="input input-bordered w-full pl-10"
+                  placeholder="••••••••"
+                  value={formData.newPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, newPassword: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="size-5 text-base-content/40" />
+                  ) : (
+                    <Eye className="size-5 text-base-content/40" />
+                  )}
+                </button>
+              </div>
+              <label className="label">
+                <span className="label-text-alt text-base-content/70">
+                  Mínimo 6 caracteres, incluindo maiúsculas, minúsculas e números
+                </span>
+              </label>
+            </div>
+
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium">Confirmar Nova Palavra-passe</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="size-5 text-base-content/40" />
+                </div>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  className="input input-bordered w-full pl-10"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, confirmPassword: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="size-5 text-base-content/40" />
+                  ) : (
+                    <Eye className="size-5 text-base-content/40" />
+                  )}
+                </button>
+              </div>
+            </div>
+
             <div className="pt-4">
               <button
                 type="submit"
                 className="btn btn-primary w-full"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Atualizando...' : 'Alterar Senha'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-5 animate-spin" />
+                    A atualizar...
+                  </>
+                ) : (
+                  "Atualizar Palavra-passe"
+                )}
               </button>
             </div>
           </form>
@@ -283,4 +232,4 @@ const ChangePasswordPage = () => {
   );
 };
 
-export default ChangePasswordPage;
+export default PasswordChangePage;

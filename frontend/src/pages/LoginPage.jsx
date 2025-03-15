@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import AuthImagePattern from "../components/AuthImagePattern";
-import { Link } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
+import AuthImagePattern from "../components/AuthImagePattern";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,22 +13,22 @@ const LoginPage = () => {
 
   const { login, isLoggingIn } = useAuthStore();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     login(formData);
   };
 
   return (
-    <div className="h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen grid lg:grid-cols-2">
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center animate-bounce">
-              <img src="/logoZhuChat.png" alt="Logo" className="w-12 h-12 rounded-full" />
-            </div>
-              <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
-              <p className="text-base-content/60">Sign in to your account</p>
+              <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center animate-bounce">
+                <img src="/logoZhuChat.png" alt="Logo" className="w-12 h-12 rounded-full" />
+              </div>
+              <h1 className="text-2xl font-bold mt-2">Iniciar Sessão</h1>
+              <p className="text-base-content/60">Entre na sua conta</p>
             </div>
           </div>
 
@@ -39,32 +39,34 @@ const LoginPage = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-base-content/40" />
+                  <Mail className="size-5 text-base-content/40" />
                 </div>
                 <input
                   type="email"
-                  className={`input input-bordered w-full pl-10`}
-                  placeholder="you@example.com"
+                  className="input input-bordered w-full pl-10"
+                  placeholder="voce@exemplo.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
                 />
               </div>
             </div>
 
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Password</span>
+                <span className="label-text font-medium">Palavra-passe</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-base-content/40" />
+                  <Lock className="size-5 text-base-content/40" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  className={`input input-bordered w-full pl-10`}
+                  className="input input-bordered w-full pl-10"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
                 />
                 <button
                   type="button"
@@ -72,31 +74,37 @@ const LoginPage = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-base-content/40" />
+                    <EyeOff className="size-5 text-base-content/40" />
                   ) : (
-                    <Eye className="h-5 w-5 text-base-content/40" />
+                    <Eye className="size-5 text-base-content/40" />
                   )}
                 </button>
               </div>
             </div>
 
+            <div className="flex items-center justify-end">
+              <Link to="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+                Esqueceu a palavra-passe?
+              </Link>
+            </div>
+
             <button type="submit" className="btn btn-primary w-full" disabled={isLoggingIn}>
               {isLoggingIn ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Loading...
+                  <Loader2 className="size-5 animate-spin" />
+                  A iniciar sessão...
                 </>
               ) : (
-                "Sign in"
+                "Iniciar Sessão"
               )}
             </button>
           </form>
 
           <div className="text-center">
             <p className="text-base-content/60">
-              Don&apos;t have an account?{" "}
+              Ainda não tem uma conta?{" "}
               <Link to="/signup" className="link link-primary">
-                Create account
+                Criar conta
               </Link>
             </p>
           </div>
@@ -104,8 +112,8 @@ const LoginPage = () => {
       </div>
 
       <AuthImagePattern
-        title={"Welcome back!"}
-        subtitle={"Sign in to continue your conversations and catch up with your messages."}
+        title="Bem-vindo novamente"
+        subtitle="Entre na sua conta para continuar a sua jornada e voltar a ligar-se aos seus amigos."
       />
     </div>
   );

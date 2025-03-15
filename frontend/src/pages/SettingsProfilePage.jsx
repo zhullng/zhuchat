@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { 
   Camera, 
@@ -9,12 +9,12 @@ import {
   ShieldCheck, 
   Clock, 
   Shield,
-  ArrowLeft // Add this import
+  ArrowLeft
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const SettingsProfilePage = () => {
-  const navigate = useNavigate(); // Add this line
+  const navigate = useNavigate();
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,7 +26,7 @@ const SettingsProfilePage = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Inicializar os dados do formulário quando o User estiver disponível
+  // Inicializar os dados do formulário quando o utilizador estiver disponível
   useEffect(() => {
     if (authUser) {
       setFormData({
@@ -118,7 +118,7 @@ const SettingsProfilePage = () => {
     try {
       validateImage(file);
   
-      const loadingToast = toast.loading('Processando imagem...', {
+      const loadingToast = toast.loading('A processar imagem...', {
         duration: Infinity // Permanece até ser explicitamente removido
       });
   
@@ -130,7 +130,7 @@ const SettingsProfilePage = () => {
         setSelectedImg(processedImage);
         
         // Atualiza o toast para indicar o upload
-        toast.loading('Enviando imagem...', {
+        toast.loading('A enviar imagem...', {
           id: loadingToast
         });
         
@@ -170,9 +170,9 @@ const SettingsProfilePage = () => {
       newErrors.email = "Email inválido";
     }
 
-    // Validação do gênero
+    // Validação do género
     if (formData.gender && !["male", "female"].includes(formData.gender)) {
-      newErrors.gender = "Gênero inválido";
+      newErrors.gender = "Género inválido";
     }
 
     setErrors(newErrors);
@@ -200,12 +200,12 @@ const SettingsProfilePage = () => {
 
       // Se não houver alterações
       if (Object.keys(updatedFields).length === 0) {
-        toast.info("Nenhuma alteração detectada");
+        toast.info("Nenhuma alteração detetada");
         setIsModalOpen(false);
         return;
       }
 
-      console.log('Enviando dados para atualização:', updatedFields);
+      console.log('A enviar dados para atualização:', updatedFields);
 
       const result = await updateProfile(updatedFields);
 
@@ -217,7 +217,6 @@ const SettingsProfilePage = () => {
         return;
       }
 
-      toast.success("Perfil atualizado com sucesso!");
       setIsModalOpen(false);
       setErrors({});
 
@@ -228,6 +227,11 @@ const SettingsProfilePage = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getGenderDisplay = (gender) => {
+    if (!gender) return "Não especificado";
+    return gender === "male" ? "Masculino" : "Feminino";
   };
 
   return (
@@ -243,15 +247,15 @@ const SettingsProfilePage = () => {
         <div className="bg-base-200 rounded-xl p-6 shadow-lg">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold">Perfil</h1>
-            <p className="mt-2 text-base-content/70">Suas informações de perfil</p>
+            <p className="mt-2 text-base-content/70">As suas informações de perfil</p>
           </div>
 
           {/* Seção da imagem de perfil */}
           <div className="flex flex-col items-center gap-4 mb-8">
-            <div className="relative w-32 h-32"> {/* Define tamanho fixo para o container */}
+            <div className="relative w-32 h-32">
               <img
                 src={selectedImg || authUser?.profilePic || "/avatar.png"}
-                alt="Profile"
+                alt="Perfil"
                 className="w-full h-full rounded-full object-cover border-4 border-base-300"
               />
               <label
@@ -262,7 +266,7 @@ const SettingsProfilePage = () => {
                   p-2 rounded-full cursor-pointer 
                   transition-all duration-200 shadow-lg
                   ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""}`}
-                title="Formatos aceitos: JPEG, PNG, WebP, HEIC, HEIF. Tamanho máximo: 50MB"
+                title="Formatos aceites: JPEG, PNG, WebP, HEIC, HEIF. Tamanho máximo: 50MB"
               >
                 <Camera className="size-5 text-base-100" />
                 <input
@@ -308,7 +312,7 @@ const SettingsProfilePage = () => {
                 <User className="size-5 text-primary" />
                 <div>
                   <p className="text-sm font-medium">Género</p>
-                  <p className="text-base-content/70 capitalize">{authUser?.gender || "Não especificado"}</p>
+                  <p className="text-base-content/70 capitalize">{getGenderDisplay(authUser?.gender)}</p>
                 </div>
               </div>
             </div>
@@ -337,7 +341,7 @@ const SettingsProfilePage = () => {
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2">
                   <Shield className="size-4 text-primary/70" />
-                  <span className="text-sm">Status da Conta</span>
+                  <span className="text-sm">Estado da Conta</span>
                 </div>
                 <span className="text-sm font-medium text-green-500">Ativa</span>
               </div>
@@ -390,7 +394,7 @@ const SettingsProfilePage = () => {
                         setErrors(prev => ({...prev, fullName: ""}));
                       }}
                       className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`}
-                      placeholder="Seu nome completo"
+                      placeholder="O seu nome completo"
                     />
                     {errors.fullName && (
                       <span className="text-error text-sm mt-1">{errors.fullName}</span>
@@ -429,8 +433,8 @@ const SettingsProfilePage = () => {
                       className={`select select-bordered w-full ${errors.gender ? 'select-error' : ''}`}
                     >
                       <option value="">Não especificado</option>
-                      <option value="masculino">Masculino</option>
-                      <option value="feminino">Feminino</option>
+                      <option value="male">Masculino</option>
+                      <option value="female">Feminino</option>
                     </select>
                     {errors.gender && (
                       <span className="text-error text-sm mt-1">{errors.gender}</span>
@@ -459,7 +463,7 @@ const SettingsProfilePage = () => {
                       className="btn btn-primary"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                      {isSubmitting ? 'A guardar...' : 'Guardar Alterações'}
                     </button>
                   </div>
                 </form>

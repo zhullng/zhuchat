@@ -21,8 +21,8 @@ export const useAuthStore = create((set, get) => ({
       toast.success(res.data.message);
       return { success: true };
     } catch (error) {
-      console.error("Password update error:", error);
-      const errorMessage = error.response?.data?.message || "Erro ao atualizar senha";
+      console.error("Erro ao atualizar palavra-passe:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao atualizar palavra-passe";
       toast.error(errorMessage);
       return { success: false, message: errorMessage };
     }
@@ -36,10 +36,10 @@ export const useAuthStore = create((set, get) => ({
         res.data.balance = 0;
       }
       set({ authUser: res.data });
-      console.log("Auth check successful, user data:", res.data);
+      console.log("Verificação de autenticação bem-sucedida, dados do utilizador:", res.data);
       get().connectSocket();
     } catch (error) {
-      console.error("Auth check failed:", error);
+      console.error("Falha na verificação de autenticação:", error);
       set({ authUser: null });
     } finally {
       set({ isCheckingAuth: false });
@@ -58,7 +58,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Conta criada com sucesso!");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Falha no resgitro!");
+      toast.error(error.response?.data?.message || "Falha no registo!");
     } finally {
       set({ isSigningUp: false });
     }
@@ -86,10 +86,10 @@ export const useAuthStore = create((set, get) => ({
     try {
       await axiosInstance.post("/auth/logout");
       set({ authUser: null });
-      toast.success("Desconectado com sucesso!");
+      toast.success("Sessão terminada com sucesso!");
       get().disconnectSocket();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Falha ao desconectar!");
+      toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
     }
   },
 
@@ -97,11 +97,42 @@ export const useAuthStore = create((set, get) => ({
     set({ isUpdatingProfile: true });
     try {
       const res = await axiosInstance.put("/auth/update-profile", data);
+      
+      // Extract user data and message
+      const { message, ...userData } = res.data;
+      
+      // Update the user state with the new data
       set((state) => ({
-        authUser: { ...state.authUser, ...res.data }
+        authUser: { ...state.authUser, ...userData }
       }));
+      
+      // Show success message
+      if (message) {
+        toast.success(message);
+      } else {
+        toast.success("Perfil atualizado com sucesso!");
+      }
+      
+      return { success: true };
     } catch (error) {
-      console.error("Profile update error:", error);
+      console.error("Erro na atualização do perfil:", error);
+      
+      // Handle validation errors
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        
+        // Show first error message as toast
+        const firstErrorMessage = Object.values(errors)[0];
+        toast.error(firstErrorMessage || "Erro ao atualizar perfil");
+        
+        // Return errors to the component
+        return { success: false, errors };
+      } else {
+        // Handle general error
+        const errorMessage = error.response?.data?.message || "Erro ao atualizar perfil";
+        toast.error(errorMessage);
+        return { success: false, message: errorMessage };
+      }
     } finally {
       set({ isUpdatingProfile: false });
     }

@@ -1,7 +1,7 @@
-import { generateToken } from "../lib/utils.js"; // Função para gerar token JWT
+import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs"; 
-import Stripe from "stripe"; // Importando o Stripe
+import Stripe from "stripe";
 import dotenv from "dotenv"; 
 
 dotenv.config();
@@ -14,16 +14,16 @@ export const updatePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user._id;
 
-    // Verificar se o usuário existe
+    // Verificar se o utilizador existe
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
+      return res.status(404).json({ message: "Utilizador não encontrado" });
     }
 
     // Verificar se a senha atual está correta
     const isPasswordMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordMatch) {
-      return res.status(400).json({ message: "Senha atual incorreta" });
+      return res.status(400).json({ message: "Palavra-passe atual incorreta" });
     }
 
     // Atualizar a senha
@@ -32,10 +32,10 @@ export const updatePassword = async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    res.status(200).json({ message: "Senha atualizada com sucesso" });
+    res.status(200).json({ message: "Palavra-passe atualizada com sucesso" });
   } catch (error) {
-    console.error("Password update error:", error);
-    res.status(500).json({ message: "Erro ao atualizar senha" });
+    console.error("Erro ao atualizar palavra-passe:", error);
+    res.status(500).json({ message: "Erro ao atualizar palavra-passe" });
   }
 };
 
@@ -45,17 +45,17 @@ export const signup = async (req, res) => {
   try {
     // Verifica se todos os campos foram fornecidos
     if (!fullName || !gender || !email || !password) {
-      return res.status(422).json({ message: "All fields are required" });
+      return res.status(422).json({ message: "Todos os campos são obrigatórios" });
     }
 
     if (password.length < 6) {
-      return res.status(422).json({ message: "Password must be at least 6 characters" });
+      return res.status(422).json({ message: "A palavra-passe deve ter pelo menos 6 caracteres" });
     }
 
     // Verifica se o e-mail já existe na BD
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(409).json({ message: "Email already exists" }); // 409 = Conflict
+      return res.status(409).json({ message: "Este email já está registado" });
     }
 
     // Cria e encripta a senha
@@ -63,7 +63,7 @@ export const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const existingCustomer = await stripe.customers.list({
-      email, // Passa o email do user para procurar um cliente existente
+      email,
     });
 
     let stripeCustomerId;
@@ -86,13 +86,13 @@ export const signup = async (req, res) => {
       }
     }
 
-    // Cria o novo user
+    // Cria o novo utilizador
     const newUser = new User({
       fullName,
       gender,
       email,
       password: hashedPassword,
-      stripeCustomerId, // 🔹 Adiciona o ID do Stripe ao user
+      stripeCustomerId,
     });
     
     await newUser.save();
@@ -104,14 +104,14 @@ export const signup = async (req, res) => {
       _id: newUser._id,
       fullName: newUser.fullName,
       email: newUser.email,
-      profilePic: newUser.profilePic || "", // Evita erro se profilePic for undefined
+      profilePic: newUser.profilePic || "",
       gender: newUser.gender,
       stripeCustomerId: newUser.stripeCustomerId,
     });
 
   } catch (error) {
-    console.error("Error in signup controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Erro no controlador de registo:", error.message);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };
 
@@ -119,24 +119,24 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // 🔹 1. Verifica se o user existe
+    // Verifica se o utilizador existe
     let user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
-    // 🔹 2. Verifica se a senha está correta
+    // Verifica se a palavra-passe está correta
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
-    // 🔹 3. Verifica se já tem um stripeCustomerId
+    // Verifica se já tem um stripeCustomerId
     let stripeCustomerId = user.stripeCustomerId;
 
     if (!stripeCustomerId) {
       try {
-        // 🔹 4. Criar um cliente no Stripe, já que não tem ID
+        // Criar um cliente no Stripe, já que não tem ID
         const stripeCustomer = await stripe.customers.create({
           email: user.email,
           name: user.fullName,
@@ -144,7 +144,7 @@ export const login = async (req, res) => {
 
         stripeCustomerId = stripeCustomer.id;
 
-        // 🔹 5. Atualizar o user no banco com o stripeCustomerId gerado
+        // Atualizar o utilizador na BD com o stripeCustomerId gerado
         user = await User.findByIdAndUpdate(
           user._id,
           { stripeCustomerId },
@@ -156,7 +156,7 @@ export const login = async (req, res) => {
       }
     }
 
-    // 🔹 6. Gera o token JWT e faz login normalmente
+    // Gera o token JWT e faz login normalmente
     generateToken(user._id, res);
 
     res.status(200).json({
@@ -164,12 +164,13 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic || "",
-      stripeCustomerId: user.stripeCustomerId, // 🔹 Retorna sempre o ID atualizado
+      gender: user.gender,
+      stripeCustomerId: user.stripeCustomerId,
     });
 
   } catch (error) {
-    console.error("Error in login controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Erro no controlador de login:", error.message);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };
 
@@ -177,10 +178,10 @@ export const login = async (req, res) => {
 export const logout = (req, res) => {
   try {
     res.cookie("jwt", "", { maxAge: 0 });
-    res.status(200).json({ message: "Logged out successfully" });
+    res.status(200).json({ message: "Sessão terminada com sucesso" });
   } catch (error) {
-    console.error("Error in logout controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Erro no controlador de logout:", error.message);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };
 
@@ -190,7 +191,7 @@ export const updateProfile = async (req, res) => {
     const updates = req.body;
     const errors = {};
 
-    console.log("Atualizando perfil - Dados recebidos:", updates);
+    console.log("A atualizar perfil - Dados recebidos:", updates);
 
     // Validação dos campos
     if (updates.fullName !== undefined) {
@@ -198,15 +199,6 @@ export const updateProfile = async (req, res) => {
         errors.fullName = "Nome é obrigatório";
       } else if (updates.fullName.trim().length < 3) {
         errors.fullName = "Nome deve ter no mínimo 3 caracteres";
-      } else {
-        // Verifica se o nome já está em uso por outro usuário
-        const nameExists = await User.findOne({
-          fullName: updates.fullName.trim(),
-          _id: { $ne: userId }
-        });
-        if (nameExists) {
-          errors.fullName = "Este nome já está em uso";
-        }
       }
     }
 
@@ -216,11 +208,12 @@ export const updateProfile = async (req, res) => {
       } else if (!/\S+@\S+\.\S+/.test(updates.email)) {
         errors.email = "Formato de email inválido";
       } else {
-        // Verifica se o email já está em uso
+        // Verifica se o email já está em uso por outro utilizador
         const emailExists = await User.findOne({
           email: updates.email.trim().toLowerCase(),
           _id: { $ne: userId }
         });
+        
         if (emailExists) {
           errors.email = "Email já está em uso";
         }
@@ -228,8 +221,8 @@ export const updateProfile = async (req, res) => {
     }
 
     if (updates.gender !== undefined) {
-      if (updates.gender && !["male", "female"].includes(updates.gender)) {
-        errors.gender = "Gênero inválido";
+      if (updates.gender && !["male", "female", ""].includes(updates.gender)) {
+        errors.gender = "Género inválido";
       }
     }
 
@@ -241,7 +234,8 @@ export const updateProfile = async (req, res) => {
     if (invalidUpdates.length > 0) {
       console.log("Tentativa de atualização de campos não permitidos:", invalidUpdates);
       return res.status(400).json({ 
-        message: `Campos não permitidos: ${invalidUpdates.join(', ')}` 
+        message: `Campos não permitidos: ${invalidUpdates.join(', ')}`,
+        errors: { general: `Campos não permitidos: ${invalidUpdates.join(', ')}` }
       });
     }
 
@@ -256,8 +250,10 @@ export const updateProfile = async (req, res) => {
       if (value !== undefined && value !== null) {
         if (typeof value === 'string') {
           const trimmedValue = value.trim();
-          if (trimmedValue !== '') {
-            acc[key] = key === 'email' ? trimmedValue.toLowerCase() : trimmedValue;
+          if (key === 'email') {
+            acc[key] = trimmedValue.toLowerCase();
+          } else {
+            acc[key] = trimmedValue;
           }
         } else {
           acc[key] = value;
@@ -269,10 +265,13 @@ export const updateProfile = async (req, res) => {
     console.log("Dados limpos para atualização:", cleanUpdates);
 
     if (Object.keys(cleanUpdates).length === 0) {
-      return res.status(400).json({ message: "Nenhum dado válido para atualização" });
+      return res.status(400).json({ 
+        message: "Nenhum dado válido para atualização",
+        errors: { general: "Nenhum dado válido para atualização" }
+      });
     }
 
-    // Atualiza os dados do User
+    // Atualiza os dados do utilizador
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: cleanUpdates }, 
@@ -284,28 +283,49 @@ export const updateProfile = async (req, res) => {
     );
 
     if (!updatedUser) {
-      console.log("User não encontrado para atualização:", userId);
-      return res.status(404).json({ message: "User não encontrado" });
+      console.log("Utilizador não encontrado para atualização:", userId);
+      return res.status(404).json({ 
+        message: "Utilizador não encontrado",
+        errors: { general: "Utilizador não encontrado" }
+      });
     }
 
     console.log("Perfil atualizado com sucesso:", updatedUser);
-    res.status(200).json(updatedUser);
+    
+    // Retornar os dados atualizados e uma mensagem de sucesso
+    res.status(200).json({
+      ...updatedUser.toObject(),
+      message: "Perfil atualizado com sucesso"
+    });
 
   } catch (error) {
     console.error("Erro na atualização do perfil:", error);
+    
+    // Verificar se é um erro de duplicação do MongoDB (código 11000)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const errorMessage = `${field === 'email' ? 'Email' : 'Campo'} já está em uso`;
+      
+      return res.status(400).json({ 
+        message: errorMessage,
+        errors: { [field]: errorMessage }
+      });
+    }
+    
     res.status(500).json({ 
       message: "Erro ao atualizar perfil",
-      error: error.message 
+      error: error.message,
+      errors: { general: "Erro ao atualizar perfil" }
     });
   }
 };
 
-// Verifica se o user está autenticado
+// Verifica se o utilizador está autenticado
 export const checkAuth = (req, res) => {
   try {
     res.status(200).json(req.user);
   } catch (error) {
-    console.error("Error in checkAuth controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Erro no controlador de verificação de autenticação:", error.message);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 };

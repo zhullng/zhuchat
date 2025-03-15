@@ -22,15 +22,15 @@ const SignUpPage = () => {
   };
 
   const validateForm = () => {
-    if (!formData.fullName.trim()) return toast.error("Full name is required");
-    if (!formData.gender) return toast.error("Gender is required");
-    if (!formData.email.trim()) return toast.error("Email is required");
-    if (!/\S+@\S+\.\S+/.test(formData.email)) return toast.error("Invalid email format");
+    if (!formData.fullName.trim()) return toast.error("Nome completo é obrigatório");
+    if (!formData.gender) return toast.error("Género é obrigatório");
+    if (!formData.email.trim()) return toast.error("Email é obrigatório");
+    if (!/\S+@\S+\.\S+/.test(formData.email)) return toast.error("Formato de email inválido");
     
     // Updated password validation
-    if (!formData.password) return toast.error("Password is required");
-    if (formData.password.length < 6) return toast.error("Password must be at least 6 characters");
-    if (!validatePassword(formData.password)) return toast.error("Password must contain uppercase, lowercase letters and numbers");
+    if (!formData.password) return toast.error("Palavra-passe é obrigatória");
+    if (formData.password.length < 6) return toast.error("Palavra-passe deve ter pelo menos 6 caracteres");
+    if (!validatePassword(formData.password)) return toast.error("Palavra-passe deve conter letras maiúsculas, minúsculas e números");
 
     return true;
   };
@@ -50,15 +50,15 @@ const SignUpPage = () => {
             <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center animate-bounce">
               <img src="/logoZhuChat.png" alt="Logo" className="w-12 h-12 rounded-full" />
             </div>
-              <h1 className="text-2xl font-bold mt-2">Create Account</h1>
-              <p className="text-base-content/60">Get started with your free account</p>
+              <h1 className="text-2xl font-bold mt-2">Criar Conta</h1>
+              <p className="text-base-content/60">Comece com a sua conta gratuita</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Full Name</span>
+                <span className="label-text font-medium">Nome Completo</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -76,7 +76,7 @@ const SignUpPage = () => {
 
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Gender</span>
+                <span className="label-text font-medium">Género</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -87,9 +87,9 @@ const SignUpPage = () => {
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                 >
-                  <option value="">Select Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="">Selecionar Género</option>
+                  <option value="male">Masculino</option>
+                  <option value="female">Feminino</option>
                 </select>
               </div>
             </div>
@@ -105,7 +105,7 @@ const SignUpPage = () => {
                 <input
                   type="email"
                   className="input input-bordered w-full pl-10"
-                  placeholder="you@example.com"
+                  placeholder="voce@exemplo.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -114,7 +114,7 @@ const SignUpPage = () => {
 
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Password</span>
+                <span className="label-text font-medium">Palavra-passe</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -145,19 +145,19 @@ const SignUpPage = () => {
               {isSigningUp ? (
                 <>
                   <Loader2 className="size-5 animate-spin" />
-                  Loading...
+                  A carregar...
                 </>
               ) : (
-                "Create Account"
+                "Criar Conta"
               )}
             </button>
           </form>
 
           <div className="text-center">
             <p className="text-base-content/60">
-              Already have an account?{" "}
+              Já tem uma conta?{" "}
               <Link to="/login" className="link link-primary">
-                Sign in
+                Iniciar sessão
               </Link>
             </p>
           </div>
@@ -165,8 +165,8 @@ const SignUpPage = () => {
       </div>
 
       <AuthImagePattern
-        title="Join our community"
-        subtitle="Connect with friends, share moments, and stay in touch with your loved ones."
+        title="Junte-se à nossa comunidade"
+        subtitle="Ligue-se com amigos, partilhe momentos e mantenha-se em contacto com os seus entes queridos."
       />
     </div>
   );
