@@ -83,7 +83,7 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
     });
   }, [transfers, searchTerm, userId]);
 
-  const renderTransfers = () => {
+  const   renderTransfers = () => {
     if (isLoading) {
       return renderSkeletons(3);
     }
@@ -119,7 +119,7 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
           
           <div className="ml-4 flex-1">
             <p className="font-medium line-clamp-1">
-              {isSender ? 'Transferência para ' : 'Recebido de '}
+              {isSender ? 'Para ' : 'De '}
               <strong>
                 {isSender ? transfer.receiver.fullName || transfer.receiver.username : transfer.sender.fullName || transfer.sender.username}
               </strong>
