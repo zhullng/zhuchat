@@ -41,7 +41,7 @@ const App = () => {
     );  
   }
 
-  const isLoginOrSignupPage = location.pathname === "/login" || location.pathname === "/signup";
+  const isLoginOrSignupPage = location.pathname === "/login" || location.pathname === "/signup" || location.pathname === "/reset-password/:token" || location.pathname === "/forgot-password";
 
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col" data-theme={theme}>
