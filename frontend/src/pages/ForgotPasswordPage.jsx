@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, Mail } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, Loader2, Mail, Link as LinkIcon } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
 const ForgotPasswordPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [devToken, setDevToken] = useState(null);
+  const [showDevInfo, setShowDevInfo] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,18 +26,32 @@ const ForgotPasswordPage = () => {
     }
 
     setIsSubmitting(true);
+    setDevToken(null);
 
     try {
       const response = await axiosInstance.post("/auth/forgot-password", { email });
       
       setEmailSent(true);
       toast.success(response.data.message || "Email enviado com sucesso! Verifique a sua caixa de entrada.");
+      
+      // Capturar token de desenvolvimento, se disponível
+      if (response.data._devToken) {
+        console.log("Token de recuperação para desenvolvimento:", response.data._devToken);
+        setDevToken(response.data._devToken);
+        setShowDevInfo(true);
+      }
     } catch (error) {
       console.error("Erro ao enviar email de recuperação:", error);
       const errorMessage = error.response?.data?.message || "Não foi possível enviar o email de recuperação";
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDevTokenClick = () => {
+    if (devToken) {
+      navigate(`/reset-password/${devToken}`);
     }
   };
 
@@ -56,7 +73,7 @@ const ForgotPasswordPage = () => {
             </p>
           ) : (
             <p className="mt-2 text-base-content/70">
-              Verificque o seu email. Enviámos um link para recuperar a sua palavra-passe
+              Verifique o seu email. Enviámos um link para recuperar a sua palavra-passe
             </p>
           )}
         </div>
@@ -103,9 +120,30 @@ const ForgotPasswordPage = () => {
               <p>Email enviado com sucesso!</p>
             </div>
             
+            {/* Informações de desenvolvedor - link direto para redefinição */}
+            {devToken && (
+              <div className={`mt-6 p-4 border border-warning rounded-lg ${showDevInfo ? 'block' : 'hidden'}`}>
+                <h3 className="font-bold text-warning mb-2">Modo de Desenvolvimento</h3>
+                <p className="text-sm mb-3">Como o envio de email pode não estar configurado corretamente, você pode usar o link abaixo para testar:</p>
+                <button 
+                  onClick={handleDevTokenClick}
+                  className="btn btn-warning btn-sm gap-2 w-full"
+                >
+                  <LinkIcon className="size-4" />
+                  Ir para página de redefinição
+                </button>
+                <p className="text-xs mt-3 text-base-content/60">
+                  Este link não é mostrado em produção e é apenas para fins de desenvolvimento.
+                </p>
+              </div>
+            )}
+            
             <div>
               <button 
-                onClick={() => setEmailSent(false)}
+                onClick={() => {
+                  setEmailSent(false);
+                  setDevToken(null);
+                }}
                 className="btn btn-outline w-full"
               >
                 Tentar com outro email
