@@ -160,5 +160,45 @@ export const useAuthStore = create((set, get) => ({
       socket.disconnect();
       set({ socket: null });
     }
+  },
+
+  forgotPassword: async (email) => {
+    try {
+      const res = await axiosInstance.post("/auth/forgot-password", { email });
+      toast.success(res.data.message);
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Erro ao solicitar recuperação de senha:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao solicitar recuperação de senha";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  },
+  
+  // For verifying reset token
+  verifyResetToken: async (token) => {
+    try {
+      const res = await axiosInstance.get(`/auth/reset-password/${token}`);
+      return { success: true };
+    } catch (error) {
+      console.error("Token inválido ou expirado:", error);
+      const errorMessage = error.response?.data?.message || "Token inválido ou expirado";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  },
+  
+  // For resetting password
+  resetPassword: async (token, password) => {
+    try {
+      const res = await axiosInstance.post(`/auth/reset-password/${token}`, { password });
+      toast.success(res.data.message || "Palavra-passe redefinida com sucesso!");
+      return { success: true };
+    } catch (error) {
+      console.error("Erro ao redefinir palavra-passe:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao redefinir palavra-passe";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    }
   }
 }));
