@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, ArrowLeft, Lock } from 'lucide-react';
+import { KeyRound, ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -15,10 +15,15 @@ const ChangePasswordPage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmNewPassword: false
+  });
 
   // Validate password complexity
   const validatePassword = (password) => {
-    const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{6,}$/;
     return complexityRegex.test(password);
   };
 
@@ -34,10 +39,10 @@ const ChangePasswordPage = () => {
     // New password checks
     if (!formData.newPassword?.trim()) {
       newErrors.newPassword = "Nova senha é obrigatória";
-    } else if (formData.newPassword.length < 8) {
-      newErrors.newPassword = "Nova senha deve ter no mínimo 8 caracteres";
+    } else if (formData.newPassword.length < 6) {
+      newErrors.newPassword = "Nova senha deve ter no mínimo 6 caracteres";
     } else if (!validatePassword(formData.newPassword)) {
-      newErrors.newPassword = "Senha deve conter maiúsculas, minúsculas, números e caracteres especiais";
+      newErrors.newPassword = "Senha deve conter maiúsculas, minúsculas e números";
     }
 
     // Confirm new password check
@@ -116,6 +121,14 @@ const ChangePasswordPage = () => {
     }
   };
 
+  // Toggle password visibility
+  const togglePasswordVisibility = (field) => {
+    setShowPassword(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
   return (
     <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
       <div className="max-w-2xl mx-auto p-4 py-8">
@@ -146,7 +159,7 @@ const ChangePasswordPage = () => {
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword.currentPassword ? 'text' : 'password'}
                   name="currentPassword"
                   value={formData.currentPassword}
                   onChange={handleChange}
@@ -157,6 +170,17 @@ const ChangePasswordPage = () => {
                   placeholder="Digite sua senha atual"
                 />
                 <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility('currentPassword')}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 text-base-content/50"
+                >
+                  {showPassword.currentPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
               </div>
               {errors.currentPassword && (
                 <span className="text-error text-sm mt-1">
@@ -172,7 +196,7 @@ const ChangePasswordPage = () => {
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword.newPassword ? 'text' : 'password'}
                   name="newPassword"
                   value={formData.newPassword}
                   onChange={handleChange}
@@ -183,6 +207,17 @@ const ChangePasswordPage = () => {
                   placeholder="Digite sua nova senha"
                 />
                 <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility('newPassword')}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 text-base-content/50"
+                >
+                  {showPassword.newPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
               </div>
               {errors.newPassword && (
                 <span className="text-error text-sm mt-1">
@@ -190,7 +225,7 @@ const ChangePasswordPage = () => {
                 </span>
               )}
               <p className="text-xs text-base-content/70 mt-1">
-                Sua senha deve conter: maiúsculas, minúsculas, números e caracteres especiais
+                Sua senha deve conter: maiúsculas, minúsculas e números
               </p>
             </div>
 
@@ -201,7 +236,7 @@ const ChangePasswordPage = () => {
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword.confirmNewPassword ? 'text' : 'password'}
                   name="confirmNewPassword"
                   value={formData.confirmNewPassword}
                   onChange={handleChange}
@@ -212,6 +247,17 @@ const ChangePasswordPage = () => {
                   placeholder="Confirme sua nova senha"
                 />
                 <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+                <button
+                  type="button"
+                  onClick={() => togglePasswordVisibility('confirmNewPassword')}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 text-base-content/50"
+                >
+                  {showPassword.confirmNewPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
               </div>
               {errors.confirmNewPassword && (
                 <span className="text-error text-sm mt-1">
