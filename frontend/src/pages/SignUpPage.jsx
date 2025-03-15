@@ -16,7 +16,6 @@ const SignUpPage = () => {
 
   const { signup, isSigningUp } = useAuthStore();
 
-  // Validate password complexity
   const validatePassword = (password) => {
     const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{6,}$/;
     return complexityRegex.test(password);
@@ -140,9 +139,6 @@ const SignUpPage = () => {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-base-content/70 mt-1">
-                Password must contain uppercase, lowercase letters and numbers
-              </p>
             </div>
 
             <button type="submit" className="btn btn-primary w-full" disabled={isSigningUp}>
