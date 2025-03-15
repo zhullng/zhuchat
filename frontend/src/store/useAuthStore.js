@@ -14,6 +14,20 @@ export const useAuthStore = create((set, get) => ({
   onlineUsers: [],
   socket: null,
 
+
+  updatePassword: async (data) => {
+    try {
+      const res = await axiosInstance.put("/auth/update-password", data);
+      toast.success(res.data.message);
+      return { success: true };
+    } catch (error) {
+      console.error("Password update error:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao atualizar senha";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  },
+
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");

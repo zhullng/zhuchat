@@ -171,7 +171,7 @@ const SettingsProfilePage = () => {
     }
 
     // Validação do gênero
-    if (formData.gender && !["masculino", "feminino"].includes(formData.gender)) {
+    if (formData.gender && !["male", "female"].includes(formData.gender)) {
       newErrors.gender = "Gênero inválido";
     }
 

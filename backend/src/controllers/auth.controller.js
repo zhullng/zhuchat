@@ -8,6 +8,37 @@ dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_API_SECRET); 
 
+
+export const updatePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    // Verificar se o usuário existe
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    // Verificar se a senha atual está correta
+    const isPasswordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordMatch) {
+      return res.status(400).json({ message: "Senha atual incorreta" });
+    }
+
+    // Atualizar a senha
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Senha atualizada com sucesso" });
+  } catch (error) {
+    console.error("Password update error:", error);
+    res.status(500).json({ message: "Erro ao atualizar senha" });
+  }
+};
+
 export const signup = async (req, res) => {
   const { fullName, gender, email, password } = req.body;
 
@@ -167,6 +198,15 @@ export const updateProfile = async (req, res) => {
         errors.fullName = "Nome é obrigatório";
       } else if (updates.fullName.trim().length < 3) {
         errors.fullName = "Nome deve ter no mínimo 3 caracteres";
+      } else {
+        // Verifica se o nome já está em uso por outro usuário
+        const nameExists = await User.findOne({
+          fullName: updates.fullName.trim(),
+          _id: { $ne: userId }
+        });
+        if (nameExists) {
+          errors.fullName = "Este nome já está em uso";
+        }
       }
     }
 
@@ -188,7 +228,7 @@ export const updateProfile = async (req, res) => {
     }
 
     if (updates.gender !== undefined) {
-      if (updates.gender && !["masculino", "feminino"].includes(updates.gender)) {
+      if (updates.gender && !["male", "female"].includes(updates.gender)) {
         errors.gender = "Gênero inválido";
       }
     }
