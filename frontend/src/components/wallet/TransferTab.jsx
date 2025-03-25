@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
-import { Mail, QrCode, Scan, Wallet } from 'lucide-react';
+import { Mail, QrCode, Scan, Wallet, X, Camera } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const TransferTab = ({ refreshData, balance }) => {
   const [activeSubTab, setActiveSubTab] = useState(0); // 0: Email, 1: QR Code, 2: Meu QR
@@ -9,8 +10,12 @@ const TransferTab = ({ refreshData, balance }) => {
   const [amount, setAmount] = useState('');
   const [myQRCode, setMyQRCode] = useState('');
   const [errors, setErrors] = useState({});
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState('');
   
   const { transfer, transferByQR, generateQRCode, isLoading } = useWalletStore();
+  const html5QrCodeRef = useRef(null);
+  const qrScannerContainerRef = useRef(null);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-PT', {
@@ -36,6 +41,64 @@ const TransferTab = ({ refreshData, balance }) => {
       loadQRCode();
     }
   }, [activeSubTab, generateQRCode, myQRCode]);
+
+  // Limpar o scanner quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().catch(error => {
+          console.error("Erro ao parar o scanner:", error);
+        });
+      }
+    };
+  }, []);
+
+  // Efeito para iniciar o scanner quando isScanning for true
+  useEffect(() => {
+    if (isScanning && qrScannerContainerRef.current) {
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
+      }
+
+      html5QrCodeRef.current.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: 250
+        },
+        (decodedText) => {
+          // Sucesso no scan
+          console.log("QR Code detectado:", decodedText);
+          setScanResult(decodedText);
+          setQrData(decodedText);
+          stopScanner();
+        },
+        (errorMessage) => {
+          // Ignorar erros de scan (acontecem quando nenhum QR code é detectado)
+          console.log("Procurando QR code...");
+        }
+      ).catch((err) => {
+        console.error("Erro ao iniciar scanner:", err);
+        setIsScanning(false);
+      });
+    }
+  }, [isScanning]);
+
+  const startScanner = () => {
+    setScanResult('');
+    setIsScanning(true);
+  };
+
+  const stopScanner = () => {
+    if (html5QrCodeRef.current) {
+      html5QrCodeRef.current.stop().then(() => {
+        setIsScanning(false);
+      }).catch(error => {
+        console.error("Erro ao parar o scanner:", error);
+        setIsScanning(false);
+      });
+    }
+  };
 
   const validateAmount = () => {
     let valid = true;
@@ -124,6 +187,7 @@ const TransferTab = ({ refreshData, balance }) => {
     setQrData('');
     setAmount('');
     setErrors({});
+    setScanResult('');
   };
 
   return (
@@ -209,49 +273,96 @@ const TransferTab = ({ refreshData, balance }) => {
       
       {activeSubTab === 1 && (
         <form onSubmit={handleQRTransfer} className="space-y-4">
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Dados do QR Code</span>
-            </label>
-            <div className="input-group">
-              <span>
-                <QrCode className="size-5" />
-              </span>
-              <input
-                type="text"
-                className={`input input-bordered w-full ${errors.qrData ? 'input-error' : ''}`}
-                placeholder="Cole os dados do QR code escaneado"
-                value={qrData}
-                onChange={(e) => setQrData(e.target.value)}
-              />
+          {isScanning ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Escaneie o QR Code</h3>
+                <button 
+                  type="button" 
+                  className="btn btn-circle btn-sm btn-ghost" 
+                  onClick={stopScanner}
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+              
+              <div className="flex justify-center">
+                <div 
+                  id="qr-scanner-container" 
+                  ref={qrScannerContainerRef}
+                  className="w-full max-w-sm h-64 border rounded-lg overflow-hidden"
+                ></div>
+              </div>
+              
+              <p className="text-sm text-center opacity-75">
+                Posicione o QR code à frente da câmera para ser escaneado automaticamente
+              </p>
             </div>
-            {errors.qrData && <span className="text-error text-sm mt-1">{errors.qrData}</span>}
-          </div>
-          
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Montante (€)</span>
-            </label>
-            <input
-              type="number"
-              className={`input input-bordered w-full ${errors.amount ? 'input-error' : ''}`}
-              placeholder="0.00"
-              min="1"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            {errors.amount && <span className="text-error text-sm mt-1">{errors.amount}</span>}
-          </div>
-          
-          <button
-            type="submit"
-            className={`btn btn-primary w-full ${isLoading ? 'loading' : ''}`}
-            disabled={isLoading}
-          >
-            {!isLoading && <Scan className="size-5 mr-2" />}
-            {isLoading ? 'Processando...' : 'Transferir por QR Code'}
-          </button>
+          ) : (
+            <>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Dados do QR Code</span>
+                </label>
+                <div className="input-group">
+                  <span>
+                    <QrCode className="size-5" />
+                  </span>
+                  <input
+                    type="text"
+                    className={`input input-bordered w-full ${errors.qrData ? 'input-error' : ''}`}
+                    placeholder="Cole os dados do QR code escaneado"
+                    value={qrData}
+                    onChange={(e) => setQrData(e.target.value)}
+                  />
+                </div>
+                {errors.qrData && <span className="text-error text-sm mt-1">{errors.qrData}</span>}
+              </div>
+              
+              <button
+                type="button"
+                className="btn btn-outline w-full mb-4"
+                onClick={startScanner}
+              >
+                <Camera className="size-5 mr-2" />
+                Escanear QR Code
+              </button>
+              
+              {scanResult && (
+                <div className="alert alert-success mb-4">
+                  <div className="flex items-center">
+                    <QrCode className="size-5 mr-2" />
+                    <p>QR Code escaneado com sucesso!</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Montante (€)</span>
+                </label>
+                <input
+                  type="number"
+                  className={`input input-bordered w-full ${errors.amount ? 'input-error' : ''}`}
+                  placeholder="0.00"
+                  min="1"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+                {errors.amount && <span className="text-error text-sm mt-1">{errors.amount}</span>}
+              </div>
+              
+              <button
+                type="submit"
+                className={`btn btn-primary w-full ${isLoading ? 'loading' : ''}`}
+                disabled={isLoading || !qrData}
+              >
+                {!isLoading && <Scan className="size-5 mr-2" />}
+                {isLoading ? 'Processando...' : 'Transferir por QR Code'}
+              </button>
+            </>
+          )}
         </form>
       )}
       
