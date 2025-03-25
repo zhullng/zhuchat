@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, Mail, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
@@ -10,7 +10,7 @@ const ForgotPasswordPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [devToken, setDevToken] = useState(null);
-  const [showDevInfo, setShowDevInfo] = useState(false);
+  const [showDevInfo, setShowDevInfo] = useState(true); // Sempre mostrar em desenvolvimento
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,6 +52,15 @@ const ForgotPasswordPage = () => {
   const handleDevTokenClick = () => {
     if (devToken) {
       navigate(`/reset-password/${devToken}`);
+    }
+  };
+
+  const handleCopyResetLink = () => {
+    if (devToken) {
+      const resetUrl = `${window.location.origin}/reset-password/${devToken}`;
+      navigator.clipboard.writeText(resetUrl)
+        .then(() => toast.success("Link copiado para a área de transferência"))
+        .catch(err => toast.error("Erro ao copiar link"));
     }
   };
 
@@ -124,14 +133,32 @@ const ForgotPasswordPage = () => {
             {devToken && (
               <div className={`mt-6 p-4 border border-warning rounded-lg ${showDevInfo ? 'block' : 'hidden'}`}>
                 <h3 className="font-bold text-warning mb-2">Modo de Desenvolvimento</h3>
-                <p className="text-sm mb-3">Como o envio de email pode não estar configurado corretamente, você pode usar o link abaixo para testar:</p>
-                <button 
-                  onClick={handleDevTokenClick}
-                  className="btn btn-warning btn-sm gap-2 w-full"
-                >
-                  <LinkIcon className="size-4" />
-                  Ir para página de redefinição
-                </button>
+                <p className="text-sm mb-3">Como o envio de email pode não estar configurado corretamente, você pode usar estas opções para testar:</p>
+                
+                <div className="grid grid-cols-1 gap-3">
+                  <button 
+                    onClick={handleDevTokenClick}
+                    className="btn btn-warning btn-sm gap-2 w-full"
+                  >
+                    <LinkIcon className="size-4" />
+                    Ir para página de redefinição
+                  </button>
+                  
+                  <button 
+                    onClick={handleCopyResetLink}
+                    className="btn btn-outline btn-warning btn-sm gap-2 w-full"
+                  >
+                    <ExternalLink className="size-4" />
+                    Copiar link para dispositivo móvel
+                  </button>
+                </div>
+                
+                <div className="mt-3 overflow-x-auto">
+                  <code className="text-xs block bg-base-300 p-2 rounded text-left whitespace-normal break-all">
+                    {window.location.origin}/reset-password/{devToken}
+                  </code>
+                </div>
+                
                 <p className="text-xs mt-3 text-base-content/60">
                   Este link não é mostrado em produção e é apenas para fins de desenvolvimento.
                 </p>

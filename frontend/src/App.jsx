@@ -25,13 +25,9 @@ const App = () => {
   const { theme } = useThemeStore();
   const location = useLocation(); // Hook para acessar a localização atual
 
-  console.log({ onlineUsers });
-
   useEffect(() => {
     checkAuth(); 
   }, [checkAuth]);
-
-  console.log({ authUser });
 
   if (isCheckingAuth && !authUser) {
     return (
@@ -41,7 +37,12 @@ const App = () => {
     );  
   }
 
-  const isLoginOrSignupPage = location.pathname === "/login" || location.pathname === "/signup" || location.pathname === "/reset-password/:token" || location.pathname === "/forgot-password";
+  // Corrigido: Verifica se o pathname começa com "/reset-password/"
+  const isLoginOrSignupPage = 
+    location.pathname === "/login" || 
+    location.pathname === "/signup" || 
+    location.pathname === "/forgot-password" || 
+    location.pathname.startsWith("/reset-password/");
 
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col" data-theme={theme}>
