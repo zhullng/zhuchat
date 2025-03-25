@@ -12,14 +12,12 @@ const Sidebar = () => {
     setSelectedUser, 
     isUsersLoading,
     conversations,
-    unreadCounts,
-    markConversationAsRead
+    unreadCounts 
   } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
-  const [localUnreadCounts, setLocalUnreadCounts] = useState({});
 
   // AI Assistant object
   const aiAssistant = {
@@ -36,34 +34,9 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, [getUsers]);
 
-  // Sincronizar contadores locais com os do store
-  useEffect(() => {
-    if (unreadCounts) {
-      setLocalUnreadCounts(unreadCounts);
-    }
-  }, [unreadCounts]);
-
   const handleSearchChange = debounce((query) => {
     setSearchQuery(query);
   }, 300); 
-
-  // Função de seleção de usuário modificada para limpar notificações imediatamente
-  const handleSelectUser = (user) => {
-    // Se for um usuário normal (não AI), limpa contagens de não lidos imediatamente
-    if (user && user._id !== 'ai-assistant') {
-      // Atualizar o contador local imediatamente
-      setLocalUnreadCounts(prev => ({
-        ...prev,
-        [user._id]: 0
-      }));
-      
-      // Chamar a função do store para atualizar no servidor em background
-      markConversationAsRead(user._id);
-    }
-    
-    // Definir o usuário selecionado
-    setSelectedUser(user);
-  };
 
   // Função para ordenar usuários com base em conversas recentes e filtrar por pesquisa
   const getSortedAndFilteredUsers = () => {
@@ -82,8 +55,8 @@ const Sidebar = () => {
       const convB = conversations?.find(c => c.participants.includes(b._id));
       
       // Verificar se há mensagens não lidas (prioridade mais alta)
-      const unreadA = localUnreadCounts[a._id] && localUnreadCounts[a._id] > 0;
-      const unreadB = localUnreadCounts[b._id] && localUnreadCounts[b._id] > 0;
+      const unreadA = unreadCounts[a._id] && unreadCounts[a._id] > 0;
+      const unreadB = unreadCounts[b._id] && unreadCounts[b._id] > 0;
       
       // Mensagens não lidas têm prioridade
       if (unreadA && !unreadB) return -1;
@@ -143,7 +116,7 @@ const Sidebar = () => {
       <div className="overflow-y-auto flex-1 p-1 lg:p-2">
         {/* AI Assistant */}
         <button
-          onClick={() => handleSelectUser(aiAssistant)}
+          onClick={() => setSelectedUser(aiAssistant)}
           className={`
             w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
             transition-colors hover:bg-base-200 mb-2
@@ -172,13 +145,13 @@ const Sidebar = () => {
 
         {/* User List */}
         {sortedUsers.map((user) => {
-          const hasUnread = localUnreadCounts[user._id] && localUnreadCounts[user._id] > 0;
+          const hasUnread = unreadCounts && unreadCounts[user._id] && unreadCounts[user._id] > 0;
           const conv = conversations?.find(c => c.participants.includes(user._id));
           
           return (
             <button
               key={user._id}
-              onClick={() => handleSelectUser(user)}
+              onClick={() => setSelectedUser(user)}
               className={`
                 w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
                 transition-colors hover:bg-base-200
@@ -202,7 +175,7 @@ const Sidebar = () => {
                   <span className="font-medium truncate text-sm lg:text-base">{user.fullName}</span>
                   {hasUnread && (
                     <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full w-5 h-5 text-xs font-medium ml-2">
-                      {localUnreadCounts[user._id] > 9 ? '9+' : localUnreadCounts[user._id]}
+                      {unreadCounts[user._id] > 9 ? '9+' : unreadCounts[user._id]}
                     </span>
                   )}
                 </div>
