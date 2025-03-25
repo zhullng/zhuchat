@@ -1,26 +1,65 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send, X } from "lucide-react";
+import { Bot, Send, X, Copy, Check } from "lucide-react";
 
 const AIChat = ({ setSelectedUser }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
   const messagesEndRef = useRef(null);
   const { authUser } = useAuthStore();
 
+  // Carregar mensagens do localStorage quando o componente montar
+  useEffect(() => {
+    if (authUser) {
+      const savedMessages = localStorage.getItem(`aiChat_${authUser._id}`);
+      if (savedMessages) {
+        try {
+          // Converter as strings de data de volta para objetos Date
+          const parsedMessages = JSON.parse(savedMessages).map(msg => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          setMessages(parsedMessages);
+        } catch (error) {
+          console.error("Erro ao carregar mensagens:", error);
+        }
+      }
+    }
+  }, [authUser]);
+
+  // Salvar mensagens no localStorage quando elas mudarem
+  useEffect(() => {
+    if (authUser && messages.length > 0) {
+      localStorage.setItem(`aiChat_${authUser._id}`, JSON.stringify(messages));
+    }
+  }, [messages, authUser]);
+
+  // Rolar para o fim das mensagens
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isTyping]);
 
+  // Resetar o estado "copiado" após 2 segundos
+  useEffect(() => {
+    if (copiedMessageId) {
+      const timer = setTimeout(() => {
+        setCopiedMessageId(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedMessageId]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     const newMessage = {
+      id: Date.now().toString(),
       content: input,
       isAI: false,
       timestamp: new Date(),
@@ -32,21 +71,42 @@ const AIChat = ({ setSelectedUser }) => {
 
     try {
       const response = await getAIResponse(input);
-      setMessages((prev) => [
-        ...prev,
-        { content: response, isAI: true, timestamp: new Date() },
-      ]);
+      const aiMessage = {
+        id: (Date.now() + 1).toString(),
+        content: response,
+        isAI: true,
+        timestamp: new Date()
+      };
+      setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "Desculpe, ocorreu um erro. Tente novamente.",
-          isAI: true,
-          timestamp: new Date(),
-        },
-      ]);
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        content: "Desculpe, ocorreu um erro. Tente novamente.",
+        isAI: true,
+        timestamp: new Date()
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  const copyToClipboard = (text, messageId) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopiedMessageId(messageId);
+      })
+      .catch(err => {
+        console.error('Falha ao copiar texto: ', err);
+      });
+  };
+
+  const clearChatHistory = () => {
+    if (window.confirm("Tem a certeza que deseja limpar o histórico da conversa?")) {
+      setMessages([]);
+      if (authUser) {
+        localStorage.removeItem(`aiChat_${authUser._id}`);
+      }
     }
   };
 
@@ -61,15 +121,32 @@ const AIChat = ({ setSelectedUser }) => {
           <h2 className="font-semibold">Assistente Virtual</h2>
           <p className="text-sm flex items-center gap-2">Online</p>
         </div>
-        <button onClick={() => setSelectedUser(null)} className="ml-auto">
-          <X size={24} />
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {messages.length > 0 && (
+            <button 
+              onClick={clearChatHistory} 
+              className="btn btn-xs btn-ghost text-error"
+            >
+              Limpar conversa
+            </button>
+          )}
+          <button onClick={() => setSelectedUser(null)}>
+            <X size={24} />
+          </button>
+        </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 w-full">
-        {messages.map((message, index) => (
-          <div key={index} className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}>
+        {messages.length === 0 && (
+          <div className="text-center text-base-content/50 p-8">
+            <Bot size={48} className="mx-auto mb-4 text-primary/60" />
+            <p>Olá! Como posso ajudar?</p>
+          </div>
+        )}
+        
+        {messages.map((message) => (
+          <div key={message.id} className={`chat ${message.isAI ? "chat-start" : "chat-end"}`}>
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border overflow-hidden">
                 {message.isAI ? (
@@ -87,13 +164,27 @@ const AIChat = ({ setSelectedUser }) => {
             </div>
 
             <div className="flex flex-col">
-              <div className="chat-header mb-1">
+              <div className="chat-header mb-1 flex items-center">
                 <time className="text-xs opacity-50 ml-1">
                   {message.timestamp.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
                 </time>
+                
+                {message.isAI && (
+                  <button 
+                    onClick={() => copyToClipboard(message.content, message.id)}
+                    className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+                    title="Copiar mensagem"
+                  >
+                    {copiedMessageId === message.id ? (
+                      <Check size={14} className="text-success" />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md break-words">
