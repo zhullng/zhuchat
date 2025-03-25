@@ -5,7 +5,7 @@ import {
     forgotPassword, 
     verifyResetToken, 
     resetPassword 
-  } from "../controllers/password.controller.js";
+} from "../controllers/password.controller.js";
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ router.post("/login", login);
 router.post("/logout", logout);
 
 router.put("/update-profile", protectRoute, updateProfile);
-router.put("/update-password", protectRoute, updatePassword); // Adicione esta linha
+router.put("/update-password", protectRoute, updatePassword);
 
 router.get("/check", protectRoute, checkAuth);
 
