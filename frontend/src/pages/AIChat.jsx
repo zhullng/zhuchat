@@ -164,18 +164,28 @@ const AIChat = ({ setSelectedUser }) => {
             </div>
 
             <div className="flex flex-col">
-              <div className="chat-header mb-1 flex items-center">
+              <div className="chat-header mb-1">
                 <time className="text-xs opacity-50 ml-1">
                   {message.timestamp.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
                 </time>
+              </div>
+
+              <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md break-words relative group">
+                {message.content}
                 
+                {/* Botão de cópia posicionado no canto inferior direito */}
                 {message.isAI && (
                   <button 
                     onClick={() => copyToClipboard(message.content, message.id)}
-                    className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+                    className={`
+                      absolute -bottom-3 -right-2 size-6 rounded-full bg-base-100 border border-base-300
+                      flex items-center justify-center shadow-sm
+                      opacity-0 group-hover:opacity-100 transition-opacity
+                      hover:bg-base-200
+                    `}
                     title="Copiar mensagem"
                   >
                     {copiedMessageId === message.id ? (
@@ -185,10 +195,6 @@ const AIChat = ({ setSelectedUser }) => {
                     )}
                   </button>
                 )}
-              </div>
-
-              <div className="chat-bubble px-4 py-2 rounded-2xl max-w-xs sm:max-w-md break-words">
-                {message.content}
               </div>
             </div>
           </div>
