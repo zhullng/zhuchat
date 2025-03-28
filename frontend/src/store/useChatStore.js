@@ -22,7 +22,7 @@ export const useChatStore = create((set, get) => ({
       // Verificar se a API de contactos existe, senão cair para a API de utilizadores
       try {
         console.log("Tentando obter contactos...");
-        const contactsRes = await axiosInstance.get("/api/contacts");
+        const contactsRes = await axiosInstance.get("/contacts");
         console.log("Contactos obtidos:", contactsRes.data);
         
         // Garantir que a resposta é um array
@@ -334,7 +334,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ isTransfersLoading: true });
     try {
-      const res = await axiosInstance.get(`/api/transfers/history/${authUser._id}`);
+      const res = await axiosInstance.get(`/transfers/history/${authUser._id}`);
       const transfers = Array.isArray(res.data) ? res.data : [];
       set({ transfers });
     } catch (error) {
@@ -377,7 +377,7 @@ export const useChatStore = create((set, get) => ({
 
   addContact: async (email) => {
     try {
-      const res = await axiosInstance.post("/api/contacts/add", { email });
+      const res = await axiosInstance.post("/contacts/add", { email });
       toast.success("Pedido de contacto enviado com sucesso");
       return res.data;
     } catch (error) {
@@ -390,7 +390,7 @@ export const useChatStore = create((set, get) => ({
   // Obter pedidos de contacto pendentes
   getPendingRequests: async () => {
     try {
-      const res = await axiosInstance.get("/api/contacts/pending");
+      const res = await axiosInstance.get("/contacts/pending");
       return Array.isArray(res.data) ? res.data : [];
     } catch (error) {
       console.error("Erro ao obter pedidos pendentes:", error);
@@ -401,7 +401,7 @@ export const useChatStore = create((set, get) => ({
   // Responder a um pedido de contacto
   respondToRequest: async (contactId, status) => {
     try {
-      const res = await axiosInstance.patch(`/api/contacts/${contactId}/respond`, { status });
+      const res = await axiosInstance.patch(`/contacts/${contactId}/respond`, { status });
       toast.success(status === "accepted" 
         ? "Pedido de contacto aceite" 
         : "Pedido de contacto rejeitado"
@@ -419,7 +419,7 @@ export const useChatStore = create((set, get) => ({
   // Remover contacto
   removeContact: async (contactId) => {
     try {
-      const res = await axiosInstance.delete(`/api/contacts/${contactId}`);
+      const res = await axiosInstance.delete(`/contacts/${contactId}`);
       toast.success("Contacto removido com sucesso");
       // Atualizar a lista de contactos
       get().getUsers();
