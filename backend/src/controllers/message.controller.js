@@ -77,3 +77,87 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
+// Função para obter todas as conversas do utilizador atual
+export const getConversations = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Encontra todas as mensagens onde o utilizador atual é remetente ou destinatário
+    const messages = await Message.find({
+      $or: [
+        { senderId: userId },
+        { receiverId: userId }
+      ]
+    }).sort({ createdAt: -1 }); // Ordenação por mais recentes primeiro
+    
+    // Criar um mapa para armazenar a mensagem mais recente para cada conversa
+    const conversationsMap = {};
+    
+    // Processar as mensagens para criar um objeto de conversas
+    messages.forEach(message => {
+      // Determinar quem é o outro participante da conversa
+      const otherUserId = message.senderId.toString() === userId.toString() 
+        ? message.receiverId.toString() 
+        : message.senderId.toString();
+      
+      // Se ainda não vimos esta conversa, adicionar ao mapa
+      if (!conversationsMap[otherUserId]) {
+        conversationsMap[otherUserId] = {
+          participants: [userId.toString(), otherUserId],
+          latestMessage: message,
+          unreadCount: (message.receiverId.toString() === userId.toString() && !message.read) ? 1 : 0
+        };
+      } else {
+        // Verifica se esta mensagem é mais recente que a atual
+        const currentTimestamp = new Date(conversationsMap[otherUserId].latestMessage.createdAt).getTime();
+        const newTimestamp = new Date(message.createdAt).getTime();
+        
+        if (newTimestamp > currentTimestamp) {
+          conversationsMap[otherUserId].latestMessage = message;
+        }
+        
+        // Incrementar contador de não lidas se aplicável
+        if (message.receiverId.toString() === userId.toString() && !message.read) {
+          conversationsMap[otherUserId].unreadCount = 
+            (conversationsMap[otherUserId].unreadCount || 0) + 1;
+        }
+      }
+    });
+    
+    // Converter o mapa em array
+    const conversations = Object.values(conversationsMap);
+    
+    res.status(200).json(conversations);
+  } catch (error) {
+    console.error("Erro em getConversations:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Função para marcar uma conversa como lida
+export const markConversationAsRead = async (req, res) => {
+  try {
+    const { id: otherUserId } = req.params;
+    const userId = req.user._id;
+    
+    // Encontrar e atualizar todas as mensagens não lidas do outro utilizador para o utilizador atual
+    const result = await Message.updateMany(
+      {
+        senderId: otherUserId,
+        receiverId: userId,
+        read: false
+      },
+      {
+        $set: { read: true }
+      }
+    );
+    
+    res.status(200).json({ 
+      success: true, 
+      count: result.modifiedCount 
+    });
+  } catch (error) {
+    console.error("Erro em markConversationAsRead:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
