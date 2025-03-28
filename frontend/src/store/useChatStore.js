@@ -15,17 +15,28 @@ export const useChatStore = create((set, get) => ({
   conversations: [], 
   unreadCounts: {}, 
 
-  // Função para obter a lista de utilizadores
+  // Função para obter a lista de contactos (apenas contactos adicionados)
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
-      const res = await axiosInstance.get("/messages/users");
-      set({ users: res.data });
+      // Alterar este endpoint para buscar contactos em vez de todos os utilizadores
+      const res = await axiosInstance.get("/api/contacts");
       
-      // Após carregar utilizadores, buscar conversas para ordenação
+      // Transformar os contactos no formato esperado pela UI
+      const contactUsers = res.data.map(contact => ({
+        _id: contact.user._id,
+        fullName: contact.user.fullName,
+        email: contact.user.email,
+        profilePic: contact.user.profilePic,
+        note: contact.note
+      }));
+      
+      set({ users: contactUsers });
+      
+      // Após carregar contactos, buscar conversas para ordenação
       get().getConversations();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Erro ao obter utilizadores");
+      toast.error(error.response?.data?.error || "Erro ao obter contactos");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -37,7 +48,7 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get("/messages/conversations");
       const conversations = res.data;
       
-      // CORREÇÃO: Preservar unreadCounts existentes e apenas atualizar com novos dados
+      // Preservar unreadCounts existentes e apenas atualizar com novos dados
       const currentUnreadCounts = get().unreadCounts || {};
       const unreadCounts = { ...currentUnreadCounts };
       const authUser = useAuthStore.getState().authUser;
@@ -55,7 +66,7 @@ export const useChatStore = create((set, get) => ({
         }
       });
       
-      // CORREÇÃO: Ordenar as conversas com base na data da última mensagem
+      // Ordenar as conversas com base na data da última mensagem
       const sortedConversations = [...conversations].sort((a, b) => {
         if (a.latestMessage && b.latestMessage) {
           return new Date(b.latestMessage.createdAt) - new Date(a.latestMessage.createdAt);
@@ -82,7 +93,7 @@ export const useChatStore = create((set, get) => ({
     if (currentUnreadCount === 0) return;
     
     try {
-      // CORREÇÃO: Atualizar localmente primeiro para resposta imediata na UI
+      // Atualizar localmente primeiro para resposta imediata na UI
       set(state => ({
         unreadCounts: {
           ...state.unreadCounts,
@@ -138,7 +149,7 @@ export const useChatStore = create((set, get) => ({
       // Adicionar mensagem à lista de mensagens
       set({ messages: [...messages, newMessage] });
       
-      // CORREÇÃO: Atualizar conversas com nova mensagem imediatamente para melhor resposta da UI
+      // Atualizar conversas com nova mensagem imediatamente para melhor resposta da UI
       set(state => {
         const authUser = useAuthStore.getState().authUser;
         const updatedConversations = [...state.conversations];
@@ -184,7 +195,7 @@ export const useChatStore = create((set, get) => ({
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
     
-    // CORREÇÃO: Desinscrever primeiro para evitar duplicação
+    // Desinscrever primeiro para evitar duplicação
     socket.off("newMessage");
 
     socket.on("newMessage", (newMessage) => {
@@ -204,7 +215,7 @@ export const useChatStore = create((set, get) => ({
       } 
       // Se a mensagem é para o utilizador atual mas de outro remetente
       else if (newMessage.receiverId === authUser._id) {
-        // CORREÇÃO: Tocar som de notificação aqui
+        // Tocar som de notificação aqui
         try {
           const notificationSound = new Audio('/notification.mp3');
           notificationSound.volume = 0.5;
@@ -226,7 +237,7 @@ export const useChatStore = create((set, get) => ({
           };
         });
         
-        // CORREÇÃO: Atualizar imediatamente a conversa na UI
+        // Atualizar imediatamente a conversa na UI
         set(state => {
           const updatedConversations = [...state.conversations];
           
@@ -304,7 +315,7 @@ export const useChatStore = create((set, get) => ({
   subscribeToTransfers: () => {
     const socket = useAuthStore.getState().socket;
     
-    // CORREÇÃO: Desinscrever primeiro para evitar duplicação
+    // Desinscrever primeiro para evitar duplicação
     socket.off("transfer-update");
 
     socket.on("transfer-update", (transferData) => {
@@ -324,4 +335,58 @@ export const useChatStore = create((set, get) => ({
       socket.off("transfer-update");
     }
   },
+
+  // Adicionar/remover contactos
+  addContact: async (email) => {
+    try {
+      const res = await axiosInstance.post("/api/contacts/add", { email });
+      toast.success("Pedido de contacto enviado com sucesso");
+      return res.data;
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
+      throw error;
+    }
+  },
+
+  // Obter pedidos de contacto pendentes
+  getPendingRequests: async () => {
+    try {
+      const res = await axiosInstance.get("/api/contacts/pending");
+      return res.data;
+    } catch (error) {
+      console.error("Erro ao obter pedidos pendentes:", error);
+      return [];
+    }
+  },
+
+  // Responder a um pedido de contacto
+  respondToRequest: async (contactId, status) => {
+    try {
+      const res = await axiosInstance.patch(`/api/contacts/${contactId}/respond`, { status });
+      toast.success(status === "accepted" 
+        ? "Pedido de contacto aceite" 
+        : "Pedido de contacto rejeitado"
+      );
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    } catch (error) {
+      toast.error("Erro ao processar o pedido de contacto");
+      throw error;
+    }
+  },
+
+  // Remover contacto
+  removeContact: async (contactId) => {
+    try {
+      const res = await axiosInstance.delete(`/api/contacts/${contactId}`);
+      toast.success("Contacto removido com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    } catch (error) {
+      toast.error("Erro ao remover contacto");
+      throw error;
+    }
+  }
 }));

@@ -1,9 +1,149 @@
 import { useEffect, useState, useCallback } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Users, Bot } from "lucide-react";
+import { Users, Bot, UserPlus, X, Check, XCircle } from "lucide-react";
 import { debounce } from "lodash";
 
+// Componente para adicionar contactos
+const AddContact = ({ onContactAdded }) => {
+  const { addContact } = useChatStore();
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!email.trim()) {
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      await addContact(email);
+      setEmail("");
+      if (onContactAdded) {
+        onContactAdded();
+      }
+    } catch (error) {
+      // Erro já tratado no store
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <h3 className="text-sm font-medium mb-2">Adicionar Contacto</h3>
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email do contacto"
+          className="input input-bordered input-sm flex-grow"
+          disabled={isLoading}
+        />
+        
+        <button 
+          type="submit" 
+          className="btn btn-primary btn-sm"
+          disabled={isLoading}
+        >
+          {isLoading ? "A adicionar..." : "Adicionar"}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// Componente para pedidos pendentes
+const PendingRequests = ({ onRequestResponded }) => {
+  const { getPendingRequests, respondToRequest } = useChatStore();
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchPendingRequests = async () => {
+    setIsLoading(true);
+    try {
+      const requests = await getPendingRequests();
+      setPendingRequests(requests);
+    } catch (error) {
+      console.error("Erro ao obter pedidos pendentes:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingRequests();
+    
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(fetchPendingRequests, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleResponse = async (contactId, status) => {
+    try {
+      await respondToRequest(contactId, status);
+      fetchPendingRequests();
+      
+      if (onRequestResponded) {
+        onRequestResponded();
+      }
+    } catch (error) {
+      // Erro já tratado no store
+    }
+  };
+
+  if (pendingRequests.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-3">
+      <h3 className="text-sm font-medium mb-2">Pedidos de Contacto ({pendingRequests.length})</h3>
+      
+      <div className="space-y-2 max-h-60 overflow-y-auto">
+        {pendingRequests.map(request => (
+          <div key={request._id} className="flex items-center justify-between bg-base-200 p-2 rounded-lg">
+            <div className="flex items-center gap-2">
+              <img 
+                src={request.userId.profilePic || "/avatar.png"} 
+                alt={request.userId.fullName}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div>
+                <div className="font-medium text-sm">{request.userId.fullName}</div>
+                <div className="text-xs text-base-content/70">{request.userId.email}</div>
+              </div>
+            </div>
+            
+            <div className="flex gap-1">
+              <button 
+                onClick={() => handleResponse(request._id, "accepted")}
+                className="btn btn-xs btn-success"
+                title="Aceitar"
+              >
+                <Check size={14} />
+              </button>
+              
+              <button 
+                onClick={() => handleResponse(request._id, "rejected")}
+                className="btn btn-xs btn-error"
+                title="Rejeitar"
+              >
+                <XCircle size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Componente principal da barra lateral
 const Sidebar = () => {
   const { 
     getUsers, 
@@ -20,6 +160,7 @@ const Sidebar = () => {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const [showContactMenu, setShowContactMenu] = useState(false);
 
   // Objeto do Assistente Virtual
   const aiAssistant = {
@@ -55,6 +196,11 @@ const Sidebar = () => {
     setSearchQuery(query);
   }, 300);
 
+  // Função para atualizar contactos
+  const refreshContacts = () => {
+    getUsers();
+  };
+
   // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
     if (!users || users.length === 0) return [];
@@ -62,15 +208,10 @@ const Sidebar = () => {
     // Filtrar por pesquisa e estado online
     const filteredUsers = users.filter((user) => {
       const matchesSearch = user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          user.username?.toLowerCase().includes(searchQuery.toLowerCase());
+                          user.email?.toLowerCase().includes(searchQuery.toLowerCase());
       const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
       return matchesSearch && isOnline;
     });
-
-    // Depuração
-    console.log('A filtrar e ordenar utilizadores:');
-    console.log('unreadCounts:', unreadCounts);
-    console.log('conversations:', conversations);
 
     // Ordenar por não lidas primeiro, depois por mensagens mais recentes
     return filteredUsers.sort((a, b) => {
@@ -114,10 +255,28 @@ const Sidebar = () => {
       ${isMobile && selectedUser ? 'hidden' : 'block'}`}>
       
       <div className="border-b border-base-300 w-full p-3 lg:p-4">
-        <div className="flex items-center gap-2">
-          <Users className="size-6" />
-          <span className="font-medium">Contactos</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="size-6" />
+            <span className="font-medium">Contactos</span>
+          </div>
+          
+          <button 
+            onClick={() => setShowContactMenu(!showContactMenu)}
+            className="btn btn-sm btn-ghost btn-circle"
+            title={showContactMenu ? "Fechar menu" : "Gerir contactos"}
+          >
+            {showContactMenu ? <X size={18} /> : <UserPlus size={18} />}
+          </button>
         </div>
+
+        {/* Menu de Gestão de Contactos */}
+        {showContactMenu && (
+          <div className="mt-3 border-t border-base-300 pt-3">
+            <AddContact onContactAdded={refreshContacts} />
+            <PendingRequests onRequestResponded={refreshContacts} />
+          </div>
+        )}
 
         <div className="mt-2 lg:mt-3 space-y-2">
           <input
@@ -215,7 +374,6 @@ const Sidebar = () => {
                   <span className={`text-xs ${onlineUsers.includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
                     {onlineUsers.includes(user._id) ? "Online" : "Offline"}
                   </span>
-                  
                   {/* Horário da última mensagem, se existir */}
                   {conv?.latestMessage && (
                     <span className="text-xs text-base-content/60">
@@ -241,7 +399,12 @@ const Sidebar = () => {
 
         {sortedUsers.length === 0 && (
           <div className="text-center text-base-content/60 p-4">
-            {showOnlineOnly ? "Nenhum utilizador online" : "Nenhum contacto encontrado"}
+            {showOnlineOnly 
+              ? "Nenhum contacto online" 
+              : showContactMenu 
+                ? "Adicione contactos para começar a conversar" 
+                : "Nenhum contacto encontrado"
+            }
           </div>
         )}
       </div>
