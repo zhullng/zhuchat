@@ -116,7 +116,7 @@ export const useChatStore = create((set, get) => ({
 
   // Função de marcar conversa como lida - melhorada e corrigida
   markConversationAsRead: async (userId) => {
-    // Não fazer nada se userId é inválido ou não tem mensagens não lidas
+    // Não fazer nada se userId é inválido ou AI assistente
     if (!userId || userId === 'ai-assistant') return;
     
     try {
@@ -269,13 +269,10 @@ export const useChatStore = create((set, get) => ({
             const senderId = newMessage.senderId;
             const currentCount = state.unreadCounts[senderId] || 0;
             
-            // Limitar a contagem máxima a 99 para evitar problemas visuais
-            const newCount = Math.min(currentCount + 1, 99);
-            
             return {
               unreadCounts: {
                 ...state.unreadCounts,
-                [senderId]: newCount
+                [senderId]: currentCount + 1
               }
             };
           });
@@ -293,13 +290,10 @@ export const useChatStore = create((set, get) => ({
               // Atualizar conversa existente
               const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
               
-              // Limitar a contagem a 99
-              const newUnreadCount = Math.min(currentUnreadCount + 1, 99);
-              
               updatedConversations[existingConvIndex] = {
                 ...updatedConversations[existingConvIndex],
                 latestMessage: newMessage,
-                unreadCount: newUnreadCount
+                unreadCount: currentUnreadCount + 1
               };
               
               // Mover para o topo da lista
@@ -462,6 +456,21 @@ export const useChatStore = create((set, get) => ({
       console.error("Erro ao remover contacto:", error);
       toast.error(error.response?.data?.error || "Erro ao remover contacto");
       throw error;
+    }
+  },
+
+  // Nova função para bloquear utilizador
+  blockUser: async (userId) => {
+    try {
+      const res = await axiosInstance.post(`/contacts/block/${userId}`);
+      toast.success("Utilizador bloqueado com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return true;
+    } catch (error) {
+      console.error("Erro ao bloquear utilizador:", error);
+      toast.error(error.response?.data?.error || "Erro ao bloquear utilizador");
+      return false;
     }
   },
   
