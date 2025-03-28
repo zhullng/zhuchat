@@ -11,6 +11,8 @@ const Sidebar = () => {
     selectedUser, 
     setSelectedUser,
     conversations,
+    unreadCounts, 
+    markConversationAsRead, 
     subscribeToMessages,
     unsubscribeFromMessages
   } = useChatStore();
