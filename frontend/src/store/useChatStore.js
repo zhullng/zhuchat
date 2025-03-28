@@ -3,32 +3,31 @@ import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 
-// Cria o store para gerir o estado de mensagens, users e agora as transferências
 export const useChatStore = create((set, get) => ({
   // Estado do store
-  messages: [], // Lista de mensagens 
-  users: [], // Lista de users
-  selectedUser: null, // user selecionado
-  isUsersLoading: false, // Para carregar os users
-  isMessagesLoading: false, // Para carregar as mensagens
-  transfers: [], // Histórico de transferências
-  isTransfersLoading: false, // Para carregar as transferências
-  conversations: [], // Lista de conversas com última mensagem (para ordenação)
-  unreadCounts: {}, // Contador de mensagens não lidas por usuário
+  messages: [], 
+  users: [], 
+  selectedUser: null, 
+  isUsersLoading: false, 
+  isMessagesLoading: false, 
+  transfers: [], 
+  isTransfersLoading: false, 
+  conversations: [], 
+  unreadCounts: {}, 
 
   // Função para obter a lista de users
   getUsers: async () => {
-    set({ isUsersLoading: true }); // Início do carregamento dos users
+    set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/messages/users");
-      set({ users: res.data }); // Armazena os users retornados
+      set({ users: res.data });
       
       // Após carregar utilizadores, buscar conversas para ordenação
       get().getConversations();
     } catch (error) {
       toast.error(error.response?.data?.message || "Erro ao obter utilizadores");
     } finally {
-      set({ isUsersLoading: false }); // carregamento finalizado
+      set({ isUsersLoading: false });
     }
   },
 
@@ -51,10 +50,7 @@ export const useChatStore = create((set, get) => ({
         }
       });
       
-      set({ 
-        conversations, 
-        unreadCounts
-      });
+      set({ conversations, unreadCounts });
     } catch (error) {
       console.error("Erro ao obter conversas:", error);
     }
@@ -62,6 +58,9 @@ export const useChatStore = create((set, get) => ({
 
   // Marcar conversa como lida
   markConversationAsRead: async (userId) => {
+    // Não fazer nada se já não tem mensagens não lidas
+    if (!get().unreadCounts[userId]) return;
+    
     try {
       await axiosInstance.patch(`/messages/read/${userId}`);
       
@@ -92,23 +91,23 @@ export const useChatStore = create((set, get) => ({
 
   // Função para obter as mensagens de um user específico
   getMessages: async (userId) => {
-    set({ isMessagesLoading: true }); // Início do carregamento das mensagens
+    set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
-      set({ messages: res.data }); // Armazena as mensagens do user
+      set({ messages: res.data });
       
       // Marcar mensagens como lidas quando abre a conversa
       get().markConversationAsRead(userId);
     } catch (error) {
       toast.error(error.response?.data?.message || "Erro ao obter mensagens");
     } finally {
-      set({ isMessagesLoading: false }); // Finalizado
+      set({ isMessagesLoading: false });
     }
   },
 
   // Função para enviar uma nova mensagem
   sendMessage: async (messageData) => {
-    const { selectedUser, messages } = get(); // Recebe o user selecionado e as mensagens atuais
+    const { selectedUser, messages } = get();
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
       
@@ -127,24 +126,28 @@ export const useChatStore = create((set, get) => ({
 
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
-    const { selectedUser } = get(); // Recebe o user selecionado
-    const socket = useAuthStore.getState().socket; // Recebe a instância do socket da store de autenticação
+    const { selectedUser } = get();
+    const socket = useAuthStore.getState().socket;
 
-    // Executa o evento 'newMessage' que recebe uma nova mensagem
     socket.on("newMessage", (newMessage) => {
       const authUser = useAuthStore.getState().authUser;
+      const currentSelectedUser = get().selectedUser; // Obtém o valor mais atual
       
       // Se a mensagem é do usuário selecionado atualmente, adiciona à lista de mensagens
-      if (selectedUser && newMessage.senderId === selectedUser._id) {
-        set({
-          messages: [...get().messages, newMessage],
-        });
+      if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
+        set(state => ({
+          messages: [...state.messages, newMessage],
+        }));
         
         // Marca como lida já que o usuário está visualizando a conversa
-        get().markConversationAsRead(selectedUser._id);
+        get().markConversationAsRead(currentSelectedUser._id);
       } 
       // Se a mensagem é para o usuário atual mas de outro remetente
       else if (newMessage.receiverId === authUser._id) {
+        // Tocar som de notificação aqui (opcional)
+        // const notificationSound = new Audio('/notification.mp3');
+        // notificationSound.play();
+        
         // Incrementar contador de não lidos
         set(state => ({
           unreadCounts: {
@@ -161,24 +164,23 @@ export const useChatStore = create((set, get) => ({
 
   // Função para se desinscrever das notificações de novas mensagens
   unsubscribeFromMessages: () => {
-    const socket = useAuthStore.getState().socket; // Recebe a instância do socket
-    socket.off("newMessage"); // Remove o user do evento 'newMessage'
+    const socket = useAuthStore.getState().socket;
+    socket.off("newMessage");
   },
 
   // Função para definir o user selecionado no chat
   setSelectedUser: (selectedUser) => {
     set({ selectedUser });
     
-    // Se houver um usuário selecionado, marcar mensagens como lidas
+    // Se houver um usuário selecionado, buscar mensagens e marcar como lidas
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
-      get().markConversationAsRead(selectedUser._id);
       get().getMessages(selectedUser._id);
     }
   },
 
   // Função para buscar o histórico de transferências
   getTransferHistory: async () => {
-    const { authUser } = useAuthStore.getState(); // Obter user autenticado
+    const { authUser } = useAuthStore.getState();
     if (!authUser?._id) return;
 
     set({ isTransfersLoading: true });
@@ -194,13 +196,13 @@ export const useChatStore = create((set, get) => ({
 
   // Função para se inscrever para notificações de novas transferências por WebSocket
   subscribeToTransfers: () => {
-    const socket = useAuthStore.getState().socket; // Recebe a instância do socket da store de autenticação
+    const socket = useAuthStore.getState().socket;
 
     socket.on("transfer-update", (transferData) => {
-      const { authUser } = useAuthStore.getState(); // Obter user autenticado
+      const { authUser } = useAuthStore.getState();
       if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
         set((state) => ({
-          transfers: [...state.transfers, transferData], // Adiciona a transferência ao histórico
+          transfers: [...state.transfers, transferData],
         }));
       }
     });
@@ -209,6 +211,6 @@ export const useChatStore = create((set, get) => ({
   // Função para se desinscrever das notificações de transferências
   unsubscribeFromTransfers: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("transfer-update"); // Remove a inscrição do evento 'transfer-update'
+    socket.off("transfer-update");
   },
 }));

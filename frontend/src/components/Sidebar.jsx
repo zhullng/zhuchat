@@ -12,9 +12,10 @@ const Sidebar = () => {
     setSelectedUser, 
     isUsersLoading,
     conversations,
-    unreadCounts 
+    unreadCounts,
+    markConversationAsRead
   } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
@@ -34,6 +35,11 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, [getUsers]);
 
+  // Efeito para re-renderizar quando unreadCounts muda
+  useEffect(() => {
+    // Este efeito só serve para garantir rerender quando unreadCounts muda
+  }, [unreadCounts]);
+
   const handleSearchChange = debounce((query) => {
     setSearchQuery(query);
   }, 300); 
@@ -48,12 +54,8 @@ const Sidebar = () => {
       return matchesSearch && isOnline;
     });
 
-    // Ordenar por conversas mais recentes primeiro
+    // Ordenar por não lidos primeiro, depois por mensagens mais recentes
     return filteredUsers.sort((a, b) => {
-      // Encontrar conversas para os usuários
-      const convA = conversations?.find(c => c.participants.includes(a._id));
-      const convB = conversations?.find(c => c.participants.includes(b._id));
-      
       // Verificar se há mensagens não lidas (prioridade mais alta)
       const unreadA = unreadCounts[a._id] && unreadCounts[a._id] > 0;
       const unreadB = unreadCounts[b._id] && unreadCounts[b._id] > 0;
@@ -61,6 +63,10 @@ const Sidebar = () => {
       // Mensagens não lidas têm prioridade
       if (unreadA && !unreadB) return -1;
       if (!unreadA && unreadB) return 1;
+      
+      // Encontrar conversas para os usuários
+      const convA = conversations?.find(c => c.participants.includes(a._id));
+      const convB = conversations?.find(c => c.participants.includes(b._id));
       
       // Se ambos têm ou não têm mensagens não lidas, ordene por mais recente
       if (convA?.latestMessage && convB?.latestMessage) {
@@ -74,6 +80,14 @@ const Sidebar = () => {
       // Se nenhum tiver mensagens, mantenha a ordem alfabética
       return a.fullName.localeCompare(b.fullName);
     });
+  };
+
+  // Função para lidar com clique no usuário
+  const handleUserClick = (user) => {
+    setSelectedUser(user);
+    
+    // markConversationAsRead já é chamado dentro do setSelectedUser no store
+    // não é necessário repetir aqui
   };
 
   const sortedUsers = getSortedAndFilteredUsers();
@@ -116,7 +130,7 @@ const Sidebar = () => {
       <div className="overflow-y-auto flex-1 p-1 lg:p-2">
         {/* AI Assistant */}
         <button
-          onClick={() => setSelectedUser(aiAssistant)}
+          onClick={() => handleUserClick(aiAssistant)}
           className={`
             w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
             transition-colors hover:bg-base-200 mb-2
@@ -151,18 +165,18 @@ const Sidebar = () => {
           return (
             <button
               key={user._id}
-              onClick={() => setSelectedUser(user)}
+              onClick={() => handleUserClick(user)}
               className={`
                 w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
-                transition-colors hover:bg-base-200
+                transition-colors hover:bg-base-200 mb-1
                 ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""} 
-                ${hasUnread ? "bg-base-200/70" : ""}
+                ${hasUnread ? "bg-primary/10" : ""}
               `}
             >
               <div className="relative">
                 <img
                   src={user.profilePic || "/avatar.png"}
-                  alt={user.name}
+                  alt={user.fullName}
                   className="size-10 lg:size-12 object-cover rounded-full border"
                 />
                 {onlineUsers.includes(user._id) && (
@@ -174,7 +188,7 @@ const Sidebar = () => {
                 <div className="flex items-center justify-between">
                   <span className="font-medium truncate text-sm lg:text-base">{user.fullName}</span>
                   {hasUnread && (
-                    <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full w-5 h-5 text-xs font-medium ml-2">
+                    <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full min-w-5 h-5 px-1.5 text-xs font-medium ml-2">
                       {unreadCounts[user._id] > 9 ? '9+' : unreadCounts[user._id]}
                     </span>
                   )}
@@ -195,6 +209,14 @@ const Sidebar = () => {
                     </span>
                   )}
                 </div>
+                
+                {/* Preview da última mensagem */}
+                {conv?.latestMessage && (
+                  <div className="text-xs text-base-content/70 truncate mt-1 max-w-full">
+                    {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
+                    {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
+                  </div>
+                )}
               </div>
             </button>
           );
