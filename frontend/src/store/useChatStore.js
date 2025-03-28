@@ -15,7 +15,7 @@ export const useChatStore = create((set, get) => ({
   conversations: [], 
   unreadCounts: {}, 
 
-  // Função para obter a lista de users
+  // Função para obter a lista de utilizadores
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
@@ -112,7 +112,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para obter as mensagens de um user específico
+  // Função para obter as mensagens de um utilizador específico
   getMessages: async (userId) => {
     set({ isMessagesLoading: true });
     try {
@@ -193,16 +193,16 @@ export const useChatStore = create((set, get) => ({
       
       console.log("Nova mensagem recebida:", newMessage);
       
-      // Se a mensagem é do usuário selecionado atualmente, adiciona à lista de mensagens
+      // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
       if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
         set(state => ({
           messages: [...state.messages, newMessage],
         }));
         
-        // Marca como lida já que o usuário está visualizando a conversa
+        // Marca como lida já que o utilizador está a visualizar a conversa
         get().markConversationAsRead(currentSelectedUser._id);
       } 
-      // Se a mensagem é para o usuário atual mas de outro remetente
+      // Se a mensagem é para o utilizador atual mas de outro remetente
       else if (newMessage.receiverId === authUser._id) {
         // CORREÇÃO: Tocar som de notificação aqui
         try {
@@ -274,11 +274,11 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para definir o user selecionado no chat
+  // Função para definir o utilizador selecionado no chat
   setSelectedUser: (selectedUser) => {
     set({ selectedUser });
     
-    // Se houver um usuário selecionado, buscar mensagens e marcar como lidas
+    // Se houver um utilizador selecionado, buscar mensagens e marcar como lidas
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
       get().getMessages(selectedUser._id);
     }

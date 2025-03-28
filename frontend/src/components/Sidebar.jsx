@@ -10,10 +10,7 @@ const Sidebar = () => {
     users, 
     selectedUser, 
     setSelectedUser,
-    isUsersLoading,
     conversations,
-    unreadCounts,
-    markConversationAsRead,
     subscribeToMessages,
     unsubscribeFromMessages
   } = useChatStore();
@@ -22,7 +19,7 @@ const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
 
-  // AI Assistant object
+  // Objeto do Assistente Virtual
   const aiAssistant = {
     _id: 'ai-assistant',
     fullName: 'Assistente Virtual',
@@ -56,11 +53,11 @@ const Sidebar = () => {
     setSearchQuery(query);
   }, 300);
 
-  // Função melhorada para ordenar usuários 
+  // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
     if (!users || users.length === 0) return [];
     
-    // Filtrar por pesquisa e status online
+    // Filtrar por pesquisa e estado online
     const filteredUsers = users.filter((user) => {
       const matchesSearch = user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           user.username?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -68,12 +65,12 @@ const Sidebar = () => {
       return matchesSearch && isOnline;
     });
 
-    // Debug
-    console.log('Filtrando e ordenando usuários:');
+    // Depuração
+    console.log('A filtrar e ordenar utilizadores:');
     console.log('unreadCounts:', unreadCounts);
     console.log('conversations:', conversations);
 
-    // Ordenar por não lidos primeiro, depois por mensagens mais recentes
+    // Ordenar por não lidas primeiro, depois por mensagens mais recentes
     return filteredUsers.sort((a, b) => {
       // Verificar se há mensagens não lidas (prioridade mais alta)
       const unreadA = unreadCounts[a._id] > 0;
@@ -83,11 +80,11 @@ const Sidebar = () => {
       if (unreadA && !unreadB) return -1;
       if (!unreadA && unreadB) return 1;
       
-      // Encontrar conversas para os usuários
+      // Encontrar conversas para os utilizadores
       const convA = conversations?.find(c => c.participants.includes(a._id));
       const convB = conversations?.find(c => c.participants.includes(b._id));
       
-      // Se ambos têm ou não têm mensagens não lidas, ordene por mais recente
+      // Se ambos têm ou não têm mensagens não lidas, ordena por mais recente
       if (convA?.latestMessage && convB?.latestMessage) {
         return new Date(convB.latestMessage.createdAt) - new Date(convA.latestMessage.createdAt);
       }
@@ -96,18 +93,18 @@ const Sidebar = () => {
       if (convA?.latestMessage) return -1;
       if (convB?.latestMessage) return 1;
       
-      // Se nenhum tiver mensagens, mantenha a ordem alfabética
+      // Se nenhum tiver mensagens, mantém a ordem alfabética
       return a.fullName.localeCompare(b.fullName);
     });
   }, [users, conversations, unreadCounts, searchQuery, showOnlineOnly, onlineUsers]);
 
-  // Função para lidar com clique no usuário
+  // Função para lidar com clique no utilizador
   const handleUserClick = (user) => {
     setSelectedUser(user);
-    // Na função setSelectedUser do store já estamos chamando markConversationAsRead
+    // Na função setSelectedUser do store já estamos a chamar markConversationAsRead
   };
 
-  // Recalcular lista de usuários quando qualquer dependência mudar
+  // Recalcular lista de utilizadores quando qualquer dependência mudar
   const sortedUsers = getSortedAndFilteredUsers();
 
   return (
@@ -146,7 +143,7 @@ const Sidebar = () => {
       </div>
 
       <div className="overflow-y-auto flex-1 p-1 lg:p-2">
-        {/* AI Assistant */}
+        {/* Assistente Virtual */}
         <button
           onClick={() => handleUserClick(aiAssistant)}
           className={`
@@ -172,10 +169,10 @@ const Sidebar = () => {
           </div>
         </button>
 
-        {/* Separator */}
+        {/* Separador */}
         <div className="h-px bg-base-200 my-2" />
 
-        {/* User List */}
+        {/* Lista de Utilizadores */}
         {sortedUsers.map((user) => {
           const hasUnread = unreadCounts && unreadCounts[user._id] > 0;
           const conv = conversations?.find(c => c.participants.includes(user._id));
@@ -228,7 +225,7 @@ const Sidebar = () => {
                   )}
                 </div>
                 
-                {/* Preview da última mensagem */}
+                {/* Pré-visualização da última mensagem */}
                 {conv?.latestMessage && (
                   <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
                     {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
