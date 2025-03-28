@@ -9,9 +9,9 @@ const NoChatSelected = () => {
             </div>
           </div>
         </div>
-        <h2 className="text-2xl font-bold">Welcome to ZhuChat!</h2>
+        <h2 className="text-2xl font-bold">Bem-vindo ao ZhuChat!</h2>
         <p className="text-base-content/60">
-          Select a conversation from the sidebar to start chatting
+          Selecione uma conversa da sua lista de amigos para começar
         </p>
       </div>
     </div>
