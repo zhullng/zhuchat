@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { Users, Bot } from "lucide-react";
@@ -9,11 +9,13 @@ const Sidebar = () => {
     getUsers, 
     users, 
     selectedUser, 
-    setSelectedUser, 
+    setSelectedUser,
     isUsersLoading,
     conversations,
     unreadCounts,
-    markConversationAsRead
+    markConversationAsRead,
+    subscribeToMessages,
+    unsubscribeFromMessages
   } = useChatStore();
   const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -27,38 +29,55 @@ const Sidebar = () => {
     isAI: true,
   };
 
+  // Subscrever e carregar dados ao montar o componente
   useEffect(() => {
     getUsers();
+    subscribeToMessages(); // Importante: subscrever para eventos de novas mensagens
+    
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [getUsers]);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      unsubscribeFromMessages(); // Limpar subscrição ao desmontar
+    };
+  }, [getUsers, subscribeToMessages, unsubscribeFromMessages]);
 
-  // Efeito para re-renderizar quando unreadCounts muda
+  // Importante: forçar atualização em mudanças em conversations ou unreadCounts
+  const [forceUpdate, setForceUpdate] = useState(0);
+  
   useEffect(() => {
-    // Este efeito só serve para garantir rerender quando unreadCounts muda
-  }, [unreadCounts]);
+    // Este efeito observa mudanças em conversations e unreadCounts
+    setForceUpdate(prev => prev + 1);
+  }, [conversations, unreadCounts]);
 
   const handleSearchChange = debounce((query) => {
     setSearchQuery(query);
-  }, 300); 
+  }, 300);
 
-  // Função para ordenar usuários com base em conversas recentes e filtrar por pesquisa
-  const getSortedAndFilteredUsers = () => {
+  // Função melhorada para ordenar usuários 
+  const getSortedAndFilteredUsers = useCallback(() => {
+    if (!users || users.length === 0) return [];
+    
     // Filtrar por pesquisa e status online
     const filteredUsers = users.filter((user) => {
-      const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           user.username?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          user.username?.toLowerCase().includes(searchQuery.toLowerCase());
       const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
       return matchesSearch && isOnline;
     });
 
+    // Debug
+    console.log('Filtrando e ordenando usuários:');
+    console.log('unreadCounts:', unreadCounts);
+    console.log('conversations:', conversations);
+
     // Ordenar por não lidos primeiro, depois por mensagens mais recentes
     return filteredUsers.sort((a, b) => {
       // Verificar se há mensagens não lidas (prioridade mais alta)
-      const unreadA = unreadCounts[a._id] && unreadCounts[a._id] > 0;
-      const unreadB = unreadCounts[b._id] && unreadCounts[b._id] > 0;
+      const unreadA = unreadCounts[a._id] > 0;
+      const unreadB = unreadCounts[b._id] > 0;
       
       // Mensagens não lidas têm prioridade
       if (unreadA && !unreadB) return -1;
@@ -80,16 +99,15 @@ const Sidebar = () => {
       // Se nenhum tiver mensagens, mantenha a ordem alfabética
       return a.fullName.localeCompare(b.fullName);
     });
-  };
+  }, [users, conversations, unreadCounts, searchQuery, showOnlineOnly, onlineUsers]);
 
   // Função para lidar com clique no usuário
   const handleUserClick = (user) => {
     setSelectedUser(user);
-    
-    // markConversationAsRead já é chamado dentro do setSelectedUser no store
-    // não é necessário repetir aqui
+    // Na função setSelectedUser do store já estamos chamando markConversationAsRead
   };
 
+  // Recalcular lista de usuários quando qualquer dependência mudar
   const sortedUsers = getSortedAndFilteredUsers();
 
   return (
@@ -159,7 +177,7 @@ const Sidebar = () => {
 
         {/* User List */}
         {sortedUsers.map((user) => {
-          const hasUnread = unreadCounts && unreadCounts[user._id] && unreadCounts[user._id] > 0;
+          const hasUnread = unreadCounts && unreadCounts[user._id] > 0;
           const conv = conversations?.find(c => c.participants.includes(user._id));
           
           return (
@@ -212,7 +230,7 @@ const Sidebar = () => {
                 
                 {/* Preview da última mensagem */}
                 {conv?.latestMessage && (
-                  <div className="text-xs text-base-content/70 truncate mt-1 max-w-full">
+                  <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
                     {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
                     {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
                   </div>

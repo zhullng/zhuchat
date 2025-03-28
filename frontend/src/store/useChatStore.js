@@ -37,8 +37,9 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get("/messages/conversations");
       const conversations = res.data;
       
-      // Atualizar contadores de mensagens não lidas
-      const unreadCounts = {};
+      // CORREÇÃO: Preservar unreadCounts existentes e apenas atualizar com novos dados
+      const currentUnreadCounts = get().unreadCounts || {};
+      const unreadCounts = { ...currentUnreadCounts };
       const authUser = useAuthStore.getState().authUser;
       
       conversations.forEach(conv => {
@@ -46,11 +47,27 @@ export const useChatStore = create((set, get) => ({
             conv.latestMessage.senderId !== authUser._id) {
           // Encontrar o ID do outro participante
           const otherUserId = conv.participants.find(id => id !== authUser._id);
-          unreadCounts[otherUserId] = (unreadCounts[otherUserId] || 0) + conv.unreadCount;
+          
+          // Usar o máximo entre o valor atual e o novo para evitar perda de contagem
+          const currentCount = currentUnreadCounts[otherUserId] || 0;
+          const serverCount = conv.unreadCount || 0;
+          unreadCounts[otherUserId] = Math.max(currentCount, serverCount);
         }
       });
       
-      set({ conversations, unreadCounts });
+      // CORREÇÃO: Ordenar as conversas com base na data da última mensagem
+      const sortedConversations = [...conversations].sort((a, b) => {
+        if (a.latestMessage && b.latestMessage) {
+          return new Date(b.latestMessage.createdAt) - new Date(a.latestMessage.createdAt);
+        }
+        return a.latestMessage ? -1 : b.latestMessage ? 1 : 0;
+      });
+      
+      // Definir estado atualizado
+      set({ 
+        conversations: sortedConversations, 
+        unreadCounts
+      });
     } catch (error) {
       console.error("Erro ao obter conversas:", error);
     }
@@ -58,13 +75,14 @@ export const useChatStore = create((set, get) => ({
 
   // Marcar conversa como lida
   markConversationAsRead: async (userId) => {
-    // Não fazer nada se já não tem mensagens não lidas
-    if (!get().unreadCounts[userId]) return;
+    // Não fazer nada se userId é inválido ou não tem mensagens não lidas
+    if (!userId || userId === 'ai-assistant') return;
+    
+    const currentUnreadCount = get().unreadCounts[userId] || 0;
+    if (currentUnreadCount === 0) return;
     
     try {
-      await axiosInstance.patch(`/messages/read/${userId}`);
-      
-      // Atualizar estado local
+      // CORREÇÃO: Atualizar localmente primeiro para resposta imediata na UI
       set(state => ({
         unreadCounts: {
           ...state.unreadCounts,
@@ -74,18 +92,23 @@ export const useChatStore = create((set, get) => ({
           if (conv.participants.includes(userId)) {
             return {
               ...conv,
-              latestMessage: {
+              latestMessage: conv.latestMessage ? {
                 ...conv.latestMessage,
                 read: true
-              },
+              } : null,
               unreadCount: 0
             };
           }
           return conv;
         })
       }));
+      
+      // Depois atualizar no servidor
+      await axiosInstance.patch(`/messages/read/${userId}`);
     } catch (error) {
       console.error("Erro ao marcar conversa como lida:", error);
+      // Restaurar estado anterior em caso de erro
+      get().getConversations();
     }
   },
 
@@ -110,14 +133,47 @@ export const useChatStore = create((set, get) => ({
     const { selectedUser, messages } = get();
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      const newMessage = res.data;
       
       // Adicionar mensagem à lista de mensagens
-      set({ messages: [...messages, res.data] });
+      set({ messages: [...messages, newMessage] });
       
-      // Atualizar conversas para ordenação por mais recentes
+      // CORREÇÃO: Atualizar conversas com nova mensagem imediatamente para melhor resposta da UI
+      set(state => {
+        const authUser = useAuthStore.getState().authUser;
+        const updatedConversations = [...state.conversations];
+        
+        // Encontrar conversa existente ou criar nova
+        const existingConvIndex = updatedConversations.findIndex(
+          c => c.participants.includes(selectedUser._id)
+        );
+        
+        if (existingConvIndex >= 0) {
+          // Atualizar conversa existente
+          updatedConversations[existingConvIndex] = {
+            ...updatedConversations[existingConvIndex],
+            latestMessage: newMessage,
+          };
+          
+          // Mover para o topo da lista
+          const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+          updatedConversations.unshift(updatedConv);
+        } else {
+          // Criar nova conversa
+          updatedConversations.unshift({
+            participants: [authUser._id, selectedUser._id],
+            latestMessage: newMessage,
+            unreadCount: 0
+          });
+        }
+        
+        return { conversations: updatedConversations };
+      });
+      
+      // Ainda assim, sincronizar com o servidor depois
       get().getConversations();
       
-      return res.data;
+      return newMessage;
     } catch (error) {
       toast.error(error.response?.data?.message || "Erro ao enviar mensagem");
       throw error;
@@ -126,12 +182,16 @@ export const useChatStore = create((set, get) => ({
 
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
-    const { selectedUser } = get();
     const socket = useAuthStore.getState().socket;
+    
+    // CORREÇÃO: Desinscrever primeiro para evitar duplicação
+    socket.off("newMessage");
 
     socket.on("newMessage", (newMessage) => {
       const authUser = useAuthStore.getState().authUser;
-      const currentSelectedUser = get().selectedUser; // Obtém o valor mais atual
+      const currentSelectedUser = get().selectedUser;
+      
+      console.log("Nova mensagem recebida:", newMessage);
       
       // Se a mensagem é do usuário selecionado atualmente, adiciona à lista de mensagens
       if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
@@ -144,20 +204,64 @@ export const useChatStore = create((set, get) => ({
       } 
       // Se a mensagem é para o usuário atual mas de outro remetente
       else if (newMessage.receiverId === authUser._id) {
-        // Tocar som de notificação aqui (opcional)
-        // const notificationSound = new Audio('/notification.mp3');
-        // notificationSound.play();
+        // CORREÇÃO: Tocar som de notificação aqui
+        try {
+          const notificationSound = new Audio('/notification.mp3');
+          notificationSound.volume = 0.5;
+          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+        } catch (err) {
+          console.log('Erro ao criar áudio:', err);
+        }
         
         // Incrementar contador de não lidos
-        set(state => ({
-          unreadCounts: {
-            ...state.unreadCounts,
-            [newMessage.senderId]: (state.unreadCounts[newMessage.senderId] || 0) + 1
+        set(state => {
+          const senderId = newMessage.senderId;
+          const currentCount = state.unreadCounts[senderId] || 0;
+          
+          return {
+            unreadCounts: {
+              ...state.unreadCounts,
+              [senderId]: currentCount + 1
+            }
+          };
+        });
+        
+        // CORREÇÃO: Atualizar imediatamente a conversa na UI
+        set(state => {
+          const updatedConversations = [...state.conversations];
+          
+          // Encontrar conversa existente ou criar nova
+          const existingConvIndex = updatedConversations.findIndex(
+            c => c.participants.includes(newMessage.senderId)
+          );
+          
+          if (existingConvIndex >= 0) {
+            // Atualizar conversa existente
+            const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
+            
+            updatedConversations[existingConvIndex] = {
+              ...updatedConversations[existingConvIndex],
+              latestMessage: newMessage,
+              unreadCount: currentUnreadCount + 1
+            };
+            
+            // Mover para o topo da lista
+            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+            updatedConversations.unshift(updatedConv);
+          } else {
+            // Criar nova conversa
+            updatedConversations.unshift({
+              participants: [authUser._id, newMessage.senderId],
+              latestMessage: newMessage,
+              unreadCount: 1
+            });
           }
-        }));
+          
+          return { conversations: updatedConversations };
+        });
       }
       
-      // Atualizar conversas para refletir a nova mensagem e ordenação
+      // Sincronizar com o servidor depois
       get().getConversations();
     });
   },
@@ -165,7 +269,9 @@ export const useChatStore = create((set, get) => ({
   // Função para se desinscrever das notificações de novas mensagens
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
+    if (socket && socket.connected) {
+      socket.off("newMessage");
+    }
   },
 
   // Função para definir o user selecionado no chat
@@ -197,6 +303,9 @@ export const useChatStore = create((set, get) => ({
   // Função para se inscrever para notificações de novas transferências por WebSocket
   subscribeToTransfers: () => {
     const socket = useAuthStore.getState().socket;
+    
+    // CORREÇÃO: Desinscrever primeiro para evitar duplicação
+    socket.off("transfer-update");
 
     socket.on("transfer-update", (transferData) => {
       const { authUser } = useAuthStore.getState();
@@ -211,6 +320,8 @@ export const useChatStore = create((set, get) => ({
   // Função para se desinscrever das notificações de transferências
   unsubscribeFromTransfers: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("transfer-update");
+    if (socket && socket.connected) {
+      socket.off("transfer-update");
+    }
   },
 }));
