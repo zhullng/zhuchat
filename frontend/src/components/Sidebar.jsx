@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Users, Bot, UserPlus, X, Check, XCircle, Trash2 } from "lucide-react";
+import { Users, Bot, UserPlus, X, Check, XCircle } from "lucide-react";
 import { debounce } from "lodash";
-import { useSwipeable } from "react-swipeable";
 
 // Componente para adicionar contactos
 const AddContact = ({ onContactAdded }) => {
@@ -145,125 +144,6 @@ const PendingRequests = ({ onRequestResponded }) => {
   );
 };
 
-// Componente de usuário com swipe
-const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv, isOnline, authUser, onRemove }) => {
-  // Verifica se é um dispositivo móvel
-  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-  
-  // Função para lidar com a remoção de contato
-  const handleRemoveContact = (e) => {
-    e.stopPropagation(); // Evita disparar o onUserClick
-    
-    if (window.confirm(`Tem certeza que deseja remover ${user.fullName || "este contacto"}?`)) {
-      onRemove(user._id);
-    }
-  };
-  
-  // Configuração do swipe
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      const element = document.getElementById(`user-item-${user._id}`);
-      const deleteBtn = document.getElementById(`delete-btn-${user._id}`);
-      if (element && deleteBtn) {
-        element.style.transform = 'translateX(-80px)';
-        deleteBtn.style.opacity = '1';
-      }
-    },
-    onSwipedRight: () => {
-      const element = document.getElementById(`user-item-${user._id}`);
-      const deleteBtn = document.getElementById(`delete-btn-${user._id}`);
-      if (element && deleteBtn) {
-        element.style.transform = 'translateX(0)';
-        deleteBtn.style.opacity = '0';
-      }
-    },
-    preventDefaultTouchmoveEvent: true,
-    trackMouse: false
-  });
-  
-  // Se não for um dispositivo touch, não aplicamos os handlers de swipe
-  const handlers = isTouchDevice ? swipeHandlers : {};
-  
-  return (
-    <div className="relative overflow-hidden mb-1">
-      <div 
-        {...handlers}
-        className="relative"
-      >
-        <div 
-          id={`user-item-${user._id}`}
-          className="transition-transform duration-200 ease-out"
-        >
-          <button
-            onClick={() => onUserClick(user)}
-            className={`
-              w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
-              transition-colors hover:bg-base-200
-              ${isSelected ? "bg-base-300 ring-1 ring-base-300" : ""} 
-              ${hasUnread ? "bg-primary/10" : ""}
-            `}
-          >
-            <div className="relative">
-              <img
-                src={user.profilePic || "/avatar.png"}
-                alt={user.fullName || "Utilizador"}
-                className="size-10 lg:size-12 object-cover rounded-full border"
-              />
-              {isOnline && (
-                <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
-              )}
-            </div>
-
-            <div className="flex-1 text-left">
-              <div className="flex items-center justify-between">
-                <span className="font-medium truncate text-sm lg:text-base">{user.fullName || "Utilizador"}</span>
-                {hasUnread && (
-                  <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full min-w-5 h-5 px-1.5 text-xs font-medium ml-2">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className={`text-xs ${isOnline ? "text-green-500" : "text-base-content/60"}`}>
-                  {isOnline ? "Online" : "Offline"}
-                </span>
-                
-                {/* Horário da última mensagem, se existir */}
-                {conv?.latestMessage && (
-                  <span className="text-xs text-base-content/60">
-                    {new Date(conv.latestMessage.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                )}
-              </div>
-              
-              {/* Pré-visualização da última mensagem */}
-              {conv?.latestMessage && (
-                <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
-                  {conv.latestMessage.senderId === authUser?._id ? 'Enviado: ' : ''}
-                  {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
-                </div>
-              )}
-            </div>
-          </button>
-        </div>
-      </div>
-      
-      {/* Botão de excluir que aparece ao deslizar - inicialmente oculto */}
-      <button
-        id={`delete-btn-${user._id}`}
-        onClick={handleRemoveContact}
-        className="absolute top-0 right-0 h-full w-[80px] bg-red-500 text-white flex items-center justify-center opacity-0 transition-opacity duration-200"
-      >
-        <Trash2 size={20} />
-      </button>
-    </div>
-  );
-};
-
 // Componente principal da barra lateral
 const Sidebar = () => {
   const { 
@@ -275,18 +155,13 @@ const Sidebar = () => {
     unreadCounts, 
     markConversationAsRead, 
     subscribeToMessages,
-    unsubscribeFromMessages,
-    removeContact,
-    getConversations
+    unsubscribeFromMessages
   } = useChatStore();
   const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
-  
-  // Referência para o intervalos de atualização
-  const updateIntervalRef = useRef(null);
 
   // Objeto do Assistente Virtual
   const aiAssistant = {
@@ -297,15 +172,8 @@ const Sidebar = () => {
 
   // Subscrever e carregar dados ao montar o componente
   useEffect(() => {
-    console.log("Carregando usuários e subscrevendo mensagens");
     getUsers();
     subscribeToMessages(); // Importante: subscrever para eventos de novas mensagens
-    
-    // Configurar atualização periódica de conversas para sincronizar notificações
-    updateIntervalRef.current = setInterval(() => {
-      console.log("Atualizando conversas periodicamente");
-      getConversations();
-    }, 10000); // Atualizar a cada 10 segundos
     
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
@@ -314,14 +182,8 @@ const Sidebar = () => {
     return () => {
       window.removeEventListener('resize', checkMobile);
       unsubscribeFromMessages(); // Limpar subscrição ao desmontar
-      
-      // Limpar intervalo de atualização
-      if (updateIntervalRef.current) {
-        clearInterval(updateIntervalRef.current);
-        updateIntervalRef.current = null;
-      }
     };
-  }, [getUsers, subscribeToMessages, unsubscribeFromMessages, getConversations]);
+  }, [getUsers, subscribeToMessages, unsubscribeFromMessages]);
 
   // Importante: forçar atualização em mudanças em conversations ou unreadCounts
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -338,34 +200,6 @@ const Sidebar = () => {
   // Função para atualizar contactos
   const refreshContacts = () => {
     getUsers();
-  };
-
-  // Função para lidar com a remoção de contato
-  const handleRemoveContact = async (userId) => {
-    try {
-      await removeContact(userId);
-      // A função removeContact já chama getUsers() internamente
-    } catch (error) {
-      // Erro já é tratado no store
-    }
-  };
-
-  // Função para lidar com clique no utilizador
-  const handleUserClick = (user) => {
-    if (!user) return;
-    
-    // Fechar o swipe de todos os itens abertos antes de mudar de usuário
-    // Isso é importante para evitar que itens fiquem "presos" em estado aberto
-    document.querySelectorAll('[id^="user-item-"]').forEach(element => {
-      element.style.transform = 'translateX(0)';
-    });
-    document.querySelectorAll('[id^="delete-btn-"]').forEach(element => {
-      element.style.opacity = '0';
-    });
-    
-    // Definir o usuário selecionado e marcará mensagens como lidas em getMessages
-    console.log(`Clicando no usuário ${user._id}`);
-    setSelectedUser(user);
   };
 
   // Função melhorada para ordenar utilizadores 
@@ -411,6 +245,13 @@ const Sidebar = () => {
       return (a.fullName || "").localeCompare(b.fullName || "");
     });
   }, [users, conversations, unreadCounts, searchQuery, showOnlineOnly, onlineUsers]);
+
+  // Função para lidar com clique no utilizador
+  const handleUserClick = (user) => {
+    if (!user) return;
+    setSelectedUser(user);
+    // Na função setSelectedUser do store já estamos a chamar markConversationAsRead
+  };
 
   // Recalcular lista de utilizadores quando qualquer dependência mudar
   const sortedUsers = getSortedAndFilteredUsers();
@@ -496,43 +337,86 @@ const Sidebar = () => {
         </button>
 
         {/* Separador */}
-        <div className="h-px bg-base-200 my-2" />
+        <div classNameclassName="h-px bg-base-200 my-2" />
 
-        {/* Lista de Utilizadores */}
-        {sortedUsers.map((user) => {
-          const hasUnread = unreadCounts && unreadCounts[user._id] > 0;
-          const conv = conversations?.find(c => c?.participants?.includes(user._id));
-          const isOnline = (onlineUsers || []).includes(user._id);
+{/* Lista de Utilizadores */}
+{sortedUsers.map((user) => {
+  const hasUnread = unreadCounts && unreadCounts[user._id] > 0;
+  const conv = conversations?.find(c => c?.participants?.includes(user._id));
+  
+  return (
+    <button
+      key={user._id}
+      onClick={() => handleUserClick(user)}
+      className={`
+        w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
+        transition-colors hover:bg-base-200 mb-1
+        ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""} 
+        ${hasUnread ? "bg-primary/10" : ""}
+      `}
+    >
+      <div className="relative">
+        <img
+          src={user.profilePic || "/avatar.png"}
+          alt={user.fullName || "Utilizador"}
+          className="size-10 lg:size-12 object-cover rounded-full border"
+        />
+        {(onlineUsers || []).includes(user._id) && (
+          <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
+        )}
+      </div>
+
+      <div className="flex-1 text-left">
+        <div className="flex items-center justify-between">
+          <span className="font-medium truncate text-sm lg:text-base">{user.fullName || "Utilizador"}</span>
+          {hasUnread && (
+            <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full min-w-5 h-5 px-1.5 text-xs font-medium ml-2">
+              {unreadCounts[user._id] > 9 ? '9+' : unreadCounts[user._id]}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <span className={`text-xs ${(onlineUsers || []).includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
+            {(onlineUsers || []).includes(user._id) ? "Online" : "Offline"}
+          </span>
           
-          return (
-            <UserItem 
-              key={user._id}
-              user={user}
-              onUserClick={handleUserClick}
-              isSelected={selectedUser?._id === user._id}
-              hasUnread={hasUnread}
-              unreadCount={unreadCounts[user._id] || 0}
-              conv={conv}
-              isOnline={isOnline}
-              authUser={authUser}
-              onRemove={handleRemoveContact}
-            />
-          );
-        })}
-
-        {(!sortedUsers || sortedUsers.length === 0) && (
-          <div className="text-center text-base-content/60 p-4">
-            {showOnlineOnly 
-              ? "Nenhum contacto online" 
-              : showContactMenu 
-                ? "Adicione contactos para começar a conversar" 
-                : "Nenhum contacto encontrado"
-            }
+          {/* Horário da última mensagem, se existir */}
+          {conv?.latestMessage && (
+            <span className="text-xs text-base-content/60">
+              {new Date(conv.latestMessage.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          )}
+        </div>
+        
+        {/* Pré-visualização da última mensagem */}
+        {conv?.latestMessage && (
+          <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
+            {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
+            {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
           </div>
         )}
       </div>
-    </aside>
+    </button>
   );
+})}
+
+{(!sortedUsers || sortedUsers.length === 0) && (
+  <div className="text-center text-base-content/60 p-4">
+    {showOnlineOnly 
+      ? "Nenhum contacto online" 
+      : showContactMenu 
+        ? "Adicione contactos para começar a conversar" 
+        : "Nenhum contacto encontrado"
+    }
+  </div>
+)}
+</div>
+</aside>
+);
 };
 
 export default Sidebar;
