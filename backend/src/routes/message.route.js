@@ -12,7 +12,7 @@ const router = express.Router();
 
 // Rotas específicas primeiro
 router.get("/users", protectRoute, getUsersForSidebar);
-router.get("/conversations", protectRoute, getConversations); // Esta rota precisa vir ANTES de /:id
+router.get("/conversations", protectRoute, getConversations);
 router.patch("/read/:id", protectRoute, markConversationAsRead);
 
 // Rotas com parâmetros dinâmicos depois
