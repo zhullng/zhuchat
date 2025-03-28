@@ -375,7 +375,6 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Adicionar/remover contactos - funções de contatos mantidas para quando forem implementadas
   addContact: async (email) => {
     try {
       const res = await axiosInstance.post("/api/contacts/add", { email });
