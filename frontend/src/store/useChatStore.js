@@ -15,28 +15,38 @@ export const useChatStore = create((set, get) => ({
   conversations: [], 
   unreadCounts: {}, 
 
-  // Função para obter a lista de contactos (apenas contactos adicionados)
+  // Função para obter a lista de utilizadores
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
-      // Alterar este endpoint para buscar contactos em vez de todos os utilizadores
-      const res = await axiosInstance.get("/api/contacts");
+      // Verificar se a API de contactos existe, senão cair para a API de utilizadores
+      try {
+        console.log("Tentando obter contactos...");
+        const contactsRes = await axiosInstance.get("/api/contacts");
+        console.log("Contactos obtidos:", contactsRes.data);
+        
+        // Transformar os contactos no formato esperado pela UI
+        const contactUsers = contactsRes.data.map(contact => ({
+          _id: contact.user?._id,
+          fullName: contact.user?.fullName,
+          email: contact.user?.email,
+          profilePic: contact.user?.profilePic,
+          note: contact.note
+        }));
+        
+        set({ users: contactUsers });
+      } catch (contactError) {
+        console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
+        // Fallback: buscar todos os utilizadores se a API de contactos falhar
+        const usersRes = await axiosInstance.get("/messages/users");
+        set({ users: usersRes.data });
+      }
       
-      // Transformar os contactos no formato esperado pela UI
-      const contactUsers = res.data.map(contact => ({
-        _id: contact.user._id,
-        fullName: contact.user.fullName,
-        email: contact.user.email,
-        profilePic: contact.user.profilePic,
-        note: contact.note
-      }));
-      
-      set({ users: contactUsers });
-      
-      // Após carregar contactos, buscar conversas para ordenação
+      // Após carregar utilizadores, buscar conversas para ordenação
       get().getConversations();
     } catch (error) {
-      toast.error(error.response?.data?.error || "Erro ao obter contactos");
+      console.error("Erro completo:", error);
+      toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -196,85 +206,89 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     
     // Desinscrever primeiro para evitar duplicação
-    socket.off("newMessage");
+    if (socket) {
+      socket.off("newMessage");
 
-    socket.on("newMessage", (newMessage) => {
-      const authUser = useAuthStore.getState().authUser;
-      const currentSelectedUser = get().selectedUser;
-      
-      console.log("Nova mensagem recebida:", newMessage);
-      
-      // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
-      if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
-        set(state => ({
-          messages: [...state.messages, newMessage],
-        }));
+      socket.on("newMessage", (newMessage) => {
+        const authUser = useAuthStore.getState().authUser;
+        const currentSelectedUser = get().selectedUser;
         
-        // Marca como lida já que o utilizador está a visualizar a conversa
-        get().markConversationAsRead(currentSelectedUser._id);
-      } 
-      // Se a mensagem é para o utilizador atual mas de outro remetente
-      else if (newMessage.receiverId === authUser._id) {
-        // Tocar som de notificação aqui
-        try {
-          const notificationSound = new Audio('/notification.mp3');
-          notificationSound.volume = 0.5;
-          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-        } catch (err) {
-          console.log('Erro ao criar áudio:', err);
-        }
+        console.log("Nova mensagem recebida:", newMessage);
         
-        // Incrementar contador de não lidos
-        set(state => {
-          const senderId = newMessage.senderId;
-          const currentCount = state.unreadCounts[senderId] || 0;
+        // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
+        if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
+          set(state => ({
+            messages: [...state.messages, newMessage],
+          }));
           
-          return {
-            unreadCounts: {
-              ...state.unreadCounts,
-              [senderId]: currentCount + 1
-            }
-          };
-        });
-        
-        // Atualizar imediatamente a conversa na UI
-        set(state => {
-          const updatedConversations = [...state.conversations];
-          
-          // Encontrar conversa existente ou criar nova
-          const existingConvIndex = updatedConversations.findIndex(
-            c => c.participants.includes(newMessage.senderId)
-          );
-          
-          if (existingConvIndex >= 0) {
-            // Atualizar conversa existente
-            const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
-            
-            updatedConversations[existingConvIndex] = {
-              ...updatedConversations[existingConvIndex],
-              latestMessage: newMessage,
-              unreadCount: currentUnreadCount + 1
-            };
-            
-            // Mover para o topo da lista
-            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-            updatedConversations.unshift(updatedConv);
-          } else {
-            // Criar nova conversa
-            updatedConversations.unshift({
-              participants: [authUser._id, newMessage.senderId],
-              latestMessage: newMessage,
-              unreadCount: 1
-            });
+          // Marca como lida já que o utilizador está a visualizar a conversa
+          get().markConversationAsRead(currentSelectedUser._id);
+        } 
+        // Se a mensagem é para o utilizador atual mas de outro remetente
+        else if (newMessage.receiverId === authUser._id) {
+          // Tocar som de notificação aqui
+          try {
+            const notificationSound = new Audio('/notification.mp3');
+            notificationSound.volume = 0.5;
+            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+          } catch (err) {
+            console.log('Erro ao criar áudio:', err);
           }
           
-          return { conversations: updatedConversations };
-        });
-      }
-      
-      // Sincronizar com o servidor depois
-      get().getConversations();
-    });
+          // Incrementar contador de não lidos
+          set(state => {
+            const senderId = newMessage.senderId;
+            const currentCount = state.unreadCounts[senderId] || 0;
+            
+            return {
+              unreadCounts: {
+                ...state.unreadCounts,
+                [senderId]: currentCount + 1
+              }
+            };
+          });
+          
+          // Atualizar imediatamente a conversa na UI
+          set(state => {
+            const updatedConversations = [...state.conversations];
+            
+            // Encontrar conversa existente ou criar nova
+            const existingConvIndex = updatedConversations.findIndex(
+              c => c.participants.includes(newMessage.senderId)
+            );
+            
+            if (existingConvIndex >= 0) {
+              // Atualizar conversa existente
+              const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
+              
+              updatedConversations[existingConvIndex] = {
+                ...updatedConversations[existingConvIndex],
+                latestMessage: newMessage,
+                unreadCount: currentUnreadCount + 1
+              };
+              
+              // Mover para o topo da lista
+              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+              updatedConversations.unshift(updatedConv);
+            } else {
+              // Criar nova conversa
+              updatedConversations.unshift({
+                participants: [authUser._id, newMessage.senderId],
+                latestMessage: newMessage,
+                unreadCount: 1
+              });
+            }
+            
+            return { conversations: updatedConversations };
+          });
+        }
+        
+        // Sincronizar com o servidor depois
+        get().getConversations();
+      });
+    } else {
+      console.warn("Socket não disponível para subscrever mensagens");
+    }
   },
 
   // Função para se desinscrever das notificações de novas mensagens
@@ -305,6 +319,7 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get(`/api/transfers/history/${authUser._id}`);
       set({ transfers: res.data });
     } catch (error) {
+      console.error("Erro ao carregar histórico de transferências:", error);
       toast.error(error.response?.data?.message || "Erro ao carregar histórico");
     } finally {
       set({ isTransfersLoading: false });
@@ -315,17 +330,21 @@ export const useChatStore = create((set, get) => ({
   subscribeToTransfers: () => {
     const socket = useAuthStore.getState().socket;
     
-    // Desinscrever primeiro para evitar duplicação
-    socket.off("transfer-update");
+    if (socket) {
+      // Desinscrever primeiro para evitar duplicação
+      socket.off("transfer-update");
 
-    socket.on("transfer-update", (transferData) => {
-      const { authUser } = useAuthStore.getState();
-      if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
-        set((state) => ({
-          transfers: [...state.transfers, transferData],
-        }));
-      }
-    });
+      socket.on("transfer-update", (transferData) => {
+        const { authUser } = useAuthStore.getState();
+        if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
+          set((state) => ({
+            transfers: [...state.transfers, transferData],
+          }));
+        }
+      });
+    } else {
+      console.warn("Socket não disponível para subscrever transferências");
+    }
   },
 
   // Função para se desinscrever das notificações de transferências
@@ -336,13 +355,14 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Adicionar/remover contactos
+  // Adicionar/remover contactos - funções de contatos mantidas para quando forem implementadas
   addContact: async (email) => {
     try {
       const res = await axiosInstance.post("/api/contacts/add", { email });
       toast.success("Pedido de contacto enviado com sucesso");
       return res.data;
     } catch (error) {
+      console.error("Erro ao adicionar contacto:", error);
       toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
       throw error;
     }
@@ -371,6 +391,7 @@ export const useChatStore = create((set, get) => ({
       get().getUsers();
       return res.data;
     } catch (error) {
+      console.error("Erro ao processar pedido:", error);
       toast.error("Erro ao processar o pedido de contacto");
       throw error;
     }
@@ -385,6 +406,7 @@ export const useChatStore = create((set, get) => ({
       get().getUsers();
       return res.data;
     } catch (error) {
+      console.error("Erro ao remover contacto:", error);
       toast.error("Erro ao remover contacto");
       throw error;
     }
