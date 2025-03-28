@@ -34,7 +34,8 @@ export const useChatStore = create((set, get) => ({
           fullName: contact.user?.fullName || "Utilizador desconhecido",
           email: contact.user?.email || "",
           profilePic: contact.user?.profilePic || "",
-          note: contact.note || ""
+          note: contact.note || "",
+          contactId: contact._id // Guardar o ID do contato para facilitar a remoção
         }));
         
         set({ users: contactUsers });
@@ -57,7 +58,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para obter as conversas e ordená-las por recentes
+  // Função para obter as conversas e ordená-las por recentes (versão corrigida)
   getConversations: async () => {
     try {
       const res = await axiosInstance.get("/messages/conversations");
@@ -70,21 +71,26 @@ export const useChatStore = create((set, get) => ({
         return;
       }
       
-      // Preservar unreadCounts existentes e apenas atualizar com novos dados
-      const currentUnreadCounts = get().unreadCounts || {};
-      const unreadCounts = { ...currentUnreadCounts };
+      // Resetar unreadCounts completamente com base nos dados do servidor
+      // em vez de preservar contadores antigos
+      const unreadCounts = {};
       const authUser = useAuthStore.getState().authUser;
       
       conversations.forEach(conv => {
+        if (!conv.participants || !Array.isArray(conv.participants)) return;
+        
+        // Encontrar o ID do outro participante
+        const otherUserId = conv.participants.find(id => id !== authUser._id);
+        if (!otherUserId) return;
+        
+        // Verificar se a última mensagem existe, não foi lida e não foi enviada pelo usuário atual
         if (conv.latestMessage && !conv.latestMessage.read && 
             conv.latestMessage.senderId !== authUser._id) {
-          // Encontrar o ID do outro participante
-          const otherUserId = conv.participants.find(id => id !== authUser._id);
-          
-          // Usar o máximo entre o valor atual e o novo para evitar perda de contagem
-          const currentCount = currentUnreadCounts[otherUserId] || 0;
-          const serverCount = conv.unreadCount || 0;
-          unreadCounts[otherUserId] = Math.max(currentCount, serverCount);
+          // Usar count do servidor ou o valor 1 como mínimo (nunca valores antigos)
+          unreadCounts[otherUserId] = conv.unreadCount || 1;
+        } else {
+          // Se a última mensagem foi lida ou enviada pelo usuário atual, zerar a contagem
+          unreadCounts[otherUserId] = 0;
         }
       });
       
@@ -108,30 +114,27 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Marcar conversa como lida
+  // Função de marcar conversa como lida - melhorada e corrigida
   markConversationAsRead: async (userId) => {
     // Não fazer nada se userId é inválido ou não tem mensagens não lidas
     if (!userId || userId === 'ai-assistant') return;
-    
-    const currentUnreadCount = get().unreadCounts[userId] || 0;
-    if (currentUnreadCount === 0) return;
     
     try {
       // Atualizar localmente primeiro para resposta imediata na UI
       set(state => ({
         unreadCounts: {
           ...state.unreadCounts,
-          [userId]: 0
+          [userId]: 0  // Forçar contagem para zero
         },
         conversations: state.conversations.map(conv => {
-          if (conv.participants.includes(userId)) {
+          if (conv.participants && conv.participants.includes(userId)) {
             return {
               ...conv,
               latestMessage: conv.latestMessage ? {
                 ...conv.latestMessage,
-                read: true
+                read: true  // Marcar explicitamente como lida
               } : null,
-              unreadCount: 0
+              unreadCount: 0  // Zerar a contagem na conversa
             };
           }
           return conv;
@@ -140,6 +143,11 @@ export const useChatStore = create((set, get) => ({
       
       // Depois atualizar no servidor
       await axiosInstance.patch(`/messages/read/${userId}`);
+      
+      // Forçar sincronização com o servidor após atualização
+      setTimeout(() => {
+        get().getConversations();
+      }, 300);
     } catch (error) {
       console.error("Erro ao marcar conversa como lida:", error);
       // Restaurar estado anterior em caso de erro
@@ -155,8 +163,9 @@ export const useChatStore = create((set, get) => ({
       const messages = Array.isArray(res.data) ? res.data : [];
       set({ messages });
       
-      // Marcar mensagens como lidas quando abre a conversa
-      get().markConversationAsRead(userId);
+      // IMPORTANTE: Marcar como lidas imediatamente ao abrir a conversa
+      // usando await para garantir que a operação seja concluída
+      await get().markConversationAsRead(userId);
     } catch (error) {
       console.error("Erro ao obter mensagens:", error);
       set({ messages: [] });
@@ -183,7 +192,7 @@ export const useChatStore = create((set, get) => ({
         
         // Encontrar conversa existente ou criar nova
         const existingConvIndex = updatedConversations.findIndex(
-          c => c.participants.includes(selectedUser._id)
+          c => c.participants && c.participants.includes(selectedUser._id)
         );
         
         if (existingConvIndex >= 0) {
@@ -209,7 +218,9 @@ export const useChatStore = create((set, get) => ({
       });
       
       // Ainda assim, sincronizar com o servidor depois
-      get().getConversations();
+      setTimeout(() => {
+        get().getConversations();
+      }, 300);
       
       return newMessage;
     } catch (error) {
@@ -219,7 +230,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para se inscrever para notificações de novas mensagens por WebSocket
+  // Função para se inscrever para notificações de novas mensagens por WebSocket (versão melhorada)
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
     
@@ -253,15 +264,18 @@ export const useChatStore = create((set, get) => ({
             console.log('Erro ao criar áudio:', err);
           }
           
-          // Incrementar contador de não lidos
+          // Incrementar contador de não lidos de forma segura
           set(state => {
             const senderId = newMessage.senderId;
             const currentCount = state.unreadCounts[senderId] || 0;
             
+            // Limitar a contagem máxima a 99 para evitar problemas visuais
+            const newCount = Math.min(currentCount + 1, 99);
+            
             return {
               unreadCounts: {
                 ...state.unreadCounts,
-                [senderId]: currentCount + 1
+                [senderId]: newCount
               }
             };
           });
@@ -272,17 +286,20 @@ export const useChatStore = create((set, get) => ({
             
             // Encontrar conversa existente ou criar nova
             const existingConvIndex = updatedConversations.findIndex(
-              c => c.participants.includes(newMessage.senderId)
+              c => c.participants && c.participants.includes(newMessage.senderId)
             );
             
             if (existingConvIndex >= 0) {
               // Atualizar conversa existente
               const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
               
+              // Limitar a contagem a 99
+              const newUnreadCount = Math.min(currentUnreadCount + 1, 99);
+              
               updatedConversations[existingConvIndex] = {
                 ...updatedConversations[existingConvIndex],
                 latestMessage: newMessage,
-                unreadCount: currentUnreadCount + 1
+                unreadCount: newUnreadCount
               };
               
               // Mover para o topo da lista
@@ -301,8 +318,10 @@ export const useChatStore = create((set, get) => ({
           });
         }
         
-        // Sincronizar com o servidor depois
-        get().getConversations();
+        // Sincronizar com o servidor depois de um curto atraso
+        setTimeout(() => {
+          get().getConversations();
+        }, 500);
       });
     } else {
       console.warn("Socket não disponível para subscrever mensagens");
@@ -375,6 +394,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Adicionar contacto
   addContact: async (email) => {
     try {
       const res = await axiosInstance.post("/contacts/add", { email });
@@ -416,18 +436,47 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Remover contacto
-  removeContact: async (contactId) => {
+  // Remover contacto (versão melhorada)
+  removeContact: async (userId) => {
     try {
-      const res = await axiosInstance.delete(`/contacts/${contactId}`);
-      toast.success("Contacto removido com sucesso");
-      // Atualizar a lista de contactos
-      get().getUsers();
-      return res.data;
+      // Primeiro, precisamos encontrar o contato que corresponde a este usuário
+      const user = get().users.find(u => u._id === userId);
+      
+      // Se temos o ID do contato armazenado, usamos diretamente
+      if (user && user.contactId) {
+        const res = await axiosInstance.delete(`/contacts/${user.contactId}`);
+        toast.success("Contacto removido com sucesso");
+        // Atualizar a lista de contactos
+        get().getUsers();
+        return res.data;
+      } 
+      // Caso contrário, usamos o ID do usuário diretamente
+      else {
+        const res = await axiosInstance.delete(`/contacts/${userId}`);
+        toast.success("Contacto removido com sucesso");
+        // Atualizar a lista de contactos
+        get().getUsers();
+        return res.data;
+      }
     } catch (error) {
       console.error("Erro ao remover contacto:", error);
-      toast.error("Erro ao remover contacto");
+      toast.error(error.response?.data?.error || "Erro ao remover contacto");
       throw error;
     }
+  },
+  
+  // Nova função para resetar o estado do chat (para usar no logout)
+  resetChatState: () => {
+    set({
+      messages: [],
+      users: [],
+      selectedUser: null,
+      isUsersLoading: false,
+      isMessagesLoading: false,
+      transfers: [],
+      isTransfersLoading: false,
+      conversations: [],
+      unreadCounts: {}
+    });
   }
 }));
