@@ -67,9 +67,10 @@ const PendingRequests = ({ onRequestResponded }) => {
     setIsLoading(true);
     try {
       const requests = await getPendingRequests();
-      setPendingRequests(requests);
+      setPendingRequests(Array.isArray(requests) ? requests : []);
     } catch (error) {
       console.error("Erro ao obter pedidos pendentes:", error);
+      setPendingRequests([]);
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +97,7 @@ const PendingRequests = ({ onRequestResponded }) => {
     }
   };
 
-  if (pendingRequests.length === 0) {
+  if (!pendingRequests || pendingRequests.length === 0) {
     return null;
   }
 
@@ -109,13 +110,13 @@ const PendingRequests = ({ onRequestResponded }) => {
           <div key={request._id} className="flex items-center justify-between bg-base-200 p-2 rounded-lg">
             <div className="flex items-center gap-2">
               <img 
-                src={request.userId.profilePic || "/avatar.png"} 
-                alt={request.userId.fullName}
+                src={request.userId?.profilePic || "/avatar.png"} 
+                alt={request.userId?.fullName || "Utilizador"}
                 className="w-8 h-8 rounded-full object-cover"
               />
               <div>
-                <div className="font-medium text-sm">{request.userId.fullName}</div>
-                <div className="text-xs text-base-content/70">{request.userId.email}</div>
+                <div className="font-medium text-sm">{request.userId?.fullName || "Utilizador"}</div>
+                <div className="text-xs text-base-content/70">{request.userId?.email || ""}</div>
               </div>
             </div>
             
@@ -203,29 +204,33 @@ const Sidebar = () => {
 
   // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
-    if (!users || users.length === 0) return [];
+    if (!users || !Array.isArray(users) || users.length === 0) return [];
     
     // Filtrar por pesquisa e estado online
     const filteredUsers = users.filter((user) => {
-      const matchesSearch = user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          user.email?.toLowerCase().includes(searchQuery.toLowerCase());
-      const isOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
+      if (!user || !user._id) return false; // Ignorar usuários inválidos
+      
+      const matchesSearch = (user.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (user.email || "").toLowerCase().includes(searchQuery.toLowerCase());
+      const isOnline = showOnlineOnly ? (onlineUsers || []).includes(user._id) : true;
       return matchesSearch && isOnline;
     });
 
     // Ordenar por não lidas primeiro, depois por mensagens mais recentes
     return filteredUsers.sort((a, b) => {
+      if (!a || !b) return 0;
+      
       // Verificar se há mensagens não lidas (prioridade mais alta)
-      const unreadA = unreadCounts[a._id] > 0;
-      const unreadB = unreadCounts[b._id] > 0;
+      const unreadA = unreadCounts && unreadCounts[a._id] > 0;
+      const unreadB = unreadCounts && unreadCounts[b._id] > 0;
       
       // Mensagens não lidas têm prioridade
       if (unreadA && !unreadB) return -1;
       if (!unreadA && unreadB) return 1;
       
       // Encontrar conversas para os utilizadores
-      const convA = conversations?.find(c => c.participants.includes(a._id));
-      const convB = conversations?.find(c => c.participants.includes(b._id));
+      const convA = conversations?.find(c => c?.participants?.includes(a._id));
+      const convB = conversations?.find(c => c?.participants?.includes(b._id));
       
       // Se ambos têm ou não têm mensagens não lidas, ordena por mais recente
       if (convA?.latestMessage && convB?.latestMessage) {
@@ -237,12 +242,13 @@ const Sidebar = () => {
       if (convB?.latestMessage) return 1;
       
       // Se nenhum tiver mensagens, mantém a ordem alfabética
-      return a.fullName.localeCompare(b.fullName);
+      return (a.fullName || "").localeCompare(b.fullName || "");
     });
   }, [users, conversations, unreadCounts, searchQuery, showOnlineOnly, onlineUsers]);
 
   // Função para lidar com clique no utilizador
   const handleUserClick = (user) => {
+    if (!user) return;
     setSelectedUser(user);
     // Na função setSelectedUser do store já estamos a chamar markConversationAsRead
   };
@@ -297,7 +303,7 @@ const Sidebar = () => {
               <span className="text-sm lg:text-base">Apenas online</span>
             </label>
             <span className="text-xs lg:text-md text-base-content/60">
-              {onlineUsers.length - 1} online
+              {(onlineUsers || []).length - 1} online
             </span>
           </div>
         </div>
@@ -331,85 +337,86 @@ const Sidebar = () => {
         </button>
 
         {/* Separador */}
-        <div className="h-px bg-base-200 my-2" />
+        <div classNameclassName="h-px bg-base-200 my-2" />
 
-        {/* Lista de Utilizadores */}
-        {sortedUsers.map((user) => {
-          const hasUnread = unreadCounts && unreadCounts[user._id] > 0;
-          const conv = conversations?.find(c => c.participants.includes(user._id));
+{/* Lista de Utilizadores */}
+{sortedUsers.map((user) => {
+  const hasUnread = unreadCounts && unreadCounts[user._id] > 0;
+  const conv = conversations?.find(c => c?.participants?.includes(user._id));
+  
+  return (
+    <button
+      key={user._id}
+      onClick={() => handleUserClick(user)}
+      className={`
+        w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
+        transition-colors hover:bg-base-200 mb-1
+        ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""} 
+        ${hasUnread ? "bg-primary/10" : ""}
+      `}
+    >
+      <div className="relative">
+        <img
+          src={user.profilePic || "/avatar.png"}
+          alt={user.fullName || "Utilizador"}
+          className="size-10 lg:size-12 object-cover rounded-full border"
+        />
+        {(onlineUsers || []).includes(user._id) && (
+          <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
+        )}
+      </div>
+
+      <div className="flex-1 text-left">
+        <div className="flex items-center justify-between">
+          <span className="font-medium truncate text-sm lg:text-base">{user.fullName || "Utilizador"}</span>
+          {hasUnread && (
+            <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full min-w-5 h-5 px-1.5 text-xs font-medium ml-2">
+              {unreadCounts[user._id] > 9 ? '9+' : unreadCounts[user._id]}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <span className={`text-xs ${(onlineUsers || []).includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
+            {(onlineUsers || []).includes(user._id) ? "Online" : "Offline"}
+          </span>
           
-          return (
-            <button
-              key={user._id}
-              onClick={() => handleUserClick(user)}
-              className={`
-                w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
-                transition-colors hover:bg-base-200 mb-1
-                ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""} 
-                ${hasUnread ? "bg-primary/10" : ""}
-              `}
-            >
-              <div className="relative">
-                <img
-                  src={user.profilePic || "/avatar.png"}
-                  alt={user.fullName}
-                  className="size-10 lg:size-12 object-cover rounded-full border"
-                />
-                {onlineUsers.includes(user._id) && (
-                  <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
-                )}
-              </div>
-
-              <div className="flex-1 text-left">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium truncate text-sm lg:text-base">{user.fullName}</span>
-                  {hasUnread && (
-                    <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full min-w-5 h-5 px-1.5 text-xs font-medium ml-2">
-                      {unreadCounts[user._id] > 9 ? '9+' : unreadCounts[user._id]}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs ${onlineUsers.includes(user._id) ? "text-green-500" : "text-base-content/60"}`}>
-                    {onlineUsers.includes(user._id) ? "Online" : "Offline"}
-                  </span>
-                  {/* Horário da última mensagem, se existir */}
-                  {conv?.latestMessage && (
-                    <span className="text-xs text-base-content/60">
-                      {new Date(conv.latestMessage.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  )}
-                </div>
-                
-                {/* Pré-visualização da última mensagem */}
-                {conv?.latestMessage && (
-                  <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
-                    {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
-                    {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
-                  </div>
-                )}
-              </div>
-            </button>
-          );
-        })}
-
-        {sortedUsers.length === 0 && (
-          <div className="text-center text-base-content/60 p-4">
-            {showOnlineOnly 
-              ? "Nenhum contacto online" 
-              : showContactMenu 
-                ? "Adicione contactos para começar a conversar" 
-                : "Nenhum contacto encontrado"
-            }
+          {/* Horário da última mensagem, se existir */}
+          {conv?.latestMessage && (
+            <span className="text-xs text-base-content/60">
+              {new Date(conv.latestMessage.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          )}
+        </div>
+        
+        {/* Pré-visualização da última mensagem */}
+        {conv?.latestMessage && (
+          <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
+            {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
+            {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
           </div>
         )}
       </div>
-    </aside>
+    </button>
   );
+})}
+
+{(!sortedUsers || sortedUsers.length === 0) && (
+  <div className="text-center text-base-content/60 p-4">
+    {showOnlineOnly 
+      ? "Nenhum contacto online" 
+      : showContactMenu 
+        ? "Adicione contactos para começar a conversar" 
+        : "Nenhum contacto encontrado"
+    }
+  </div>
+)}
+</div>
+</aside>
+);
 };
 
 export default Sidebar;

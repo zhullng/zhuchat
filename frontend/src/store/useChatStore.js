@@ -25,13 +25,16 @@ export const useChatStore = create((set, get) => ({
         const contactsRes = await axiosInstance.get("/api/contacts");
         console.log("Contactos obtidos:", contactsRes.data);
         
+        // Garantir que a resposta é um array
+        const contactsData = Array.isArray(contactsRes.data) ? contactsRes.data : [];
+        
         // Transformar os contactos no formato esperado pela UI
-        const contactUsers = contactsRes.data.map(contact => ({
+        const contactUsers = contactsData.map(contact => ({
           _id: contact.user?._id,
-          fullName: contact.user?.fullName,
-          email: contact.user?.email,
-          profilePic: contact.user?.profilePic,
-          note: contact.note
+          fullName: contact.user?.fullName || "Utilizador desconhecido",
+          email: contact.user?.email || "",
+          profilePic: contact.user?.profilePic || "",
+          note: contact.note || ""
         }));
         
         set({ users: contactUsers });
@@ -39,13 +42,15 @@ export const useChatStore = create((set, get) => ({
         console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
         // Fallback: buscar todos os utilizadores se a API de contactos falhar
         const usersRes = await axiosInstance.get("/messages/users");
-        set({ users: usersRes.data });
+        const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
+        set({ users: usersData });
       }
       
       // Após carregar utilizadores, buscar conversas para ordenação
       get().getConversations();
     } catch (error) {
       console.error("Erro completo:", error);
+      set({ users: [] }); // Definir um array vazio em caso de erro
       toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
     } finally {
       set({ isUsersLoading: false });
@@ -56,7 +61,14 @@ export const useChatStore = create((set, get) => ({
   getConversations: async () => {
     try {
       const res = await axiosInstance.get("/messages/conversations");
-      const conversations = res.data;
+      const conversations = res.data || []; // Garante que será um array
+      
+      // Verificar se a resposta é realmente um array
+      if (!Array.isArray(conversations)) {
+        console.error("Resposta de conversas não é um array:", conversations);
+        set({ conversations: [], unreadCounts: {} });
+        return;
+      }
       
       // Preservar unreadCounts existentes e apenas atualizar com novos dados
       const currentUnreadCounts = get().unreadCounts || {};
@@ -91,6 +103,8 @@ export const useChatStore = create((set, get) => ({
       });
     } catch (error) {
       console.error("Erro ao obter conversas:", error);
+      // Definir valores vazios em caso de erro
+      set({ conversations: [], unreadCounts: {} });
     }
   },
 
@@ -138,11 +152,14 @@ export const useChatStore = create((set, get) => ({
     set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
-      set({ messages: res.data });
+      const messages = Array.isArray(res.data) ? res.data : [];
+      set({ messages });
       
       // Marcar mensagens como lidas quando abre a conversa
       get().markConversationAsRead(userId);
     } catch (error) {
+      console.error("Erro ao obter mensagens:", error);
+      set({ messages: [] });
       toast.error(error.response?.data?.message || "Erro ao obter mensagens");
     } finally {
       set({ isMessagesLoading: false });
@@ -196,6 +213,7 @@ export const useChatStore = create((set, get) => ({
       
       return newMessage;
     } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
       toast.error(error.response?.data?.message || "Erro ao enviar mensagem");
       throw error;
     }
@@ -317,9 +335,11 @@ export const useChatStore = create((set, get) => ({
     set({ isTransfersLoading: true });
     try {
       const res = await axiosInstance.get(`/api/transfers/history/${authUser._id}`);
-      set({ transfers: res.data });
+      const transfers = Array.isArray(res.data) ? res.data : [];
+      set({ transfers });
     } catch (error) {
       console.error("Erro ao carregar histórico de transferências:", error);
+      set({ transfers: [] });
       toast.error(error.response?.data?.message || "Erro ao carregar histórico");
     } finally {
       set({ isTransfersLoading: false });
@@ -372,7 +392,7 @@ export const useChatStore = create((set, get) => ({
   getPendingRequests: async () => {
     try {
       const res = await axiosInstance.get("/api/contacts/pending");
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     } catch (error) {
       console.error("Erro ao obter pedidos pendentes:", error);
       return [];
