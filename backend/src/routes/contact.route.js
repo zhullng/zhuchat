@@ -7,7 +7,7 @@ import {
   removeContact, 
   updateContactNote 
 } from "../controllers/contact.controller.js";
-import protectRoute from "../middleware/auth.middleware.js";
+import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.patch("/:contactId/respond", respondToRequest);
 // Remover um contacto
 router.delete("/:contactId", removeContact);
 
-// Atualizar a nota de um contacto
+// Atualizar a nota de um contacto (se você tiver esta funcionalidade)
 router.patch("/:contactId/note", updateContactNote);
 
 export default router;
