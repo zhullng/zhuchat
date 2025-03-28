@@ -395,7 +395,7 @@ const Sidebar = () => {
         {/* Pré-visualização da última mensagem */}
         {conv?.latestMessage && (
           <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
-            {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
+            {conv.latestMessage.senderId === authUser?._id ? 'Enviado: ' : ''}
             {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
           </div>
         )}
