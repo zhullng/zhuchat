@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { Users, Bot, UserPlus, X, Check, XCircle, Trash2 } from "lucide-react";
@@ -276,13 +276,17 @@ const Sidebar = () => {
     markConversationAsRead, 
     subscribeToMessages,
     unsubscribeFromMessages,
-    removeContact
+    removeContact,
+    getConversations
   } = useChatStore();
   const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
+  
+  // Referência para o intervalos de atualização
+  const updateIntervalRef = useRef(null);
 
   // Objeto do Assistente Virtual
   const aiAssistant = {
@@ -293,8 +297,15 @@ const Sidebar = () => {
 
   // Subscrever e carregar dados ao montar o componente
   useEffect(() => {
+    console.log("Carregando usuários e subscrevendo mensagens");
     getUsers();
     subscribeToMessages(); // Importante: subscrever para eventos de novas mensagens
+    
+    // Configurar atualização periódica de conversas para sincronizar notificações
+    updateIntervalRef.current = setInterval(() => {
+      console.log("Atualizando conversas periodicamente");
+      getConversations();
+    }, 10000); // Atualizar a cada 10 segundos
     
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
@@ -303,8 +314,14 @@ const Sidebar = () => {
     return () => {
       window.removeEventListener('resize', checkMobile);
       unsubscribeFromMessages(); // Limpar subscrição ao desmontar
+      
+      // Limpar intervalo de atualização
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
+      }
     };
-  }, [getUsers, subscribeToMessages, unsubscribeFromMessages]);
+  }, [getUsers, subscribeToMessages, unsubscribeFromMessages, getConversations]);
 
   // Importante: forçar atualização em mudanças em conversations ou unreadCounts
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -346,7 +363,8 @@ const Sidebar = () => {
       element.style.opacity = '0';
     });
     
-    // Definir o usuário selecionado e marcar mensagens como lidas
+    // Definir o usuário selecionado e marcará mensagens como lidas em getMessages
+    console.log(`Clicando no usuário ${user._id}`);
     setSelectedUser(user);
   };
 

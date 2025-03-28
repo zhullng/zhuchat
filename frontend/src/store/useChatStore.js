@@ -71,28 +71,44 @@ export const useChatStore = create((set, get) => ({
         return;
       }
       
-      // Resetar unreadCounts completamente com base nos dados do servidor
-      // Em vez de preservar contadores antigos
+      // Resetar completamente unreadCounts com base nos dados do servidor
       const unreadCounts = {};
       const authUser = useAuthStore.getState().authUser;
       
+      // Registrar todos os IDs de participantes para depuração
+      const allParticipantIds = conversations.flatMap(conv => conv.participants || []);
+      console.log("Todos os IDs de participantes:", allParticipantIds);
+      
       conversations.forEach(conv => {
-        if (!conv.participants || !Array.isArray(conv.participants)) return;
+        if (!conv.participants || !Array.isArray(conv.participants)) {
+          console.warn("Conversa sem participantes válidos:", conv);
+          return;
+        }
         
         // Encontrar o ID do outro participante
         const otherUserId = conv.participants.find(id => id !== authUser._id);
-        if (!otherUserId) return;
+        if (!otherUserId) {
+          console.warn("Não foi possível encontrar o outro participante:", conv.participants);
+          return;
+        }
+        
+        console.log(`Processando conversa com ${otherUserId}, mensagem lida:`, 
+          conv.latestMessage ? conv.latestMessage.read : "sem mensagem");
         
         // Se a última mensagem não foi lida e não foi enviada pelo usuário atual
         if (conv.latestMessage && !conv.latestMessage.read && 
             conv.latestMessage.senderId !== authUser._id) {
           // Confiar na contagem do servidor ou usar 1 como mínimo
           unreadCounts[otherUserId] = conv.unreadCount || 1;
+          console.log(`Definindo ${unreadCounts[otherUserId]} mensagens não lidas para ${otherUserId}`);
         } else {
           // Se a última mensagem foi lida ou foi enviada pelo usuário, zerar a contagem
           unreadCounts[otherUserId] = 0;
+          console.log(`Zerando contagem de não lidas para ${otherUserId}`);
         }
       });
+      
+      console.log("Contagem final de não lidas:", unreadCounts);
       
       // Ordenar as conversas com base na data da última mensagem
       const sortedConversations = [...conversations].sort((a, b) => {
@@ -114,12 +130,23 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Função de marcar conversa como lida - melhorada e corrigida
   markConversationAsRead: async (userId) => {
     // Não fazer nada se userId é inválido ou não tem mensagens não lidas
     if (!userId || userId === 'ai-assistant') return;
     
+    const currentUnreadCount = get().unreadCounts[userId] || 0;
+    console.log(`Tentando marcar como lidas ${currentUnreadCount} mensagens para ${userId}`);
+    
+    if (currentUnreadCount === 0) {
+      console.log("Nenhuma mensagem não lida para marcar");
+      return;
+    }
+    
     try {
-      // Atualizar localmente primeiro para resposta imediata na UI
+      console.log("Atualizando estado local para marcação de leitura");
+      
+      // Importante: atualizar localmente primeiro para resposta imediata na UI
       set(state => {
         // Atualizar o contador de mensagens não lidas para 0
         const newUnreadCounts = {
@@ -142,6 +169,8 @@ export const useChatStore = create((set, get) => ({
           return conv;
         });
         
+        console.log(`Estado local atualizado: ${userId} agora tem 0 mensagens não lidas`);
+        
         // Retornar o novo estado
         return { 
           unreadCounts: newUnreadCounts,
@@ -150,13 +179,15 @@ export const useChatStore = create((set, get) => ({
       });
       
       // Depois atualizar no servidor
+      console.log(`Enviando requisição para marcar mensagens como lidas para ${userId}`);
       await axiosInstance.patch(`/messages/read/${userId}`);
+      console.log("Servidor atualizado com sucesso");
       
-      // Após sucesso, forçar uma atualização completa do estado de conversas
-      // para garantir sincronização com o servidor
+      // Forçar sincronização com o servidor após um curto atraso
       setTimeout(() => {
+        console.log("Sincronizando estado com servidor após marcação de leitura");
         get().getConversations();
-      }, 500);
+      }, 300);
     } catch (error) {
       console.error("Erro ao marcar conversa como lida:", error);
       // Restaurar estado anterior em caso de erro
@@ -168,12 +199,16 @@ export const useChatStore = create((set, get) => ({
   getMessages: async (userId) => {
     set({ isMessagesLoading: true });
     try {
+      console.log(`Obtendo mensagens para ${userId}`);
       const res = await axiosInstance.get(`/messages/${userId}`);
       const messages = Array.isArray(res.data) ? res.data : [];
+      console.log(`${messages.length} mensagens obtidas`);
+      
       set({ messages });
       
-      // Marcar mensagens como lidas quando abre a conversa
-      get().markConversationAsRead(userId);
+      // CRÍTICO: Marcar mensagens como lidas quando abre a conversa
+      console.log("Marcando mensagens como lidas após obter mensagens");
+      await get().markConversationAsRead(userId);
     } catch (error) {
       console.error("Erro ao obter mensagens:", error);
       set({ messages: [] });
@@ -187,8 +222,10 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
+      console.log(`Enviando mensagem para ${selectedUser._id}`);
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
       const newMessage = res.data;
+      console.log("Mensagem enviada com sucesso:", newMessage);
       
       // Adicionar mensagem à lista de mensagens
       set({ messages: [...messages, newMessage] });
@@ -226,7 +263,10 @@ export const useChatStore = create((set, get) => ({
       });
       
       // Ainda assim, sincronizar com o servidor depois
-      get().getConversations();
+      setTimeout(() => {
+        console.log("Sincronizando conversas após envio de mensagem");
+        get().getConversations();
+      }, 300);
       
       return newMessage;
     } catch (error) {
@@ -252,15 +292,20 @@ export const useChatStore = create((set, get) => ({
         
         // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
         if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
+          console.log("Mensagem é do usuário atual selecionado, adicionando à conversa");
+          
           set(state => ({
             messages: [...state.messages, newMessage],
           }));
           
           // Marca como lida já que o utilizador está a visualizar a conversa
+          console.log("Usuário está visualizando a conversa, marcando como lida automaticamente");
           get().markConversationAsRead(currentSelectedUser._id);
         } 
         // Se a mensagem é para o utilizador atual mas de outro remetente
         else if (newMessage.receiverId === authUser._id) {
+          console.log("Mensagem recebida de outro usuário, incrementando contagem não lida");
+          
           // Tocar som de notificação aqui
           try {
             const notificationSound = new Audio('/notification.mp3');
@@ -277,6 +322,7 @@ export const useChatStore = create((set, get) => ({
             
             // Limitar a contagem máxima a 99 para evitar problemas visuais
             const newCount = Math.min(currentCount + 1, 99);
+            console.log(`Incrementando contagem não lida para ${senderId}: ${currentCount} -> ${newCount}`);
             
             return {
               unreadCounts: {
@@ -298,11 +344,14 @@ export const useChatStore = create((set, get) => ({
             if (existingConvIndex >= 0) {
               // Atualizar conversa existente
               const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
+              const newUnreadCount = Math.min(currentUnreadCount + 1, 99);
+              
+              console.log(`Atualizando conversa existente, incrementando não lidas: ${currentUnreadCount} -> ${newUnreadCount}`);
               
               updatedConversations[existingConvIndex] = {
                 ...updatedConversations[existingConvIndex],
                 latestMessage: newMessage,
-                unreadCount: Math.min(currentUnreadCount + 1, 99) // Limitar a 99
+                unreadCount: newUnreadCount
               };
               
               // Mover para o topo da lista
@@ -310,6 +359,8 @@ export const useChatStore = create((set, get) => ({
               updatedConversations.unshift(updatedConv);
             } else {
               // Criar nova conversa
+              console.log("Criando nova conversa para mensagem recebida");
+              
               updatedConversations.unshift({
                 participants: [authUser._id, newMessage.senderId],
                 latestMessage: newMessage,
@@ -324,9 +375,12 @@ export const useChatStore = create((set, get) => ({
         // Sincronizar com o servidor depois de um curto atraso
         // para permitir que o servidor processe a mensagem
         setTimeout(() => {
+          console.log("Sincronizando estado após receber nova mensagem");
           get().getConversations();
-        }, 1000);
+        }, 500);
       });
+      
+      console.log("Inscrito para notificações de novas mensagens");
     } else {
       console.warn("Socket não disponível para subscrever mensagens");
     }
@@ -337,15 +391,18 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (socket && socket.connected) {
       socket.off("newMessage");
+      console.log("Desincrito de notificações de novas mensagens");
     }
   },
 
   // Função para definir o utilizador selecionado no chat
   setSelectedUser: (selectedUser) => {
+    console.log("Selecionando usuário:", selectedUser?._id || "nenhum");
     set({ selectedUser });
     
     // Se houver um utilizador selecionado, buscar mensagens e marcar como lidas
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
+      console.log(`Usuário ${selectedUser._id} selecionado, obtendo mensagens`);
       get().getMessages(selectedUser._id);
     }
   },
@@ -385,6 +442,8 @@ export const useChatStore = create((set, get) => ({
           }));
         }
       });
+      
+      console.log("Inscrito para notificações de transferências");
     } else {
       console.warn("Socket não disponível para subscrever transferências");
     }
@@ -395,6 +454,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (socket && socket.connected) {
       socket.off("transfer-update");
+      console.log("Desinscrito de notificações de transferências");
     }
   },
 
@@ -448,6 +508,7 @@ export const useChatStore = create((set, get) => ({
       
       // Se temos o ID do contato armazenado, usamos diretamente
       if (user && user.contactId) {
+        console.log(`Removendo contato usando contactId: ${user.contactId}`);
         const res = await axiosInstance.delete(`/contacts/${user.contactId}`);
         toast.success("Contacto removido com sucesso");
         // Atualizar a lista de contactos
@@ -456,6 +517,7 @@ export const useChatStore = create((set, get) => ({
       } 
       // Caso contrário, usamos o ID do usuário diretamente
       else {
+        console.log(`Removendo contato usando userId: ${userId}`);
         const res = await axiosInstance.delete(`/contacts/${userId}`);
         toast.success("Contacto removido com sucesso");
         // Atualizar a lista de contactos
@@ -471,6 +533,7 @@ export const useChatStore = create((set, get) => ({
   
   // Nova função para resetar o estado do chat (para usar no logout)
   resetChatState: () => {
+    console.log("Resetando estado do chat");
     set({
       messages: [],
       users: [],
