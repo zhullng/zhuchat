@@ -163,14 +163,18 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       const element = document.getElementById(`user-item-${user._id}`);
-      if (element) {
+      const deleteBtn = document.getElementById(`delete-btn-${user._id}`);
+      if (element && deleteBtn) {
         element.style.transform = 'translateX(-80px)';
+        deleteBtn.style.opacity = '1';
       }
     },
     onSwipedRight: () => {
       const element = document.getElementById(`user-item-${user._id}`);
-      if (element) {
+      const deleteBtn = document.getElementById(`delete-btn-${user._id}`);
+      if (element && deleteBtn) {
         element.style.transform = 'translateX(0)';
+        deleteBtn.style.opacity = '0';
       }
     },
     preventDefaultTouchmoveEvent: true,
@@ -248,10 +252,11 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
         </div>
       </div>
       
-      {/* Botão de excluir que aparece ao deslizar */}
+      {/* Botão de excluir que aparece ao deslizar - inicialmente oculto */}
       <button
+        id={`delete-btn-${user._id}`}
         onClick={handleRemoveContact}
-        className="absolute top-0 right-0 h-full w-[80px] bg-red-500 text-white flex items-center justify-center"
+        className="absolute top-0 right-0 h-full w-[80px] bg-red-500 text-white flex items-center justify-center opacity-0 transition-opacity duration-200"
       >
         <Trash2 size={20} />
       </button>
@@ -328,6 +333,23 @@ const Sidebar = () => {
     }
   };
 
+  // Função para lidar com clique no utilizador
+  const handleUserClick = (user) => {
+    if (!user) return;
+    
+    // Fechar o swipe de todos os itens abertos antes de mudar de usuário
+    // Isso é importante para evitar que itens fiquem "presos" em estado aberto
+    document.querySelectorAll('[id^="user-item-"]').forEach(element => {
+      element.style.transform = 'translateX(0)';
+    });
+    document.querySelectorAll('[id^="delete-btn-"]').forEach(element => {
+      element.style.opacity = '0';
+    });
+    
+    // Definir o usuário selecionado e marcar mensagens como lidas
+    setSelectedUser(user);
+  };
+
   // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
     if (!users || !Array.isArray(users) || users.length === 0) return [];
@@ -371,13 +393,6 @@ const Sidebar = () => {
       return (a.fullName || "").localeCompare(b.fullName || "");
     });
   }, [users, conversations, unreadCounts, searchQuery, showOnlineOnly, onlineUsers]);
-
-  // Função para lidar com clique no utilizador
-  const handleUserClick = (user) => {
-    if (!user) return;
-    setSelectedUser(user);
-    // Na função setSelectedUser do store já estamos a chamar markConversationAsRead
-  };
 
   // Recalcular lista de utilizadores quando qualquer dependência mudar
   const sortedUsers = getSortedAndFilteredUsers();

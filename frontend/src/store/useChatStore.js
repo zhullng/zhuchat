@@ -114,22 +114,21 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Marcar conversa como lida (versão melhorada)
   markConversationAsRead: async (userId) => {
     // Não fazer nada se userId é inválido ou não tem mensagens não lidas
     if (!userId || userId === 'ai-assistant') return;
     
-    const currentUnreadCount = get().unreadCounts[userId] || 0;
-    if (currentUnreadCount === 0) return;
-    
     try {
       // Atualizar localmente primeiro para resposta imediata na UI
-      set(state => ({
-        unreadCounts: {
+      set(state => {
+        // Atualizar o contador de mensagens não lidas para 0
+        const newUnreadCounts = {
           ...state.unreadCounts,
           [userId]: 0
-        },
-        conversations: state.conversations.map(conv => {
+        };
+        
+        // Atualizar a propriedade "read" na última mensagem da conversa
+        const newConversations = state.conversations.map(conv => {
           if (conv.participants && conv.participants.includes(userId)) {
             return {
               ...conv,
@@ -141,17 +140,23 @@ export const useChatStore = create((set, get) => ({
             };
           }
           return conv;
-        })
-      }));
+        });
+        
+        // Retornar o novo estado
+        return { 
+          unreadCounts: newUnreadCounts,
+          conversations: newConversations
+        };
+      });
       
       // Depois atualizar no servidor
       await axiosInstance.patch(`/messages/read/${userId}`);
       
-      // Opcional: verificar o estado no servidor após a atualização
-      // para garantir que está sincronizado
+      // Após sucesso, forçar uma atualização completa do estado de conversas
+      // para garantir sincronização com o servidor
       setTimeout(() => {
         get().getConversations();
-      }, 1000);
+      }, 500);
     } catch (error) {
       console.error("Erro ao marcar conversa como lida:", error);
       // Restaurar estado anterior em caso de erro
