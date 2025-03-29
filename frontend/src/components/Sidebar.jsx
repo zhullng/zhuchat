@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Users, Bot, UserPlus, X, Check, XCircle, UserGroup, Plus } from "lucide-react";
+// Substituir UserGroup por Users ou UsersRound (que provavelmente estão disponíveis)
+import { Users, Bot, UserPlus, X, Check, XCircle, Plus } from "lucide-react";
 import { debounce } from "lodash";
 import UserItem from "./UserItem";
 import CreateGroup from "./CreateGroup";
@@ -404,7 +405,11 @@ const Sidebar = () => {
               className="btn btn-sm btn-ghost btn-circle"
               title="Criar novo grupo"
             >
-              <UserGroup size={18} />
+              {/* Usar uma combinação de ícones para representar um grupo */}
+              <div className="relative">
+                <Users size={18} />
+                <Plus size={10} className="absolute -top-1 -right-1 bg-primary text-primary-content rounded-full" />
+              </div>
             </button>
             
             {/* Botão para gerir contactos */}
@@ -465,7 +470,7 @@ const Sidebar = () => {
             className="btn btn-sm btn-ghost btn-block justify-between"
           >
             <div className="flex items-center gap-2">
-              <UserGroup size={16} />
+              <Users size={16} /> {/* Em vez de UserGroup */}
               <span>Grupos</span>
             </div>
             <span>{showGroups ? '▼' : '►'}</span>
@@ -525,7 +530,7 @@ const Sidebar = () => {
                 >
                   <div className="relative">
                     <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center bg-primary/10 rounded-full overflow-hidden border border-base-300">
-                      <UserGroup className="size-6 text-primary" />
+                      <Users className="size-6 text-primary" /> {/* Em vez de UserGroup */}
                     </div>
                     {hasUnread && (
                       <div className="absolute -top-1 -right-1 bg-error text-error-content rounded-full min-w-5 h-5 flex items-center justify-center text-xs font-medium px-1">
