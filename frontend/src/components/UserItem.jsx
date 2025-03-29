@@ -46,8 +46,8 @@ const UserItem = ({
   // Verifica se esta conversa já foi visualizada anteriormente
   const isConversationViewed = viewedConversations[user._id] === true;
   
-  // Determina se deve mostrar a notificação "Nova Mensagem"
-  // Só mostra se houver mensagens não lidas E não estiver selecionado E não tiver sido visualizada
+  // Ainda mantemos a lógica para determinar quando uma mensagem é nova
+  // (será usada para a formatação do texto da mensagem)
   const shouldShowNotification = hasUnread && !isSelected && !isConversationViewed;
   
   return (
@@ -58,7 +58,6 @@ const UserItem = ({
           w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
           transition-colors hover:bg-base-200
           ${isSelected ? "bg-base-300 ring-1 ring-base-300" : ""} 
-          ${shouldShowNotification ? "bg-primary/10" : ""}
         `}
       >
         <div className="relative">
@@ -93,9 +92,9 @@ const UserItem = ({
             )}
           </div>
           
-          {/* Pré-visualização da última mensagem ou notificação */}
+          {/* Pré-visualização da última mensagem */}
           <div className="flex items-center justify-between mt-1 max-w-full">
-            {/* Texto da última mensagem */}
+            {/* Texto da última mensagem - ainda mantemos formatação em negrito para mensagens não lidas */}
             <div className={`text-xs ${shouldShowNotification ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow`}>
               {conv?.latestMessage ? (
                 <>
@@ -104,13 +103,6 @@ const UserItem = ({
                 </>
               ) : ''}
             </div>
-            
-            {/* Indicador de nova mensagem - separado da mensagem - APENAS se não estiver visualizada */}
-            {shouldShowNotification && (
-              <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-lg px-2 py-0.5 text-xs font-medium ml-1">
-                Nova Mensagem
-              </span>
-            )}
           </div>
         </div>
       </button>
