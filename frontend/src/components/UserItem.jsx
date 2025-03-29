@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MoreVertical, UserMinus, UserX } from "lucide-react";
+import { MoreVertical, UserMinus, UserX, Edit } from "lucide-react";
 import toast from "react-hot-toast";
 
 const UserItem = ({ 
@@ -13,6 +13,7 @@ const UserItem = ({
   authUser,
   onRemove,
   onBlock,
+  onEditNick,
   viewedConversations
 }) => {
   const [showOptions, setShowOptions] = useState(false);
@@ -32,7 +33,24 @@ const UserItem = ({
     };
   }, []);
 
-  // Função para tratar remoção de contato
+  // Função para lidar com edição de apelido
+  const handleEditNick = (e) => {
+    e.stopPropagation();
+    setShowOptions(false);
+    
+    // Solicitar o novo apelido
+    const newNick = prompt("Digite o novo apelido para " + user.fullName, user.note || "");
+    
+    // Se o utilizador cancelou ou não digitou nada, retorna
+    if (newNick === null) return;
+    
+    // Chamar a função de edição se existir
+    if (onEditNick) {
+      onEditNick(user.contactId, newNick);
+    }
+  };
+
+  // Função para tratar remoção de contacto
   const handleRemoveContact = (e) => {
     e.stopPropagation();
     setShowOptions(false);
@@ -43,7 +61,7 @@ const UserItem = ({
     }
   };
   
-  // Função para tratar bloqueio de usuário
+  // Função para tratar bloqueio de utilizador
   const handleBlockUser = (e) => {
     e.stopPropagation();
     setShowOptions(false);
@@ -68,7 +86,7 @@ const UserItem = ({
       `}
       onClick={() => onUserClick(user)}
     >
-      {/* Avatar com indicador de status */}
+      {/* Avatar com indicador de estado */}
       <div className="relative">
         <img 
           src={user.profilePic || "/avatar.png"} 
@@ -81,7 +99,7 @@ const UserItem = ({
         )}
       </div>
 
-      {/* Informações do usuário */}
+      {/* Informações do utilizador */}
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate text-sm lg:text-base">
           {user.note || user.fullName}
@@ -125,6 +143,14 @@ const UserItem = ({
           className="absolute right-0 top-full mt-1 z-10 bg-base-100 shadow-lg rounded-lg p-1 border border-base-300"
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            className="flex items-center gap-2 p-2 hover:bg-base-200 w-full rounded-md text-sm"
+            onClick={handleEditNick}
+          >
+            <Edit className="size-4" />
+            <span>Alterar apelido</span>
+          </button>
+          
           <button
             className="flex items-center gap-2 p-2 hover:bg-base-200 w-full rounded-md text-sm"
             onClick={handleRemoveContact}

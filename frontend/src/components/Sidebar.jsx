@@ -159,7 +159,9 @@ const Sidebar = () => {
     unsubscribeFromMessages,
     removeContact,
     getConversations,
-    blockUser
+    blockUser,
+    updateContactNote,  // Adicionar esta função
+    viewedConversations
   } = useChatStore();
   const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -179,7 +181,7 @@ const Sidebar = () => {
 
   // Subscrever e carregar dados ao montar o componente
   useEffect(() => {
-    console.log("Carregando usuários e subscrevendo mensagens");
+    console.log("A carregar utilizadores e a subscrever mensagens");
     getUsers();
     subscribeToMessages(); // Importante: subscrever para eventos de novas mensagens
     
@@ -221,7 +223,7 @@ const Sidebar = () => {
     getUsers();
   };
 
-  // Função para lidar com a remoção de contato
+  // Função para lidar com a remoção de contacto
   const handleRemoveContact = async (userId) => {
     try {
       await removeContact(userId);
@@ -244,22 +246,31 @@ const Sidebar = () => {
     }
   };
 
- 
-// Função para lidar com clique no utilizador
-const handleUserClick = (user) => {
-  if (!user) return;
-  
-  // Fechar menu de opções se estiver aberto
-  setShowContactMenu(false);
-  
-  // Definir o usuário selecionado
-  setSelectedUser(user);
-  
-  // Forçar marcação como lida imediatamente se houver mensagens não lidas
-  if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
-    markConversationAsRead(user._id);
-  }
-};
+  // Função para lidar com a edição de apelido
+  const handleEditNick = async (contactId, newNick) => {
+    try {
+      await updateContactNote(contactId, newNick);
+      // A função updateContactNote já deve chamar getUsers() internamente
+    } catch (error) {
+      // Erro já é tratado no store
+    }
+  };
+
+  // Função para lidar com clique no utilizador
+  const handleUserClick = (user) => {
+    if (!user) return;
+    
+    // Fechar menu de opções se estiver aberto
+    setShowContactMenu(false);
+    
+    // Definir o usuário selecionado
+    setSelectedUser(user);
+    
+    // Forçar marcação como lida imediatamente se houver mensagens não lidas
+    if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
+      markConversationAsRead(user._id);
+    }
+  };
 
   // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
@@ -267,7 +278,7 @@ const handleUserClick = (user) => {
     
     // Filtrar por pesquisa e estado online
     const filteredUsers = users.filter((user) => {
-      if (!user || !user._id) return false; // Ignorar usuários inválidos
+      if (!user || !user._id) return false; // Ignorar utilizadores inválidos
       
       const matchesSearch = (user.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (user.email || "").toLowerCase().includes(searchQuery.toLowerCase());
@@ -410,6 +421,8 @@ const handleUserClick = (user) => {
               authUser={authUser}
               onRemove={handleRemoveContact}
               onBlock={handleBlockUser}
+              onEditNick={handleEditNick}
+              viewedConversations={viewedConversations}
             />
           );
         })}
