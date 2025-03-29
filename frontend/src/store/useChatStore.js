@@ -46,47 +46,66 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Função para obter a lista de utilizadores
-  getUsers: async () => {
-    set({ isUsersLoading: true });
+ // Função getUsers atualizada para filtrar usuários bloqueados
+ggetUsers: async () => {
+  set({ isUsersLoading: true });
+  try {
+    // Primeiro, buscar a lista de usuários bloqueados para filtrá-los depois
+    let blockedUserIds = [];
     try {
-      // Verificar se a API de contactos existe, senão cair para a API de utilizadores
-      try {
-        console.log("Tentando obter contactos...");
-        const contactsRes = await axiosInstance.get("/contacts");
-        console.log("Contactos obtidos:", contactsRes.data);
-        
-        // Garantir que a resposta é um array
-        const contactsData = Array.isArray(contactsRes.data) ? contactsRes.data : [];
-        
-        // Transformar os contactos no formato esperado pela UI
-        const contactUsers = contactsData.map(contact => ({
+      const blockedRes = await axiosInstance.get("/contacts/blocked");
+      blockedUserIds = Array.isArray(blockedRes.data) 
+        ? blockedRes.data.map(user => user._id)
+        : [];
+      
+      console.log("Usuários bloqueados obtidos:", blockedUserIds);
+    } catch (blockedError) {
+      console.warn("Erro ao obter usuários bloqueados:", blockedError);
+    }
+
+    // Verificar se a API de contactos existe, senão cair para a API de utilizadores
+    try {
+      console.log("Tentando obter contactos...");
+      const contactsRes = await axiosInstance.get("/contacts");
+      console.log("Contactos obtidos:", contactsRes.data);
+      
+      // Garantir que a resposta é um array
+      const contactsData = Array.isArray(contactsRes.data) ? contactsRes.data : [];
+      
+      // Transformar os contactos no formato esperado pela UI e filtrar usuários bloqueados
+      const contactUsers = contactsData
+        .map(contact => ({
           _id: contact.user?._id,
           fullName: contact.user?.fullName || "Utilizador desconhecido",
           email: contact.user?.email || "",
           profilePic: contact.user?.profilePic || "",
           note: contact.note || "",
           contactId: contact._id // Guardar o ID do contato para facilitar a remoção
-        }));
-        
-        set({ users: contactUsers });
-      } catch (contactError) {
-        console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
-        // Fallback: buscar todos os utilizadores se a API de contactos falhar
-        const usersRes = await axiosInstance.get("/messages/users");
-        const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
-        set({ users: usersData });
-      }
+        }))
+        .filter(user => !blockedUserIds.includes(user._id)); // Filtrar usuários bloqueados
       
-      // Após carregar utilizadores, buscar conversas para ordenação
-      get().getConversations();
-    } catch (error) {
-      console.error("Erro completo:", error);
-      set({ users: [] }); // Definir um array vazio em caso de erro
-      toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
-    } finally {
-      set({ isUsersLoading: false });
+      set({ users: contactUsers });
+    } catch (contactError) {
+      console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
+      // Fallback: buscar todos os utilizadores se a API de contactos falhar
+      const usersRes = await axiosInstance.get("/messages/users");
+      const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
+      
+      // Filtrar usuários bloqueados aqui também
+      const filteredUsers = usersData.filter(user => !blockedUserIds.includes(user._id));
+      set({ users: filteredUsers });
     }
-  },
+    
+    // Após carregar utilizadores, buscar conversas para ordenação
+    get().getConversations();
+  } catch (error) {
+    console.error("Erro completo:", error);
+    set({ users: [] }); // Definir um array vazio em caso de erro
+    toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
+  } finally {
+    set({ isUsersLoading: false });
+  }
+},
 
   // Função para obter as conversas e ordená-las por recentes (versão corrigida)
   getConversations: async () => {
@@ -666,14 +685,26 @@ export const useChatStore = create((set, get) => ({
   // Nova função para bloquear utilizador
   blockUser: async (userId) => {
     try {
-      const res = await axiosInstance.post(`/contacts/block/${userId}`);
-      toast.success("Utilizador bloqueado com sucesso");
-      // Atualizar a lista de contactos
+      // Verificar se o userId é válido
+      if (!userId) {
+        toast.error("ID de utilizador inválido");
+        return false;
+      }
+  
+      await axiosInstance.post(`/contacts/block/${userId}`);
+      
+      // Atualizar a lista de utilizadores após o bloqueio bem-sucedido
       get().getUsers();
+      
+      toast.success("Utilizador bloqueado com sucesso");
       return true;
     } catch (error) {
-      console.error("Erro ao bloquear utilizador:", error);
-      toast.error(error.response?.data?.error || "Erro ao bloquear utilizador");
+      const errorMessage = 
+        error.response?.data?.error || 
+        "Não foi possível bloquear o utilizador. Tente novamente.";
+      
+      console.error("Erro ao bloquear utilizador:", errorMessage);
+      toast.error(errorMessage);
       return false;
     }
   },
@@ -704,6 +735,41 @@ export const useChatStore = create((set, get) => ({
       }
       
       throw error;
+    }
+  },
+  getBlockedUsers: async () => {
+    try {
+      const response = await axiosInstance.get("/contacts/blocked");
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      const errorMessage = 
+        error.response?.data?.error || 
+        "Não foi possível carregar os utilizadores bloqueados";
+      
+      console.error("Erro ao carregar utilizadores bloqueados:", errorMessage);
+      toast.error(errorMessage);
+      return [];
+    }
+  },
+  
+  // Função para desbloquear um utilizador
+  unblockUser: async (userId) => {
+    try {
+      await axiosInstance.delete(`/contacts/unblock/${userId}`);
+      
+      // Atualizar a lista de utilizadores após o desbloqueio bem-sucedido
+      get().getUsers();
+      
+      toast.success("Utilizador desbloqueado com sucesso");
+      return true;
+    } catch (error) {
+      const errorMessage = 
+        error.response?.data?.error || 
+        "Não foi possível desbloquear o utilizador";
+      
+      console.error("Erro ao desbloquear utilizador:", errorMessage);
+      toast.error(errorMessage);
+      return false;
     }
   },
   

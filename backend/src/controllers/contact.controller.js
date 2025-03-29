@@ -1,5 +1,6 @@
 import Contact from "../models/contact.model.js";
 import User from "../models/user.model.js";
+import mongoose from "mongoose";
 
 // Adicionar um contacto por email
 export const addContact = async (req, res) => {
@@ -229,6 +230,38 @@ export const blockUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const currentUserId = req.user._id;
+    
+    console.log("Request to block user:", { 
+      blockingUser: currentUserId.toString(), 
+      userToBlock: userId 
+    });
+
+    // Verificar se o ID do utilizador a bloquear é válido
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "ID de utilizador inválido." });
+    }
+
+    // Verificar se o utilizador a ser bloqueado existe
+    const userToBlock = await User.findById(userId);
+    if (!userToBlock) {
+      return res.status(404).json({ error: "Utilizador a bloquear não encontrado." });
+    }
+
+    // Verificar se o utilizador está a tentar bloquear-se a si mesmo
+    if (userId === currentUserId.toString()) {
+      return res.status(400).json({ error: "Não pode bloquear-se a si mesmo." });
+    }
+
+    // Verificar se o utilizador já está bloqueado
+    const alreadyBlocked = await Contact.findOne({
+      userId: currentUserId,
+      contactId: userId,
+      status: "blocked"
+    });
+
+    if (alreadyBlocked) {
+      return res.status(400).json({ error: "Este utilizador já está bloqueado." });
+    }
 
     // Primeiro, verificar se já existe um contacto entre os utilizadores
     const existingContact = await Contact.findOne({
@@ -238,20 +271,26 @@ export const blockUser = async (req, res) => {
       ]
     });
 
+    console.log("Existing contact check:", existingContact);
+
     // Se existir, remover o contacto existente
     if (existingContact) {
       await Contact.deleteOne({ _id: existingContact._id });
+      console.log("Deleted existing contact:", existingContact._id);
     }
 
-    // Criar um novo registo de bloqueio (pode ser um campo 'status' em um modelo de Contato ou um modelo separado)
-    // Aqui assumimos que usamos o mesmo modelo Contact com status "blocked"
+    // Criar um novo registo de bloqueio
     const blockedContact = new Contact({
       userId: currentUserId,
       contactId: userId,
+      email: userToBlock.email, // Incluir email do usuário bloqueado
       status: "blocked"
     });
 
+    console.log("Creating blocked contact:", blockedContact);
+    
     await blockedContact.save();
+    console.log("Successfully saved blocked contact");
 
     res.status(200).json({ 
       message: "Utilizador bloqueado com sucesso.",
@@ -259,9 +298,18 @@ export const blockUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Erro ao bloquear utilizador:", error);
+    // Log detalhado do erro
+    if (error.name && error.message) {
+      console.error(`${error.name}: ${error.message}`);
+    }
+    if (error.stack) {
+      console.error("Stack trace:", error.stack);
+    }
     res.status(500).json({ error: "Erro ao bloquear utilizador." });
   }
 };
+
+// Obter utilizadores bloqueados
 export const getBlockedUsers = async (req, res) => {
   try {
     const userId = req.user._id;

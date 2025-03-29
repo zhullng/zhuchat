@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, UserCheck, Loader, AlertTriangle, Search } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { axiosInstance } from "../lib/axios";
+import { useNavigate } from "react-router-dom";
+import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
 
 const BlockedUsersPage = () => {
   const navigate = useNavigate();
+  const { getBlockedUsers, unblockUser } = useChatStore();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,8 +23,9 @@ const BlockedUsersPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axiosInstance.get("/contacts/blocked");
-      setBlockedUsers(response.data);
+      // Usa a função do store em vez de chamar a API diretamente
+      const users = await getBlockedUsers();
+      setBlockedUsers(users);
     } catch (err) {
       console.error("Erro ao carregar utilizadores bloqueados:", err);
       setError("Não foi possível carregar os utilizadores bloqueados. Por favor, tente novamente.");
@@ -36,11 +38,15 @@ const BlockedUsersPage = () => {
   const handleUnblock = async (userId) => {
     setIsUnblocking(true);
     try {
-      await axiosInstance.delete(`/contacts/unblock/${userId}`);
-      setBlockedUsers(blockedUsers.filter(user => user._id !== userId));
-      toast.success("Utilizador desbloqueado com sucesso");
-      setShowUnblockModal(false);
-      setSelectedUser(null);
+      // Usa a função do store em vez de chamar a API diretamente
+      const success = await unblockUser(userId);
+      
+      if (success) {
+        // Atualiza a lista local removendo o usuário desbloqueado
+        setBlockedUsers(blockedUsers.filter(user => user._id !== userId));
+        setShowUnblockModal(false);
+        setSelectedUser(null);
+      }
     } catch (err) {
       console.error("Erro ao desbloquear utilizador:", err);
       toast.error("Erro ao desbloquear utilizador");
