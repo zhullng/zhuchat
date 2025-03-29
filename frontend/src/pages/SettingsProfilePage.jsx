@@ -11,7 +11,8 @@ import {
   Shield,
   ArrowLeft,
   Check,
-  X
+  X,
+  Trash
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ReactCrop from 'react-image-crop';
@@ -23,6 +24,7 @@ const SettingsProfilePage = () => {
   const [selectedImg, setSelectedImg] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isRemovePhotoModalOpen, setIsRemovePhotoModalOpen] = useState(false);
   const [srcImg, setSrcImg] = useState(null);
   const [crop, setCrop] = useState({ 
     unit: '%', 
@@ -43,6 +45,7 @@ const SettingsProfilePage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
 
   // Inicializar os dados do formulário quando o utilizador estiver disponível
   useEffect(() => {
@@ -199,6 +202,23 @@ const SettingsProfilePage = () => {
     setCompletedCrop(null);
   };
 
+  const handleRemovePhoto = async () => {
+    setIsRemovingPhoto(true);
+
+    try {
+      // Enviar atualização com profilePic vazio para remover
+      await updateProfile({ profilePic: "" });
+      setSelectedImg(null);
+      setIsRemovePhotoModalOpen(false);
+      toast.success('Foto de perfil removida com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover foto de perfil:', error);
+      toast.error('Erro ao remover foto de perfil. Tente novamente.');
+    } finally {
+      setIsRemovingPhoto(false);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -280,6 +300,9 @@ const SettingsProfilePage = () => {
     return gender === "male" ? "Masculino" : "Feminino";
   };
 
+  // Verificar se o utilizador tem foto de perfil
+  const hasProfilePic = Boolean(selectedImg || authUser?.profilePic);
+
   return (
     <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
       <div className="max-w-2xl mx-auto p-4 py-8">
@@ -324,6 +347,18 @@ const SettingsProfilePage = () => {
                   disabled={isUpdatingProfile}
                 />
               </label>
+              
+              {/* Botão para remover foto se existir uma */}
+              {hasProfilePic && (
+                <button
+                  onClick={() => setIsRemovePhotoModalOpen(true)}
+                  className="absolute -bottom-2 -left-2 bg-error hover:bg-error-focus p-2 rounded-full cursor-pointer transition-all duration-200 shadow-lg"
+                  title="Remover foto de perfil"
+                  disabled={isUpdatingProfile}
+                >
+                  <Trash className="size-5 text-base-100" />
+                </button>
+              )}
             </div>
             {/* Texto movido para fora do container relativo */}
             <p className="text-xs text-base-content/70 text-center">
@@ -404,6 +439,46 @@ const SettingsProfilePage = () => {
               Editar Perfil
             </button>
           </div>
+
+          {/* Modal de Remoção de Foto */}
+          {isRemovePhotoModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4">
+                <div className="text-center mb-4">
+                  <div className="flex justify-center mb-3">
+                    <div className="p-3 bg-error/10 rounded-full">
+                      <Trash className="size-8 text-error" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Remover Foto de Perfil</h3>
+                  <p className="text-sm text-base-content/70">
+                    Tem a certeza que deseja remover a sua foto de perfil? Será substituída pela imagem predefinida.
+                  </p>
+                </div>
+                
+                <div className="flex justify-end gap-2 mt-6">
+                  <button
+                    onClick={() => setIsRemovePhotoModalOpen(false)}
+                    className="btn btn-ghost"
+                    disabled={isRemovingPhoto}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleRemovePhoto}
+                    className="btn btn-error"
+                    disabled={isRemovingPhoto}
+                  >
+                    {isRemovingPhoto ? (
+                      <>Removendo...</>
+                    ) : (
+                      <>Remover Foto</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Modal de Corte de Imagem */}
           {isCropModalOpen && (
