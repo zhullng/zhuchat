@@ -150,8 +150,7 @@ export const useChatStore = create((set, get) => ({
       }, 300);
     } catch (error) {
       console.error("Erro ao marcar conversa como lida:", error);
-      // Restaurar estado anterior em caso de erro
-      get().getConversations();
+      // Não restaurar estado em caso de erro, apenas logar
     }
   },
 
@@ -163,7 +162,7 @@ export const useChatStore = create((set, get) => ({
       const messages = Array.isArray(res.data) ? res.data : [];
       set({ messages });
       
-      // IMPORTANTE: Marcar como lidas imediatamente ao abrir a conversa
+      // IMPORTANTE: Marcar como lidas imediatamente ao obter mensagens
       // usando await para garantir que a operação seja concluída
       await get().markConversationAsRead(userId);
     } catch (error) {
@@ -334,8 +333,10 @@ export const useChatStore = create((set, get) => ({
   setSelectedUser: (selectedUser) => {
     set({ selectedUser });
     
-    // Se houver um utilizador selecionado, buscar mensagens e marcar como lidas
+    // Se houver um utilizador selecionado, marcar como lida antes de buscar mensagens
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
+      // Marcar como lida ANTES de buscar mensagens para resposta mais rápida da UI
+      get().markConversationAsRead(selectedUser._id);
       get().getMessages(selectedUser._id);
     }
   },

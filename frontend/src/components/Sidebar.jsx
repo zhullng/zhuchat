@@ -256,6 +256,9 @@ const Sidebar = () => {
       element.style.opacity = '0';
     });
     
+    // Fechar menu de opções se estiver aberto
+    setShowContactMenu(false);
+    
     // Definir o usuário selecionado
     setSelectedUser(user);
     

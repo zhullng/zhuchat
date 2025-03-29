@@ -92,12 +92,8 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
   
               <div className="flex-1 text-left">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium truncate text-sm lg:text-base">{user.fullName || "Utilizador"}</span>
-                  {hasUnread && (
-                    <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-full min-w-5 h-5 px-1.5 text-xs font-medium ml-2">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
+                  <span className="font-medium truncate text-sm lg:text-base mr-6">{user.fullName || "Utilizador"}</span>
+                  {/* Note que adicionamos mr-6 acima para dar espaço ao botão de opções */}
                 </div>
                 
                 <div className="flex items-center justify-between">
@@ -116,27 +112,39 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
                   )}
                 </div>
                 
-                {/* Pré-visualização da última mensagem */}
-                {conv?.latestMessage && (
-                  <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate mt-1 max-w-full`}>
-                    {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
-                    {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
+                {/* Pré-visualização da última mensagem ou notificação */}
+                <div className="flex items-center justify-between mt-1 max-w-full">
+                  {/* Texto da última mensagem */}
+                  <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow`}>
+                    {conv?.latestMessage ? (
+                      <>
+                        {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
+                        {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
+                      </>
+                    ) : ''}
                   </div>
-                )}
+                  
+                  {/* Indicador de nova mensagem - separado da mensagem */}
+                  {hasUnread && (
+                    <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-lg px-2 py-0.5 text-xs font-medium ml-1">
+                      Nova Mensagem
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
             
-            {/* Botão de três pontos para menu */}
+            {/* Botão de três pontos para menu - Agora com z-index para ficar sempre visível */}
             <button 
               onClick={toggleOptions}
-              className="absolute top-2 right-2 p-1 rounded-full hover:bg-base-300 transition-colors"
+              className="absolute top-2 right-2 p-1 rounded-full hover:bg-base-300 transition-colors z-10"
             >
               <MoreVertical size={16} />
             </button>
             
             {/* Menu de opções - mostrado quando os três pontos são clicados */}
             {showOptions && (
-              <div className="absolute top-10 right-2 bg-base-100 shadow-lg rounded-md py-1 z-10 w-36 border">
+              <div className="absolute top-10 right-2 bg-base-100 shadow-lg rounded-md py-1 z-20 w-36 border">
                 <button 
                   onClick={handleRemoveContact}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-base-200 flex items-center gap-2"
