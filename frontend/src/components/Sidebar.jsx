@@ -1,11 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-// Remover UserGroup completamente
-import { Users, Bot, UserPlus, X, Check, XCircle, Plus } from "lucide-react";
+import { Users, Bot, UserPlus, X, Check, XCircle } from "lucide-react";
 import { debounce } from "lodash";
 import UserItem from "./UserItem";
-import CreateGroup from "./CreateGroup";
 
 // Componente para adicionar contactos
 const AddContact = ({ onContactAdded }) => {
@@ -162,18 +160,14 @@ const Sidebar = () => {
     removeContact,
     getConversations,
     blockUser,
-    updateContactNote,
-    viewedConversations,
-    groups,        // Nova propriedade para grupos
-    getGroups      // Nova função para buscar grupos
+    updateContactNote,  // Adicionar esta função
+    viewedConversations
   } = useChatStore();
   const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showGroups, setShowGroups] = useState(true);
   
   // Referência para o intervalos de atualização
   const updateIntervalRef = useRef(null);
@@ -189,14 +183,12 @@ const Sidebar = () => {
   useEffect(() => {
     console.log("A carregar utilizadores e a subscrever mensagens");
     getUsers();
-    getGroups(); // Buscar grupos
-    subscribeToMessages();
+    subscribeToMessages(); // Importante: subscrever para eventos de novas mensagens
     
-    // Configurar atualização periódica
+    // Configurar atualização periódica de conversas para sincronizar notificações
     updateIntervalRef.current = setInterval(() => {
       getConversations();
-      getGroups(); // Atualizar grupos periodicamente
-    }, 10000);
+    }, 10000); // Atualizar a cada 10 segundos
     
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
@@ -204,42 +196,38 @@ const Sidebar = () => {
     
     return () => {
       window.removeEventListener('resize', checkMobile);
-      unsubscribeFromMessages();
+      unsubscribeFromMessages(); // Limpar subscrição ao desmontar
       
+      // Limpar intervalo de atualização
       if (updateIntervalRef.current) {
         clearInterval(updateIntervalRef.current);
         updateIntervalRef.current = null;
       }
     };
-  }, [getUsers, getGroups, subscribeToMessages, unsubscribeFromMessages, getConversations]);
+  }, [getUsers, subscribeToMessages, unsubscribeFromMessages, getConversations]);
 
-  // Forçar atualização em mudanças em conversations ou unreadCounts
+  // Importante: forçar atualização em mudanças em conversations ou unreadCounts
   const [forceUpdate, setForceUpdate] = useState(0);
   
   useEffect(() => {
+    // Este efeito observa mudanças em conversations e unreadCounts
     setForceUpdate(prev => prev + 1);
-  }, [conversations, unreadCounts, groups]); // Adicionar grupos às dependências
+  }, [conversations, unreadCounts]);
 
   const handleSearchChange = debounce((query) => {
     setSearchQuery(query);
   }, 300);
 
-  // Função para atualizar contactos e grupos
+  // Função para atualizar contactos
   const refreshContacts = () => {
     getUsers();
-    getGroups();
-  };
-
-  // Função para lidar com a criação de grupo
-  const handleGroupCreated = () => {
-    getGroups();
-    setShowCreateGroup(false);
   };
 
   // Função para lidar com a remoção de contacto
   const handleRemoveContact = async (userId) => {
     try {
       await removeContact(userId);
+      // A função removeContact já chama getUsers() internamente
     } catch (error) {
       // Erro já é tratado no store
     }
@@ -250,6 +238,7 @@ const Sidebar = () => {
     try {
       const success = await blockUser(userId);
       if (success && selectedUser?._id === userId) {
+        // Se o utilizador bloqueado estava selecionado, limpa a seleção
         setSelectedUser(null);
       }
     } catch (error) {
@@ -261,6 +250,7 @@ const Sidebar = () => {
   const handleEditNick = async (contactId, newNick) => {
     try {
       await updateContactNote(contactId, newNick);
+      // A função updateContactNote já deve chamar getUsers() internamente
     } catch (error) {
       // Erro já é tratado no store
     }
@@ -279,22 +269,6 @@ const Sidebar = () => {
     // Forçar marcação como lida imediatamente se houver mensagens não lidas
     if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
       markConversationAsRead(user._id);
-    }
-  };
-
-  // Função para lidar com clique no grupo
-  const handleGroupClick = (group) => {
-    if (!group) return;
-    
-    // Fechar menu de opções se estiver aberto
-    setShowContactMenu(false);
-    
-    // Definir o grupo selecionado com flag isGroup para diferenciar
-    setSelectedUser({...group, isGroup: true});
-    
-    // Marcar como lida se houver mensagens não lidas
-    if (unreadCounts[group._id] > 0) {
-      markConversationAsRead(group._id);
     }
   };
 
@@ -342,50 +316,8 @@ const Sidebar = () => {
     });
   }, [users, conversations, unreadCounts, searchQuery, showOnlineOnly, onlineUsers]);
 
-  // Função para filtrar e ordenar grupos
-  const getSortedAndFilteredGroups = useCallback(() => {
-    if (!groups || !Array.isArray(groups) || groups.length === 0) return [];
-    
-    // Filtrar grupos por pesquisa
-    const filteredGroups = groups.filter((group) => {
-      if (!group || !group._id) return false;
-      
-      const matchesSearch = (group.name || "").toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
-
-    // Ordenar grupos (não lidos primeiro, depois por mensagens mais recentes)
-    return filteredGroups.sort((a, b) => {
-      if (!a || !b) return 0;
-      
-      // Verificar se há mensagens não lidas (prioridade mais alta)
-      const unreadA = unreadCounts && unreadCounts[a._id] > 0;
-      const unreadB = unreadCounts && unreadCounts[b._id] > 0;
-      
-      if (unreadA && !unreadB) return -1;
-      if (!unreadA && unreadB) return 1;
-      
-      // Encontrar conversas para os grupos
-      const convA = conversations?.find(c => c.groupId === a._id);
-      const convB = conversations?.find(c => c.groupId === b._id);
-      
-      // Se ambos têm conversas com mensagens, ordena por mais recente
-      if (convA?.latestMessage && convB?.latestMessage) {
-        return new Date(convB.latestMessage.createdAt) - new Date(convA.latestMessage.createdAt);
-      }
-      
-      // Se apenas um tiver mensagem, ele vem primeiro
-      if (convA?.latestMessage) return -1;
-      if (convB?.latestMessage) return 1;
-      
-      // Ordem alfabética como último critério
-      return (a.name || "").localeCompare(b.name || "");
-    });
-  }, [groups, conversations, unreadCounts, searchQuery]);
-
-  // Recalcular listas quando dependências mudarem
+  // Recalcular lista de utilizadores quando qualquer dependência mudar
   const sortedUsers = getSortedAndFilteredUsers();
-  const sortedGroups = getSortedAndFilteredGroups();
 
   return (
     <aside className={`h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] w-full lg:w-[30%] border-r border-base-300 flex flex-col transition-all duration-200
@@ -395,33 +327,16 @@ const Sidebar = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="size-6" />
-            <span className="font-medium">Contactos e Grupos</span>
+            <span className="font-medium">Contactos</span>
           </div>
           
-          <div className="flex gap-1">
-            {/* Botão para criar grupo - versão simplificada */}
-            <button 
-              onClick={() => setShowCreateGroup(true)}
-              className="btn btn-sm btn-ghost btn-circle"
-              title="Criar novo grupo"
-            >
-              <div className="relative">
-                <Users size={18} />
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-content rounded-full w-4 h-4 flex items-center justify-center text-xs font-medium">
-                  +
-                </span>
-              </div>
-            </button>
-            
-            {/* Botão para gerir contactos */}
-            <button 
-              onClick={() => setShowContactMenu(!showContactMenu)}
-              className="btn btn-sm btn-ghost btn-circle"
-              title={showContactMenu ? "Fechar menu" : "Gerir contactos"}
-            >
-              {showContactMenu ? <X size={18} /> : <UserPlus size={18} />}
-            </button>
-          </div>
+          <button 
+            onClick={() => setShowContactMenu(!showContactMenu)}
+            className="btn btn-sm btn-ghost btn-circle"
+            title={showContactMenu ? "Fechar menu" : "Gerir contactos"}
+          >
+            {showContactMenu ? <X size={18} /> : <UserPlus size={18} />}
+          </button>
         </div>
 
         {/* Menu de Gestão de Contactos */}
@@ -432,20 +347,10 @@ const Sidebar = () => {
           </div>
         )}
 
-        {/* Menu de Criação de Grupo */}
-        {showCreateGroup && (
-          <div className="mt-3 border-t border-base-300 pt-3">
-            <CreateGroup 
-              onClose={() => setShowCreateGroup(false)} 
-              onGroupCreated={handleGroupCreated}
-            />
-          </div>
-        )}
-
         <div className="mt-2 lg:mt-3 space-y-2">
           <input
             type="text"
-            placeholder="Pesquisar contactos e grupos..."
+            placeholder="Pesquisar contactos..."
             onChange={(e) => handleSearchChange(e.target.value)}
             className="input input-bordered input-sm w-full"
           />
@@ -464,18 +369,6 @@ const Sidebar = () => {
               {(onlineUsers || []).length - 1} online
             </span>
           </div>
-          
-          {/* Botão para alternar exibição de grupos - simplificado */}
-          <button
-            onClick={() => setShowGroups(!showGroups)}
-            className="btn btn-sm btn-ghost btn-block justify-between"
-          >
-            <div className="flex items-center gap-2">
-              <Users size={16} />
-              <span>Grupos</span>
-            </div>
-            <span>{showGroups ? '▼' : '►'}</span>
-          </button>
         </div>
       </div>
 
@@ -506,70 +399,8 @@ const Sidebar = () => {
           </div>
         </button>
 
-        {/* Grupos (Expandido/Contraído) */}
-        {showGroups && sortedGroups.length > 0 && (
-          <>
-            <div className="mt-2 mb-1">
-              <div className="text-xs font-medium uppercase text-base-content/60 px-2">
-                Grupos ({sortedGroups.length})
-              </div>
-            </div>
-            
-            {sortedGroups.map((group) => {
-              const hasUnread = unreadCounts && unreadCounts[group._id] > 0;
-              const conv = conversations?.find(c => c.groupId === group._id);
-              
-              return (
-                <button
-                  key={group._id}
-                  onClick={() => handleGroupClick(group)}
-                  className={`
-                    w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg mb-1
-                    transition-colors hover:bg-base-200
-                    ${selectedUser?._id === group._id ? "bg-base-300 ring-1 ring-base-300" : ""}
-                  `}
-                >
-                  <div className="relative">
-                    {/* Simplificar o ícone do grupo para evitar problemas */}
-                    <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center bg-primary/10 rounded-full overflow-hidden border border-base-300">
-                      <span className="font-bold text-primary">G</span>
-                    </div>
-                    {hasUnread && (
-                      <div className="absolute -top-1 -right-1 bg-error text-error-content rounded-full min-w-5 h-5 flex items-center justify-center text-xs font-medium px-1">
-                        {unreadCounts[group._id]}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 text-left overflow-hidden">
-                    <div className="font-medium truncate text-sm lg:text-base">
-                      {group.name}
-                    </div>
-                    <div className="text-xs text-base-content/70 truncate">
-                      {group.members?.length || 0} membros
-                    </div>
-                  </div>
-                  
-                  {conv?.latestMessage && (
-                    <div className="text-xs text-base-content/60">
-                      {new Date(conv.latestMessage.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-            
-            {/* Separador entre grupos e contactos */}
-            <div className="h-px bg-base-200 my-2"></div>
-          </>
-        )}
-
-        {/* Contactos */}
-        <div className="mt-2 mb-1">
-          <div className="text-xs font-medium uppercase text-base-content/60 px-2">
-            Contactos ({sortedUsers.length})
-          </div>
-        </div>
+        {/* Separador */}
+        <div className="h-px bg-base-200 my-2" />
 
         {/* Lista de Utilizadores */}
         {sortedUsers.map((user) => {
@@ -582,7 +413,7 @@ const Sidebar = () => {
               key={user._id}
               user={user}
               onUserClick={handleUserClick}
-              isSelected={selectedUser?._id === user._id && !selectedUser?.isGroup}
+              isSelected={selectedUser?._id === user._id}
               hasUnread={hasUnread}
               unreadCount={unreadCounts[user._id] || 0}
               conv={conv}
@@ -596,13 +427,13 @@ const Sidebar = () => {
           );
         })}
 
-        {(!sortedUsers || sortedUsers.length === 0) && !sortedGroups.length && (
+        {(!sortedUsers || sortedUsers.length === 0) && (
           <div className="text-center text-base-content/60 p-4">
             {showOnlineOnly 
               ? "Nenhum contacto online" 
               : showContactMenu 
                 ? "Adicione contactos para começar a conversar" 
-                : "Nenhum contacto ou grupo encontrado"
+                : "Nenhum contacto encontrado"
             }
           </div>
         )}
