@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { 
@@ -9,15 +9,31 @@ import {
   ShieldCheck, 
   Clock, 
   Shield,
-  ArrowLeft
+  ArrowLeft,
+  Check,
+  X
 } from "lucide-react";
 import toast from "react-hot-toast";
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 const SettingsProfilePage = () => {
   const navigate = useNavigate();
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [srcImg, setSrcImg] = useState(null);
+  const [crop, setCrop] = useState({ 
+    unit: '%', 
+    width: 100,
+    height: 100,
+    aspect: 1
+  });
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const imgRef = useRef(null);
+  const previewCanvasRef = useRef(null);
+  
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -36,6 +52,40 @@ const SettingsProfilePage = () => {
       });
     }
   }, [authUser]);
+
+  // Efeito para desenhar a pré-visualização do corte
+  useEffect(() => {
+    if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
+      return;
+    }
+
+    const image = imgRef.current;
+    const canvas = previewCanvasRef.current;
+    const crop = completedCrop;
+
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const ctx = canvas.getContext('2d');
+    const pixelRatio = window.devicePixelRatio;
+
+    canvas.width = crop.width * pixelRatio;
+    canvas.height = crop.height * pixelRatio;
+
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.imageSmoothingQuality = 'high';
+
+    ctx.drawImage(
+      image,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.width * scaleX,
+      crop.height * scaleY,
+      0,
+      0,
+      crop.width,
+      crop.height
+    );
+  }, [completedCrop]);
 
   const validateImage = (file) => {
     // Aumentando para 50MB para permitir imagens de alta qualidade
@@ -62,55 +112,6 @@ const SettingsProfilePage = () => {
     return true;
   };
   
-  const compressImage = async (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-  
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-  
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-  
-          // Define tamanho máximo mantendo proporção
-          const MAX_WIDTH = 2560;
-          const MAX_HEIGHT = 1440;
-          let width = img.width;
-          let height = img.height;
-  
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-  
-          canvas.width = width;
-          canvas.height = height;
-  
-          // Desenha imagem redimensionada
-          ctx.drawImage(img, 0, 0, width, height);
-  
-          // Converte para JPEG com qualidade 0.9 (90%)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-          resolve(compressedDataUrl);
-        };
-  
-        img.onerror = (error) => reject(error);
-      };
-  
-      reader.onerror = (error) => reject(error);
-    });
-  };
-  
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -118,39 +119,80 @@ const SettingsProfilePage = () => {
     try {
       validateImage(file);
   
-      const loadingToast = toast.loading('A processar imagem...', {
-        duration: Infinity // Permanece até ser explicitamente removido
-      });
-  
-      try {
-        // Comprime a imagem se necessário
-        const processedImage = await compressImage(file);
-        
-        // Atualiza o preview
-        setSelectedImg(processedImage);
-        
-        // Atualiza o toast para indicar o upload
-        toast.loading('A enviar imagem...', {
-          id: loadingToast
-        });
-        
-        // Envia para o servidor
-        await updateProfile({ profilePic: processedImage });
-        
-        toast.dismiss(loadingToast);
-        toast.success('Foto atualizada com sucesso!');
-      } catch (error) {
-        console.error('Erro ao processar/enviar imagem:', error);
-        toast.dismiss(loadingToast);
-        toast.error('Erro ao atualizar foto. Tente novamente.');
-        setSelectedImg(null);
-      }
-  
+      // Criar URL para a imagem selecionada
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSrcImg(reader.result);
+        setIsCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+      
     } catch (error) {
       console.error("Erro ao processar imagem:", error);
       toast.error(error.message || "Erro ao processar a imagem");
       e.target.value = "";
     }
+  };
+
+  const getCroppedImage = (canvas) => {
+    return new Promise((resolve) => {
+      canvas.toBlob((file) => {
+        // Converte para base64
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+      }, 'image/jpeg', 0.9);
+    });
+  };
+
+  const handleCropComplete = async () => {
+    if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
+      return;
+    }
+
+    const loadingToast = toast.loading('A processar imagem...', {
+      duration: Infinity
+    });
+
+    try {
+      const croppedImage = await getCroppedImage(previewCanvasRef.current);
+      
+      // Fechar modal de corte
+      setIsCropModalOpen(false);
+      
+      // Atualizar o preview
+      setSelectedImg(croppedImage);
+      
+      // Atualiza o toast para indicar o upload
+      toast.loading('A enviar imagem...', {
+        id: loadingToast
+      });
+      
+      // Envia para o servidor
+      await updateProfile({ profilePic: croppedImage });
+      
+      toast.dismiss(loadingToast);
+      toast.success('Foto atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao processar/enviar imagem:', error);
+      toast.dismiss(loadingToast);
+      toast.error('Erro ao atualizar foto. Tente novamente.');
+      setSelectedImg(null);
+    }
+  };
+
+  const cancelCrop = () => {
+    setIsCropModalOpen(false);
+    setSrcImg(null);
+    setCrop({ 
+      unit: '%', 
+      width: 100,
+      height: 100,
+      aspect: 1
+    });
+    setCompletedCrop(null);
   };
 
   const validateForm = () => {
@@ -358,6 +400,75 @@ const SettingsProfilePage = () => {
               Editar Perfil
             </button>
           </div>
+
+          {/* Modal de Corte de Imagem */}
+          {isCropModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+              <div className="bg-base-100 rounded-lg p-6 max-w-3xl w-full mx-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Recortar Imagem</h3>
+                  <button
+                    onClick={cancelCrop}
+                    className="btn btn-ghost btn-sm btn-circle"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="overflow-auto max-h-[60vh]">
+                    <ReactCrop
+                      src={srcImg}
+                      onImageLoaded={(img) => {
+                        imgRef.current = img;
+                        return false;
+                      }}
+                      crop={crop}
+                      onChange={(c) => setCrop(c)}
+                      onComplete={(c) => setCompletedCrop(c)}
+                      circularCrop
+                      keepSelection
+                      aspect={1}
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-sm mb-3 text-base-content/70">Pré-visualização</p>
+                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-base-300 bg-base-200">
+                      {completedCrop && (
+                        <canvas
+                          ref={previewCanvasRef}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-2 mt-6">
+                  <button
+                    onClick={cancelCrop}
+                    className="btn btn-ghost gap-2"
+                  >
+                    <X className="size-4" />
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleCropComplete}
+                    className="btn btn-primary gap-2"
+                    disabled={!completedCrop?.width || !completedCrop?.height}
+                  >
+                    <Check className="size-4" />
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Modal de Edição */}
           {isModalOpen && (
