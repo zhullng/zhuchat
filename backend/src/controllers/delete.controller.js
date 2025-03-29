@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import Token from "../models/token.model.js";
 import crypto from "crypto";
-import { sendEmail } from "../lib/email.js";
+import emailService from "../lib/nodemailer.js";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 
@@ -19,8 +19,8 @@ export const requestAccountDeletion = async (req, res) => {
       return res.status(404).json({ message: "Utilizador não encontrado" });
     }
 
-    // Gerar token único
-    const token = await Token.findOneAndDelete({ userId: user._id, type: "delete-account" });
+    // Remover token anterior se existir
+    await Token.findOneAndDelete({ userId: user._id, type: "delete-account" });
     
     // Gerar novo token
     const newToken = await new Token({
@@ -33,31 +33,32 @@ export const requestAccountDeletion = async (req, res) => {
     // Construir URL para eliminação
     const deleteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/security/delete-account/${newToken.token}`;
 
-    // Enviar email
-    const mailOptions = {
-      to: user.email,
-      subject: "Eliminação da sua conta ZhuChat",
-      html: `
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; color: #333;">
-          <h2 style="color: #e11d48; text-align: center;">Eliminação da sua conta ZhuChat</h2>
-          <p>Olá ${user.fullName},</p>
-          <p>Recebemos um pedido para eliminar a sua conta ZhuChat. Se não foi você a fazer este pedido, por favor ignore este email ou contacte o suporte.</p>
-          <p>Se realmente deseja eliminar a sua conta, clique no link abaixo. <strong>Esta ação é irreversível e todos os seus dados serão permanentemente eliminados.</strong></p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${deleteUrl}" style="background-color: #e11d48; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirmar Eliminação da Conta</a>
-          </div>
-          <p>Este link expira em 1 hora por motivos de segurança.</p>
-          <p>Se o botão não funcionar, copie e cole o seguinte link no seu navegador:</p>
-          <p style="word-break: break-all; font-size: 14px; color: #666;">${deleteUrl}</p>
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
-          <p style="font-size: 12px; color: #999; text-align: center;">
-            &copy; ${new Date().getFullYear()} ZhuChat. Todos os direitos reservados.
-          </p>
+    // Conteúdo do email
+    const emailConteudo = `
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #e11d48; text-align: center;">Eliminação da sua conta ZhuChat</h2>
+        <p>Olá ${user.fullName},</p>
+        <p>Recebemos um pedido para eliminar a sua conta ZhuChat. Se não foi você a fazer este pedido, por favor ignore este email ou contacte o suporte.</p>
+        <p>Se realmente deseja eliminar a sua conta, clique no link abaixo. <strong>Esta ação é irreversível e todos os seus dados serão permanentemente eliminados.</strong></p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${deleteUrl}" style="background-color: #e11d48; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Confirmar Eliminação da Conta</a>
         </div>
-      `
-    };
+        <p>Este link expira em 1 hora por motivos de segurança.</p>
+        <p>Se o botão não funcionar, copie e cole o seguinte link no seu navegador:</p>
+        <p style="word-break: break-all; font-size: 14px; color: #666;">${deleteUrl}</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          &copy; ${new Date().getFullYear()} ZhuChat. Todos os direitos reservados.
+        </p>
+      </div>
+    `;
 
-    await sendEmail(mailOptions);
+    // Enviar email usando o serviço existente
+    await emailService.enviarEmail(
+      user.email, 
+      "Eliminação da sua conta ZhuChat",
+      emailConteudo
+    );
 
     // Retornar token apenas em desenvolvimento para facilitar testes
     if (process.env.NODE_ENV === "development") {
