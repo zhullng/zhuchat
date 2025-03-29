@@ -7,8 +7,8 @@ import axios from "axios";
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
-  const [imageUrl, setImageUrl] = useState(null);
-  const [fileInfo, setFileInfo] = useState(null); // {name, type, size, url}
+  const [imageData, setImageData] = useState(null);
+  const [fileInfo, setFileInfo] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [lineCount, setLineCount] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
@@ -18,10 +18,6 @@ const MessageInput = () => {
   const textareaRef = useRef(null);
   const { sendMessage } = useChatStore();
 
-  // Cloudinary upload preset e cloud name - você precisa configurar no Cloudinary
-  const CLOUDINARY_UPLOAD_PRESET = "chat_uploads"; // Substitua pelo seu preset
-  const CLOUDINARY_CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || "seu-cloud-name";
-
   // Função para converter tamanho de arquivo para formato legível
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' bytes';
@@ -30,51 +26,7 @@ const MessageInput = () => {
     else return (bytes / 1073741824).toFixed(1) + ' GB';
   };
 
-  // Upload direto para Cloudinary
-  const uploadToCloudinary = async (file, isImage = false) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    formData.append("resource_type", "auto");
-    
-    try {
-      setIsUploading(true);
-      const toastId = toast.loading(
-        isImage ? "Enviando imagem..." : `Enviando ${file.name}...`
-      );
-      
-      const response = await axios.post(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
-        formData,
-        {
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded / progressEvent.total) * 100
-            );
-            toast.loading(`Enviando... ${progress}%`, { id: toastId });
-          }
-        }
-      );
-      
-      toast.dismiss(toastId);
-      toast.success(isImage ? "Imagem carregada!" : "Arquivo carregado!");
-      
-      return {
-        url: response.data.secure_url,
-        type: file.type,
-        name: file.name,
-        size: formatFileSize(file.size)
-      };
-    } catch (error) {
-      console.error("Erro no upload:", error);
-      toast.error("Falha no upload. Tente novamente.");
-      throw error;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleImageChange = async (e) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
@@ -89,29 +41,18 @@ const MessageInput = () => {
       return;
     }
 
-    try {
-      // Preview local
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        // Limpar qualquer arquivo previamente selecionado
-        setFileInfo(null);
-        setShowOptions(false);
-      };
-      reader.readAsDataURL(file);
-      
-      // Upload direto para Cloudinary
-      const uploadedImage = await uploadToCloudinary(file, true);
-      // Armazenar a URL do Cloudinary
-      setImageUrl(uploadedImage.url);
-    } catch (error) {
-      console.error("Erro ao processar imagem:", error);
-      setImagePreview(null);
-      setImageUrl(null);
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+      setImageData(reader.result);
+      // Limpar qualquer arquivo previamente selecionado
+      setFileInfo(null);
+      setShowOptions(false);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -121,31 +62,26 @@ const MessageInput = () => {
       return;
     }
 
-    try {
-      // Upload direto para Cloudinary
-      const uploadedFile = await uploadToCloudinary(file);
-      
+    const reader = new FileReader();
+    reader.onloadend = () => {
       // Guardar informações do arquivo
       setFileInfo({
         name: file.name,
         type: file.type,
         size: formatFileSize(file.size),
-        url: uploadedFile.url
+        data: reader.result
       });
-      
       // Limpar qualquer imagem previamente selecionada
       setImagePreview(null);
-      setImageUrl(null);
+      setImageData(null);
       setShowOptions(false);
-    } catch (error) {
-      console.error("Erro ao processar arquivo:", error);
-      setFileInfo(null);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const removeImage = () => {
     setImagePreview(null);
-    setImageUrl(null);
+    setImageData(null);
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
@@ -156,23 +92,36 @@ const MessageInput = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if ((!text.trim() && !imageUrl && !fileInfo) || isUploading) return;
+    if (!text.trim() && !imageData && !fileInfo) return;
+    if (isUploading) return;
 
     try {
+      setIsUploading(true);
+      
+      // Mostrar toast de carregamento se houver imagem ou arquivo
+      let toastId;
+      if (fileInfo || imageData) {
+        toastId = toast.loading(
+          fileInfo 
+            ? `Enviando arquivo ${fileInfo.name}...` 
+            : "Enviando imagem..."
+        );
+      }
+
       // Preparar dados para envio
       const messageData = {
         text: text
       };
 
-      // Se houver uma imagem, adicionar a URL aos dados
-      if (imageUrl) {
-        messageData.image = imageUrl;
+      // Se houver uma imagem, adicionar aos dados
+      if (imageData) {
+        messageData.image = imageData;
       }
 
       // Se houver um arquivo, adicionar aos dados
       if (fileInfo) {
         messageData.file = {
-          url: fileInfo.url,
+          data: fileInfo.data,
           type: fileInfo.type,
           name: fileInfo.name
         };
@@ -180,10 +129,20 @@ const MessageInput = () => {
 
       await sendMessage(messageData);
 
+      // Remover toast de carregamento se existir
+      if (toastId) {
+        toast.dismiss(toastId);
+        toast.success(
+          fileInfo 
+            ? "Arquivo enviado com sucesso!" 
+            : "Imagem enviada com sucesso!"
+        );
+      }
+
       // Limpar formulário
       setText("");
       setImagePreview(null);
-      setImageUrl(null);
+      setImageData(null);
       setFileInfo(null);
       setLineCount(1);
       
@@ -197,6 +156,8 @@ const MessageInput = () => {
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       toast.error("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -397,7 +358,7 @@ const MessageInput = () => {
         <button
           type="submit"
           className="btn btn-sm btn-circle hover:bg-base-300"
-          disabled={(!text.trim() && !imageUrl && !fileInfo) || isUploading}
+          disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
         >
           <Send size={22} />
         </button>
