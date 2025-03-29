@@ -22,6 +22,9 @@ const UserItem = ({
   const [nickname, setNickname] = useState(user.note || "");
   const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
   
+  // Constante para o limite máximo de caracteres
+  const MAX_NICKNAME_LENGTH = 45;
+  
   // Função para lidar com a remoção de contato
   const handleRemoveContact = (e) => {
     e.stopPropagation(); // Evita disparar o onUserClick
@@ -60,6 +63,14 @@ const UserItem = ({
   const closeNicknameModal = (e) => {
     if (e) e.stopPropagation();
     setShowNicknameModal(false);
+  };
+  
+  // Manipular mudança no campo do nickname com limite de caracteres
+  const handleNicknameChange = (e) => {
+    const value = e.target.value;
+    if (value.length <= MAX_NICKNAME_LENGTH) {
+      setNickname(value);
+    }
   };
   
   // Atualizar nickname na base de dados
@@ -216,14 +227,20 @@ const UserItem = ({
                 <input
                   type="text"
                   value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
+                  onChange={handleNicknameChange}
                   placeholder="Insira um nickname"
                   className="input input-bordered w-full"
                   disabled={isUpdatingNickname}
+                  maxLength={MAX_NICKNAME_LENGTH}
                 />
-                <p className="text-xs mt-1 text-base-content/60">
-                  Deixe em branco para usar o nome original
-                </p>
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-base-content/60">
+                    Deixe em branco para usar o nome original
+                  </p>
+                  <span className="text-xs text-base-content/60">
+                    {nickname.length}/{MAX_NICKNAME_LENGTH}
+                  </span>
+                </div>
               </div>
               
               <div className="flex justify-end gap-2">
