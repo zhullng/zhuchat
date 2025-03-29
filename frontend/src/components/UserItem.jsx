@@ -2,7 +2,19 @@ import { useState } from "react";
 import { MoreVertical, UserX, UserMinus } from "lucide-react";
 
 // Componente de usuário com menu de opções (sem swipe)
-const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv, isOnline, authUser, onRemove, onBlock }) => {
+const UserItem = ({ 
+  user, 
+  onUserClick, 
+  isSelected, 
+  hasUnread, 
+  unreadCount, 
+  conv, 
+  isOnline, 
+  authUser, 
+  onRemove, 
+  onBlock,
+  viewedConversations = {} // Nova prop para verificar se já foi visualizada, com valor padrão
+}) => {
   const [showOptions, setShowOptions] = useState(false);
   
   // Função para lidar com a remoção de contato
@@ -31,9 +43,12 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
     setShowOptions(!showOptions);
   };
   
+  // Verifica se esta conversa já foi visualizada anteriormente
+  const isConversationViewed = viewedConversations[user._id] === true;
+  
   // Determina se deve mostrar a notificação "Nova Mensagem"
-  // Só mostra se houver mensagens não lidas E não estiver selecionado
-  const shouldShowNotification = hasUnread && !isSelected;
+  // Só mostra se houver mensagens não lidas E não estiver selecionado E não tiver sido visualizada
+  const shouldShowNotification = hasUnread && !isSelected && !isConversationViewed;
   
   return (
     <div className="relative mb-1">
@@ -90,7 +105,7 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
               ) : ''}
             </div>
             
-            {/* Indicador de nova mensagem - separado da mensagem - APENAS se não estiver selecionado */}
+            {/* Indicador de nova mensagem - separado da mensagem - APENAS se não estiver visualizada */}
             {shouldShowNotification && (
               <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-lg px-2 py-0.5 text-xs font-medium ml-1">
                 Nova Mensagem

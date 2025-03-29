@@ -13,7 +13,8 @@ export const useChatStore = create((set, get) => ({
   transfers: [], 
   isTransfersLoading: false, 
   conversations: [], 
-  unreadCounts: {}, 
+  unreadCounts: {},
+  viewedConversations: {}, // Nova propriedade para rastrear conversas visualizadas 
 
   // Função para obter a lista de utilizadores
   getUsers: async () => {
@@ -75,6 +76,7 @@ export const useChatStore = create((set, get) => ({
       // em vez de preservar contadores antigos
       const unreadCounts = {};
       const authUser = useAuthStore.getState().authUser;
+      const viewedConversations = get().viewedConversations; // Obter conversas já visualizadas
       
       conversations.forEach(conv => {
         if (!conv.participants || !Array.isArray(conv.participants)) return;
@@ -86,8 +88,14 @@ export const useChatStore = create((set, get) => ({
         // Verificar se a última mensagem existe, não foi lida e não foi enviada pelo usuário atual
         if (conv.latestMessage && !conv.latestMessage.read && 
             conv.latestMessage.senderId !== authUser._id) {
-          // Usar count do servidor ou o valor 1 como mínimo (nunca valores antigos)
-          unreadCounts[otherUserId] = conv.unreadCount || 1;
+          
+          // Se a conversa já foi visualizada, não incrementar contador
+          if (viewedConversations[otherUserId]) {
+            unreadCounts[otherUserId] = 0;
+          } else {
+            // Usar count do servidor ou o valor 1 como mínimo (nunca valores antigos)
+            unreadCounts[otherUserId] = conv.unreadCount || 1;
+          }
         } else {
           // Se a última mensagem foi lida ou enviada pelo usuário atual, zerar a contagem
           unreadCounts[otherUserId] = 0;
@@ -122,6 +130,10 @@ export const useChatStore = create((set, get) => ({
     try {
       // Atualizar localmente primeiro para resposta imediata na UI
       set(state => ({
+        viewedConversations: {
+          ...state.viewedConversations,
+          [userId]: true  // Marcar esta conversa como já visualizada
+        },
         unreadCounts: {
           ...state.unreadCounts,
           [userId]: 0  // Forçar contagem para zero
@@ -160,7 +172,15 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
       const messages = Array.isArray(res.data) ? res.data : [];
-      set({ messages });
+      
+      // Adiciona o usuário à lista de conversas visualizadas
+      set(state => ({
+        messages,
+        viewedConversations: {
+          ...state.viewedConversations,
+          [userId]: true // Marcar como já visualizada
+        }
+      }));
       
       // IMPORTANTE: Marcar como lidas imediatamente ao obter mensagens
       // usando await para garantir que a operação seja concluída
@@ -229,131 +249,168 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-// Função para se inscrever para notificações de novas mensagens por WebSocket (versão melhorada)
-subscribeToMessages: () => {
-  const socket = useAuthStore.getState().socket;
-  
-  // Desinscrever primeiro para evitar duplicação
-  if (socket) {
-    socket.off("newMessage");
+  // Função para se inscrever para notificações de novas mensagens por WebSocket
+  subscribeToMessages: () => {
+    const socket = useAuthStore.getState().socket;
+    
+    // Desinscrever primeiro para evitar duplicação
+    if (socket) {
+      socket.off("newMessage");
 
-    socket.on("newMessage", (newMessage) => {
-      const authUser = useAuthStore.getState().authUser;
-      const currentSelectedUser = get().selectedUser;
-      
-      console.log("Nova mensagem recebida:", newMessage);
-      
-      // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
-      if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
-        set(state => ({
-          messages: [...state.messages, newMessage],
-        }));
+      socket.on("newMessage", (newMessage) => {
+        const authUser = useAuthStore.getState().authUser;
+        const currentSelectedUser = get().selectedUser;
+        const viewedConversations = get().viewedConversations;
         
-        // Marca como lida já que o utilizador está a visualizar a conversa
-        get().markConversationAsRead(currentSelectedUser._id);
+        console.log("Nova mensagem recebida:", newMessage);
         
-        // Importante: Não incrementa o contador de não lidas se o utilizador está visualizando a conversa
-        // Atualiza a última mensagem, mas mantém como lida
-        set(state => {
-          const updatedConversations = [...state.conversations];
+        // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
+        if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
+          set(state => ({
+            messages: [...state.messages, newMessage],
+            // Marca esta conversa como já visualizada
+            viewedConversations: {
+              ...state.viewedConversations,
+              [newMessage.senderId]: true
+            }
+          }));
           
-          const existingConvIndex = updatedConversations.findIndex(
+          // Marca como lida já que o utilizador está a visualizar a conversa
+          get().markConversationAsRead(currentSelectedUser._id);
+          
+          // Atualiza a conversa com a mensagem como lida
+          set(state => {
+            const updatedConversations = [...state.conversations];
+            
+            const existingConvIndex = updatedConversations.findIndex(
+              c => c.participants && c.participants.includes(newMessage.senderId)
+            );
+            
+            if (existingConvIndex >= 0) {
+              updatedConversations[existingConvIndex] = {
+                ...updatedConversations[existingConvIndex],
+                latestMessage: {
+                  ...newMessage,
+                  read: true
+                },
+                unreadCount: 0
+              };
+              
+              // Mover para o topo da lista
+              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+              updatedConversations.unshift(updatedConv);
+            }
+            
+            return { 
+              conversations: updatedConversations,
+              unreadCounts: {
+                ...state.unreadCounts,
+                [newMessage.senderId]: 0
+              }
+            };
+          });
+        } 
+        // Se a mensagem é para o utilizador atual mas de outro remetente
+        else if (newMessage.receiverId === authUser._id) {
+          // Verificar se o ID do remetente está nas conversas já visualizadas
+          const isConversationPreviouslyViewed = viewedConversations[newMessage.senderId];
+          
+          // Verificar se a última mensagem da conversa é mais antiga que a nova mensagem
+          const existingConv = get().conversations.find(
             c => c.participants && c.participants.includes(newMessage.senderId)
           );
           
-          if (existingConvIndex >= 0) {
-            updatedConversations[existingConvIndex] = {
-              ...updatedConversations[existingConvIndex],
-              latestMessage: {
-                ...newMessage,
-                read: true // Marca explicitamente como lida
-              },
-              unreadCount: 0 // Mantém a contagem em zero
-            };
-            
-            // Mover para o topo da lista
-            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-            updatedConversations.unshift(updatedConv);
+          let isNewConversation = false;
+          
+          // Se não existe conversa ou a última mensagem é mais antiga que a nova
+          if (!existingConv || !existingConv.latestMessage || 
+              (new Date(existingConv.latestMessage.createdAt) < new Date(newMessage.createdAt))) {
+            isNewConversation = true;
           }
           
-          return { 
-            conversations: updatedConversations,
-            // Também atualizar o unreadCounts para garantir que fica em zero
-            unreadCounts: {
-              ...state.unreadCounts,
-              [newMessage.senderId]: 0
+          // Só incrementa contadores e toca som se for uma nova conversa
+          // E se a conversa não foi visualizada anteriormente
+          if (isNewConversation && !isConversationPreviouslyViewed) {
+            // Tocar som de notificação aqui
+            try {
+              const notificationSound = new Audio('/notification.mp3');
+              notificationSound.volume = 0.5;
+              notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+            } catch (err) {
+              console.log('Erro ao criar áudio:', err);
             }
-          };
-        });
-      } 
-      // Se a mensagem é para o utilizador atual mas de outro remetente
-      else if (newMessage.receiverId === authUser._id) {
-        // Tocar som de notificação aqui
-        try {
-          const notificationSound = new Audio('/notification.mp3');
-          notificationSound.volume = 0.5;
-          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-        } catch (err) {
-          console.log('Erro ao criar áudio:', err);
-        }
-        
-        // Incrementar contador de não lidas de forma segura
-        set(state => {
-          const senderId = newMessage.senderId;
-          const currentCount = state.unreadCounts[senderId] || 0;
-          
-          return {
-            unreadCounts: {
-              ...state.unreadCounts,
-              [senderId]: currentCount + 1
-            }
-          };
-        });
-        
-        // Atualizar imediatamente a conversa na UI
-        set(state => {
-          const updatedConversations = [...state.conversations];
-          
-          // Encontrar conversa existente ou criar nova
-          const existingConvIndex = updatedConversations.findIndex(
-            c => c.participants && c.participants.includes(newMessage.senderId)
-          );
-          
-          if (existingConvIndex >= 0) {
-            // Atualizar conversa existente
-            const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
             
-            updatedConversations[existingConvIndex] = {
-              ...updatedConversations[existingConvIndex],
-              latestMessage: newMessage,
-              unreadCount: currentUnreadCount + 1
-            };
-            
-            // Mover para o topo da lista
-            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-            updatedConversations.unshift(updatedConv);
-          } else {
-            // Criar nova conversa
-            updatedConversations.unshift({
-              participants: [authUser._id, newMessage.senderId],
-              latestMessage: newMessage,
-              unreadCount: 1
+            // Incrementar contador de não lidas apenas para conversas não visualizadas
+            set(state => {
+              const senderId = newMessage.senderId;
+              const currentCount = state.unreadCounts[senderId] || 0;
+              
+              return {
+                unreadCounts: {
+                  ...state.unreadCounts,
+                  [senderId]: currentCount + 1
+                }
+              };
             });
           }
           
-          return { conversations: updatedConversations };
-        });
-      }
-      
-      // Sincronizar com o servidor depois de um curto atraso
-      setTimeout(() => {
-        get().getConversations();
-      }, 500);
-    });
-  } else {
-    console.warn("Socket não disponível para subscrever mensagens");
-  }
-},
+          // Sempre atualiza a conversa na UI, mas sem incrementar contadores se já foi visualizada
+          set(state => {
+            const updatedConversations = [...state.conversations];
+            
+            // Encontrar conversa existente ou criar nova
+            const existingConvIndex = updatedConversations.findIndex(
+              c => c.participants && c.participants.includes(newMessage.senderId)
+            );
+            
+            if (existingConvIndex >= 0) {
+              // Se conversa já foi visualizada, não incrementa contador
+              const currentUnreadCount = isConversationPreviouslyViewed ? 
+                0 : (updatedConversations[existingConvIndex].unreadCount || 0) + 1;
+              
+              updatedConversations[existingConvIndex] = {
+                ...updatedConversations[existingConvIndex],
+                latestMessage: {
+                  ...newMessage,
+                  read: isConversationPreviouslyViewed // Marca como lida se já foi visualizada
+                },
+                unreadCount: currentUnreadCount
+              };
+              
+              // Mover para o topo da lista
+              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+              updatedConversations.unshift(updatedConv);
+            } else {
+              // Criar nova conversa - se for nova e não visualizada, começa com unreadCount=1
+              updatedConversations.unshift({
+                participants: [authUser._id, newMessage.senderId],
+                latestMessage: newMessage,
+                unreadCount: isConversationPreviouslyViewed ? 0 : 1
+              });
+            }
+            
+            // Atualizar o estado de unreadCounts também
+            const updatedUnreadCounts = {...state.unreadCounts};
+            if (isConversationPreviouslyViewed) {
+              updatedUnreadCounts[newMessage.senderId] = 0;
+            }
+            
+            return { 
+              conversations: updatedConversations,
+              unreadCounts: updatedUnreadCounts
+            };
+          });
+        }
+        
+        // Sincronizar com o servidor depois de um curto atraso
+        setTimeout(() => {
+          get().getConversations();
+        }, 500);
+      });
+    } else {
+      console.warn("Socket não disponível para subscrever mensagens");
+    }
+  },
 
   // Função para se desinscrever das notificações de novas mensagens
   unsubscribeFromMessages: () => {
@@ -365,7 +422,16 @@ subscribeToMessages: () => {
 
   // Função para definir o utilizador selecionado no chat
   setSelectedUser: (selectedUser) => {
-    set({ selectedUser });
+    set(state => ({
+      selectedUser,
+      // Se houver um usuário selecionado, marca como visualizado
+      ...(selectedUser && selectedUser._id !== 'ai-assistant' ? {
+        viewedConversations: {
+          ...state.viewedConversations,
+          [selectedUser._id]: true
+        }
+      } : {})
+    }));
     
     // Se houver um utilizador selecionado, marcar como lida antes de buscar mensagens
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
@@ -520,7 +586,8 @@ subscribeToMessages: () => {
       transfers: [],
       isTransfersLoading: false,
       conversations: [],
-      unreadCounts: {}
+      unreadCounts: {},
+      viewedConversations: {} // Limpar conversas visualizadas
     });
   }
 }));
