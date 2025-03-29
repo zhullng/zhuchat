@@ -23,17 +23,33 @@ export const addContact = async (req, res) => {
       return res.status(400).json({ error: "Não pode adicionar-se a si mesmo como contacto." });
     }
 
-    // Verificar se já existe um contacto entre estes utilizadores
+    // Verificar se já existe um contacto ativo entre estes utilizadores
+    // Só consideramos contactos ativos (aceites ou pendentes, não rejeitados)
     const existingContact = await Contact.findOne({
       $or: [
-        { userId, contactId: contactUser._id },
-        { userId: contactUser._id, contactId: userId }
+        { userId, contactId: contactUser._id, status: { $in: ["accepted", "pending"] } },
+        { userId: contactUser._id, contactId: userId, status: { $in: ["accepted", "pending"] } }
       ]
     });
 
     if (existingContact) {
-      return res.status(400).json({ error: "Este utilizador já é seu contacto ou tem um pedido pendente." });
+      // Se já existe e está aceite
+      if (existingContact.status === "accepted") {
+        return res.status(400).json({ error: "Este utilizador já é seu contacto." });
+      }
+      // Se já existe e está pendente
+      else if (existingContact.status === "pending") {
+        return res.status(400).json({ error: "Já existe um pedido de contacto pendente para este utilizador." });
+      }
     }
+
+    // Verificar se existe um contato rejeitado e removê-lo se existir
+    await Contact.deleteOne({
+      $or: [
+        { userId, contactId: contactUser._id, status: "rejected" },
+        { userId: contactUser._id, contactId: userId, status: "rejected" }
+      ]
+    });
 
     // Criar o novo contacto
     const newContact = new Contact({
@@ -205,5 +221,44 @@ export const updateContactNote = async (req, res) => {
   } catch (error) {
     console.error("Erro ao atualizar nota do contacto:", error);
     res.status(500).json({ error: "Erro ao atualizar nota do contacto." });
+  }
+};
+
+// Bloquear um utilizador
+export const blockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
+
+    // Primeiro, verificar se já existe um contacto entre os utilizadores
+    const existingContact = await Contact.findOne({
+      $or: [
+        { userId: currentUserId, contactId: userId },
+        { userId, contactId: currentUserId }
+      ]
+    });
+
+    // Se existir, remover o contacto existente
+    if (existingContact) {
+      await Contact.deleteOne({ _id: existingContact._id });
+    }
+
+    // Criar um novo registo de bloqueio (pode ser um campo 'status' em um modelo de Contato ou um modelo separado)
+    // Aqui assumimos que usamos o mesmo modelo Contact com status "blocked"
+    const blockedContact = new Contact({
+      userId: currentUserId,
+      contactId: userId,
+      status: "blocked"
+    });
+
+    await blockedContact.save();
+
+    res.status(200).json({ 
+      message: "Utilizador bloqueado com sucesso.",
+      blockedContact
+    });
+  } catch (error) {
+    console.error("Erro ao bloquear utilizador:", error);
+    res.status(500).json({ error: "Erro ao bloquear utilizador." });
   }
 };

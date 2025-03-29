@@ -1,4 +1,3 @@
-// components/contact/AddContact.jsx
 import { useState } from "react";
 import { axiosInstance } from "../../lib/axios";
 import toast from "react-hot-toast";
@@ -26,7 +25,17 @@ const AddContact = ({ onContactAdded }) => {
         onContactAdded();
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
+      // Mensagem de erro mais clara para o utilizador
+      const errorMessage = error.response?.data?.error || "Erro ao adicionar contacto";
+      toast.error(errorMessage);
+      
+      // Se o erro for de bloqueio ou rejeição, podemos exibir uma mensagem mais específica
+      if (errorMessage.includes("bloqueado") || errorMessage.includes("rejeitado")) {
+        toast("Tente novamente mais tarde ou contacte o utilizador por outros meios.", {
+          icon: "ℹ️",
+          duration: 5000,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
