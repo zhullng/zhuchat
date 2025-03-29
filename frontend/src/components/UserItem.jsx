@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { MoreVertical, UserX, UserMinus, Edit } from "lucide-react";
+import { MoreVertical, UserX, UserMinus, Edit, AlertTriangle } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 
-// Componente de usuário com menu de opções
+// Componente de utilizador com menu de opções
 const UserItem = ({ 
   user, 
   onUserClick, 
@@ -19,29 +19,37 @@ const UserItem = ({
   const { updateContactNote } = useChatStore();
   const [showOptions, setShowOptions] = useState(false);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
   const [nickname, setNickname] = useState(user.note || "");
   const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
   
   const MAX_NICKNAME_LENGTH = 20;
   
-  // Função para lidar com a remoção de contato
-  const handleRemoveContact = (e) => {
+  // Função para mostrar modal de remoção
+  const handleShowRemoveModal = (e) => {
     e.stopPropagation(); // Evita disparar o onUserClick
     setShowOptions(false);
-    
-    if (window.confirm(`Tem certeza que deseja remover ${user.fullName || "este contacto"}?`)) {
-      onRemove(user._id);
-    }
+    setShowRemoveModal(true);
+  };
+  
+  // Função para mostrar modal de bloqueio
+  const handleShowBlockModal = (e) => {
+    e.stopPropagation(); // Evita disparar o onUserClick
+    setShowOptions(false);
+    setShowBlockModal(true);
+  };
+  
+  // Função para lidar com a remoção de contacto
+  const handleRemoveContact = () => {
+    setShowRemoveModal(false);
+    onRemove(user._id);
   };
   
   // Função para lidar com o bloqueio do utilizador
-  const handleBlockUser = (e) => {
-    e.stopPropagation(); // Evita disparar o onUserClick
-    setShowOptions(false);
-    
-    if (window.confirm(`Tem certeza que deseja bloquear ${user.fullName || "este utilizador"}?`)) {
-      onBlock(user._id);
-    }
+  const handleBlockUser = () => {
+    setShowBlockModal(false);
+    onBlock(user._id);
   };
   
   // Alternar menu de opções
@@ -192,17 +200,17 @@ const UserItem = ({
             className="w-full text-left px-4 py-2 text-sm hover:bg-base-200 flex items-center gap-2"
           >
             <Edit size={16} />
-            Alterar Nickname
+            Alterar Nome
           </button>
           <button 
-            onClick={handleRemoveContact}
+            onClick={handleShowRemoveModal}
             className="w-full text-left px-4 py-2 text-sm hover:bg-base-200 flex items-center gap-2"
           >
             <UserMinus size={16} />
             Remover
           </button>
           <button 
-            onClick={handleBlockUser}
+            onClick={handleShowBlockModal}
             className="w-full text-left px-4 py-2 text-sm hover:bg-base-200 flex items-center gap-2"
           >
             <UserX size={16} />
@@ -221,16 +229,16 @@ const UserItem = ({
             className="bg-base-100 p-4 rounded-lg w-80 max-w-full"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-lg font-medium mb-3">Alterar Nickname</h3>
+            <h3 className="text-lg font-medium mb-3">Alterar Nome</h3>
             
             <form onSubmit={handleUpdateNickname}>
               <div className="mb-4">
-                <label className="block text-sm mb-1">Nickname para {truncateMessage(user.fullName, 20)}</label>
+                <label className="block text-sm mb-1">Nome para {truncateMessage(user.fullName, 20)}</label>
                 <input
                   type="text"
                   value={nickname}
                   onChange={handleNicknameChange}
-                  placeholder="Insira um nickname"
+                  placeholder="Insira um nome personalizado"
                   className="input input-bordered w-full"
                   disabled={isUpdatingNickname}
                   maxLength={MAX_NICKNAME_LENGTH}
@@ -259,10 +267,90 @@ const UserItem = ({
                   className="btn btn-primary btn-sm"
                   disabled={isUpdatingNickname}
                 >
-                  {isUpdatingNickname ? "Salvando..." : "Salvar"}
+                  {isUpdatingNickname ? "A guardar..." : "Guardar"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para confirmação de remoção */}
+      {showRemoveModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowRemoveModal(false)}
+        >
+          <div 
+            className="bg-base-100 p-4 rounded-lg w-80 max-w-full"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center mb-4">
+              <div className="flex justify-center mb-3">
+                <div className="p-3 bg-warning/10 rounded-full">
+                  <AlertTriangle className="size-8 text-warning" />
+                </div>
+              </div>
+              <h3 className="text-lg font-medium mb-2">Remover Contacto</h3>
+              <p className="text-sm text-base-content/70">
+                Tem a certeza que deseja remover {user.fullName || "este contacto"}? Poderá adicioná-lo novamente mais tarde.
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowRemoveModal(false)}
+                className="btn btn-ghost btn-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRemoveContact}
+                className="btn btn-error btn-sm"
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para confirmação de bloqueio */}
+      {showBlockModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowBlockModal(false)}
+        >
+          <div 
+            className="bg-base-100 p-4 rounded-lg w-80 max-w-full"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center mb-4">
+              <div className="flex justify-center mb-3">
+                <div className="p-3 bg-error/10 rounded-full">
+                  <UserX className="size-8 text-error" />
+                </div>
+              </div>
+              <h3 className="text-lg font-medium mb-2">Bloquear Utilizador</h3>
+              <p className="text-sm text-base-content/70">
+                Tem a certeza que deseja bloquear {user.fullName || "este utilizador"}? Não poderá receber mensagens desta pessoa até que a desbloqueie.
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowBlockModal(false)}
+                className="btn btn-ghost btn-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleBlockUser}
+                className="btn btn-error btn-sm"
+              >
+                Bloquear
+              </button>
+            </div>
           </div>
         </div>
       )}
