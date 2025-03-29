@@ -43,8 +43,7 @@ const App = () => {
     location.pathname === "/login" || 
     location.pathname === "/signup" || 
     location.pathname === "/forgot-password" || 
-    location.pathname.startsWith("/reset-password/") ||
-    location.pathname.startsWith("/security/delete-account/"); // Adicionado para esconder a navbar na página de confirmação de eliminação
+    location.pathname.startsWith("/reset-password/");
 
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col" data-theme={theme}>
@@ -66,9 +65,8 @@ const App = () => {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         
-        {/* Rotas para eliminação de conta */}
+        {/* Rota para eliminação de conta (simplificada) */}
         <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
-        <Route path="/security/delete-account/:token" element={<DeleteAccountPage />} />
       </Routes>
 
       <Toaster /> 

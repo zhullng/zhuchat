@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-import { useChatStore } from "./useChatStore"; // Importação para acessar funções do chat store
+import { useChatStore } from "./useChatStore";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -15,7 +15,6 @@ export const useAuthStore = create((set, get) => ({
   isDeletingAccount: false,
   onlineUsers: [],
   socket: null,
-
 
   updatePassword: async (data) => {
     try {
@@ -220,41 +219,11 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Novas funções para eliminação de conta
-  requestAccountDeletion: async () => {
+  // Para eliminar conta diretamente (sem confirmação por email)
+  deleteAccount: async () => {
     set({ isDeletingAccount: true });
     try {
-      const res = await axiosInstance.post("/auth/delete-account");
-      toast.success(res.data.message || "Email para confirmação de eliminação enviado");
-      return { success: true, data: res.data };
-    } catch (error) {
-      console.error("Erro ao solicitar eliminação de conta:", error);
-      const errorMessage = error.response?.data?.message || "Erro ao solicitar eliminação de conta";
-      toast.error(errorMessage);
-      return { success: false, message: errorMessage };
-    } finally {
-      set({ isDeletingAccount: false });
-    }
-  },
-  
-  // Para verificar token de eliminação
-  verifyDeleteToken: async (token) => {
-    try {
-      const res = await axiosInstance.get(`/auth/delete-account/${token}`);
-      return { success: true, email: res.data.email };
-    } catch (error) {
-      console.error("Token inválido ou expirado:", error);
-      const errorMessage = error.response?.data?.message || "Token inválido ou expirado";
-      toast.error(errorMessage);
-      return { success: false, message: errorMessage };
-    }
-  },
-  
-  // Para confirmar eliminação de conta
-  confirmAccountDeletion: async (token) => {
-    set({ isDeletingAccount: true });
-    try {
-      const res = await axiosInstance.post(`/auth/delete-account/${token}`);
+      const res = await axiosInstance.delete("/auth/delete-account");
       
       // Resetar estado do chat
       useChatStore.getState().resetChatState();
