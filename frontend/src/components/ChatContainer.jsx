@@ -6,6 +6,8 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+import { Trash2, MoreVertical } from "lucide-react";
+import toast from "react-hot-toast";
 
 const ChatContainer = () => {
   const {
@@ -15,11 +17,13 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    deleteMessage,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const [activeMessageMenu, setActiveMessageMenu] = useState(null);
 
   // Efeito para carregar mensagens e configurar a subscrição de mensagens
   useEffect(() => {
@@ -28,6 +32,7 @@ const ChatContainer = () => {
     
     // Resetar estado de scroll inicial quando mudar de conversa
     setInitialScrollDone(false);
+    setActiveMessageMenu(null);
     
     return () => unsubscribeFromMessages();
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
@@ -53,6 +58,33 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages.length, initialScrollDone]);
+
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeMessageMenu && !e.target.closest('.message-menu-container')) {
+        setActiveMessageMenu(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeMessageMenu]);
+
+  // Função para eliminar uma mensagem
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await deleteMessage(messageId);
+      toast.success("Mensagem eliminada com sucesso");
+    } catch (error) {
+      console.error("Erro ao eliminar mensagem:", error);
+      toast.error("Erro ao eliminar mensagem");
+    } finally {
+      setActiveMessageMenu(null);
+    }
+  };
 
   // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
   const selectedUserDisplayName = selectedUser.note || selectedUser.fullName || 'Nome Desconhecido';
@@ -117,7 +149,32 @@ const ChatContainer = () => {
               )}
             </div>
 
-            <div className="chat-bubble flex flex-col">
+            <div className="chat-bubble flex flex-col relative group">
+              {/* Botão de opções (apenas para as próprias mensagens do usuário) */}
+              {message.senderId === authUser._id && (
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity message-menu-container">
+                  <button 
+                    onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
+                    className="p-1 rounded-full hover:bg-base-300 transition-colors"
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  
+                  {/* Menu de opções */}
+                  {activeMessageMenu === message._id && (
+                    <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
+                      <button
+                        onClick={() => handleDeleteMessage(message._id)}
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left"
+                      >
+                        <Trash2 size={16} />
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {message.image && (
                 <img
                   src={message.image}
