@@ -11,6 +11,7 @@ import SettingsProfilePage from './pages/SettingsProfilePage';
 import ChangePasswordPage from './pages/ChangePasswordPage'; 
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import DeleteAccountPage from "./pages/DeleteAccountPage"; // Importando a página de eliminação de conta
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
@@ -37,17 +38,18 @@ const App = () => {
     );  
   }
 
-  // Corrigido: Verifica se o pathname começa com "/reset-password/"
-  const isLoginOrSignupPage = 
+  // Verificar se é uma página que não deve mostrar a Navbar
+  const hideNavbarPages = 
     location.pathname === "/login" || 
     location.pathname === "/signup" || 
     location.pathname === "/forgot-password" || 
-    location.pathname.startsWith("/reset-password/");
+    location.pathname.startsWith("/reset-password/") ||
+    location.pathname.startsWith("/security/delete-account/"); // Adicionado para esconder a navbar na página de confirmação de eliminação
 
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col" data-theme={theme}>
-      {/* Renderiza a Navbar apenas se não for a página de login ou signup */}
-      {!isLoginOrSignupPage && <Navbar />}
+      {/* Renderiza a Navbar apenas se não for uma das páginas onde ela deve ser escondida */}
+      {!hideNavbarPages && <Navbar />}
 
       <Routes>
         <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
@@ -63,7 +65,10 @@ const App = () => {
 
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-
+        
+        {/* Rotas para eliminação de conta */}
+        <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
+        <Route path="/security/delete-account/:token" element={<DeleteAccountPage />} />
       </Routes>
 
       <Toaster /> 
