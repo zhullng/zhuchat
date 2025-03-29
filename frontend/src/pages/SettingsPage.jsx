@@ -9,7 +9,8 @@ import {
   KeyRound,
   ChevronRight,
   Settings,
-  ArrowLeft
+  ArrowLeft,
+  Trash2
 } from 'lucide-react';
 
 const SettingsPage = () => {
@@ -52,6 +53,13 @@ const SettingsPage = () => {
       label: 'Alterar Senha',
       icon: <KeyRound className="size-4" />,
       onClick: () => navigate('/security/password')
+    },
+    {
+      id: 'delete-account',
+      label: 'Eliminar Conta',
+      icon: <Trash2 className="size-4 text-error" />,
+      onClick: () => navigate('/security/delete-account'),
+      danger: true
     }
   ];
 
@@ -112,10 +120,11 @@ const SettingsPage = () => {
         <button
           key={item.id}
           onClick={item.onClick}
-          className="
+          className={`
             w-full flex items-center gap-3 p-3 rounded-lg
             hover:bg-base-300 transition-colors
-          "
+            ${item.danger ? 'text-error hover:bg-error hover:bg-opacity-10' : ''}
+          `}
         >
           {item.icon}
           <span>{item.label}</span>

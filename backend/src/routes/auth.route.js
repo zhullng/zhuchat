@@ -6,6 +6,11 @@ import {
     verifyResetToken, 
     resetPassword 
 } from "../controllers/password.controller.js";
+import {
+    requestAccountDeletion,
+    verifyDeleteToken,
+    confirmAccountDeletion
+} from "../controllers/delete.controller.js";
 
 const router = express.Router();
 
@@ -18,8 +23,14 @@ router.put("/update-password", protectRoute, updatePassword);
 
 router.get("/check", protectRoute, checkAuth);
 
+// Rotas para recuperação de senha
 router.post("/forgot-password", forgotPassword);
 router.get("/reset-password/:token", verifyResetToken);
 router.post("/reset-password/:token", resetPassword);
+
+// Rotas para eliminação de conta
+router.post("/delete-account", protectRoute, requestAccountDeletion);
+router.get("/delete-account/:token", verifyDeleteToken);
+router.post("/delete-account/:token", confirmAccountDeletion);
 
 export default router;

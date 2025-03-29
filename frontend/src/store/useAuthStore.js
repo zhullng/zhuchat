@@ -12,6 +12,7 @@ export const useAuthStore = create((set, get) => ({
   isLoggingIn: false,
   isUpdatingProfile: false,
   isCheckingAuth: true,
+  isDeletingAccount: false,
   onlineUsers: [],
   socket: null,
 
@@ -216,6 +217,63 @@ export const useAuthStore = create((set, get) => ({
       const errorMessage = error.response?.data?.message || "Erro ao redefinir palavra-passe";
       toast.error(errorMessage);
       return { success: false, message: errorMessage };
+    }
+  },
+
+  // Novas funções para eliminação de conta
+  requestAccountDeletion: async () => {
+    set({ isDeletingAccount: true });
+    try {
+      const res = await axiosInstance.post("/auth/delete-account");
+      toast.success(res.data.message || "Email para confirmação de eliminação enviado");
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Erro ao solicitar eliminação de conta:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao solicitar eliminação de conta";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      set({ isDeletingAccount: false });
+    }
+  },
+  
+  // Para verificar token de eliminação
+  verifyDeleteToken: async (token) => {
+    try {
+      const res = await axiosInstance.get(`/auth/delete-account/${token}`);
+      return { success: true, email: res.data.email };
+    } catch (error) {
+      console.error("Token inválido ou expirado:", error);
+      const errorMessage = error.response?.data?.message || "Token inválido ou expirado";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  },
+  
+  // Para confirmar eliminação de conta
+  confirmAccountDeletion: async (token) => {
+    set({ isDeletingAccount: true });
+    try {
+      const res = await axiosInstance.post(`/auth/delete-account/${token}`);
+      
+      // Resetar estado do chat
+      useChatStore.getState().resetChatState();
+      
+      // Limpar dados do usuário
+      set({ authUser: null });
+      
+      // Desconectar socket
+      get().disconnectSocket();
+      
+      toast.success(res.data.message || "Conta eliminada com sucesso");
+      return { success: true };
+    } catch (error) {
+      console.error("Erro ao eliminar conta:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      set({ isDeletingAccount: false });
     }
   }
 }));
