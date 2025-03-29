@@ -159,8 +159,7 @@ const Sidebar = () => {
     unsubscribeFromMessages,
     removeContact,
     getConversations,
-    blockUser,
-    viewedConversations // Adicionar esta propriedade
+    blockUser
   } = useChatStore();
   const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -245,21 +244,22 @@ const Sidebar = () => {
     }
   };
 
-  // Função para lidar com clique no utilizador
-  const handleUserClick = (user) => {
-    if (!user) return;
-    
-    // Fechar menu de opções se estiver aberto
-    setShowContactMenu(false);
-    
-    // Definir o usuário selecionado
-    setSelectedUser(user);
-    
-    // Forçar marcação como lida imediatamente se houver mensagens não lidas
-    if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
-      markConversationAsRead(user._id);
-    }
-  };
+ 
+// Função para lidar com clique no utilizador
+const handleUserClick = (user) => {
+  if (!user) return;
+  
+  // Fechar menu de opções se estiver aberto
+  setShowContactMenu(false);
+  
+  // Definir o usuário selecionado
+  setSelectedUser(user);
+  
+  // Forçar marcação como lida imediatamente se houver mensagens não lidas
+  if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
+    markConversationAsRead(user._id);
+  }
+};
 
   // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
@@ -410,7 +410,6 @@ const Sidebar = () => {
               authUser={authUser}
               onRemove={handleRemoveContact}
               onBlock={handleBlockUser}
-              viewedConversations={viewedConversations} // Passar a nova prop
             />
           );
         })}
