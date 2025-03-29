@@ -106,45 +106,6 @@ export const useChatStore = create((set, get) => ({
     set({ isUsersLoading: false });
   }
 },
-// Adicione estas funções ao seu useChatStore.js dentro do objeto que você passa para a função create()
-
-// Função para buscar grupos
-getGroups: async () => {
-  try {
-    const res = await axiosInstance.get("/groups");
-    const groups = Array.isArray(res.data) ? res.data : [];
-    set({ groups });
-  } catch (error) {
-    console.error("Erro ao buscar grupos:", error);
-    set({ groups: [] });
-    toast.error(error.response?.data?.error || "Erro ao buscar grupos");
-  }
-},
-
-// Função para criar um novo grupo
-createGroup: async (name, members) => {
-  try {
-    if (!name || !Array.isArray(members) || members.length === 0) {
-      toast.error("Nome e membros são obrigatórios");
-      return null;
-    }
-
-    const response = await axiosInstance.post("/groups", { 
-      name,
-      members
-    });
-
-    // Atualizar a lista de grupos após criação bem-sucedida
-    get().getGroups();
-    
-    toast.success("Grupo criado com sucesso");
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao criar grupo:", error);
-    toast.error(error.response?.data?.error || "Erro ao criar grupo");
-    throw error;
-  }
-},
 
   // Função para obter as conversas e ordená-las por recentes (versão corrigida)
   getConversations: async () => {

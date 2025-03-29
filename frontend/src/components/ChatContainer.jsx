@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Trash2, MoreVertical, FileText, Download, Image as ImageIcon, FilePlus } from "lucide-react";
+import { Trash2, MoreVertical } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
@@ -84,20 +84,6 @@ const ChatContainer = () => {
     } finally {
       setActiveMessageMenu(null);
     }
-  };
-
-  // Determinar o ícone do arquivo com base no tipo MIME
-  const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText size={24} className="text-primary" />;
-    
-    if (fileType.startsWith('image/')) return <ImageIcon size={24} className="text-blue-500" />;
-    if (fileType.startsWith('video/')) return <FilePlus size={24} className="text-red-500" />;
-    if (fileType.startsWith('audio/')) return <FilePlus size={24} className="text-yellow-500" />;
-    if (fileType.includes('pdf')) return <FileText size={24} className="text-red-500" />;
-    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} className="text-blue-600" />;
-    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={24} className="text-green-600" />;
-    
-    return <FileText size={24} className="text-primary" />;
   };
 
   // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
@@ -187,43 +173,13 @@ const ChatContainer = () => {
             </div>
 
             <div className="chat-bubble flex flex-col relative">
-              {/* Exibir imagem, se existir */}
               {message.image && (
-                <a 
-                  href={message.image} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="mb-2"
-                >
-                  <img
-                    src={message.image}
-                    alt="Attachment"
-                    className="sm:max-w-[200px] rounded-md"
-                    loading="lazy"
-                  />
-                </a>
+                <img
+                  src={message.image}
+                  alt="Attachment"
+                  className="sm:max-w-[200px] rounded-md mb-2"
+                />
               )}
-
-              {/* Exibir arquivo, se existir */}
-              {message.file && message.file.url && (
-                <a 
-                  href={message.file.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center p-2 bg-base-200 rounded-md mb-2 hover:bg-base-300 transition-colors"
-                >
-                  <div className="mr-2">
-                    {getFileIcon(message.file.type)}
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="font-medium text-sm truncate">{message.file.name || "Arquivo"}</p>
-                    <p className="text-xs opacity-70">Clique para baixar</p>
-                  </div>
-                  <Download size={16} className="ml-2 opacity-70" />
-                </a>
-              )}
-              
-              {/* Texto da mensagem */}
               {message.text && (
                 <p className="break-words whitespace-pre-wrap">{message.text}</p>
               )}
