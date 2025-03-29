@@ -12,6 +12,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DeleteAccountPage from "./pages/DeleteAccountPage"; // Importando a página de eliminação de conta
+import BlockedUsersPage from "./pages/BlockedUsersPage";
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
@@ -65,8 +66,9 @@ const App = () => {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         
-        {/* Rota para eliminação de conta (simplificada) */}
         <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
+
+        <Route path="/privacy/blocked" element={authUser ? <BlockedUsersPage /> : <Navigate to="/login" />} />
       </Routes>
 
       <Toaster /> 

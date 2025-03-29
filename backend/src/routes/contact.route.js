@@ -5,7 +5,10 @@ import {
   getPendingRequests, 
   respondToRequest, 
   removeContact, 
-  updateContactNote 
+  updateContactNote,
+  blockUser,
+  getBlockedUsers,
+  unblockUser
 } from "../controllers/contact.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -29,7 +32,16 @@ router.patch("/:contactId/respond", respondToRequest);
 // Remover um contacto
 router.delete("/:contactId", removeContact);
 
-// Atualizar a nota de um contacto (se você tiver esta funcionalidade)
+// Atualizar a nota de um contacto
 router.patch("/:contactId/note", updateContactNote);
+
+// Bloquear um utilizador
+router.post("/block/:userId", blockUser);
+
+// Obter utilizadores bloqueados
+router.get("/blocked", getBlockedUsers);
+
+// Desbloquear um utilizador
+router.delete("/unblock/:userId", unblockUser);
 
 export default router;

@@ -262,3 +262,52 @@ export const blockUser = async (req, res) => {
     res.status(500).json({ error: "Erro ao bloquear utilizador." });
   }
 };
+export const getBlockedUsers = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Buscar contactos com status "blocked"
+    const blockedContacts = await Contact.find({
+      userId,
+      status: "blocked"
+    }).populate("contactId", "fullName email profilePic");
+
+    // Formatamos a resposta para retornar apenas os dados dos utilizadores bloqueados
+    const blockedUsers = blockedContacts.map(contact => ({
+      _id: contact.contactId._id,
+      fullName: contact.contactId.fullName,
+      email: contact.contactId.email,
+      profilePic: contact.contactId.profilePic,
+      blockedAt: contact.createdAt
+    }));
+
+    res.status(200).json(blockedUsers);
+  } catch (error) {
+    console.error("Erro ao obter utilizadores bloqueados:", error);
+    res.status(500).json({ error: "Erro ao obter utilizadores bloqueados." });
+  }
+};
+
+// Desbloquear um utilizador
+export const unblockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
+
+    // Encontrar e remover o registo de bloqueio
+    const blockedContact = await Contact.findOneAndDelete({
+      userId: currentUserId,
+      contactId: userId,
+      status: "blocked"
+    });
+
+    if (!blockedContact) {
+      return res.status(404).json({ error: "Registo de bloqueio não encontrado." });
+    }
+
+    res.status(200).json({ message: "Utilizador desbloqueado com sucesso." });
+  } catch (error) {
+    console.error("Erro ao desbloquear utilizador:", error);
+    res.status(500).json({ error: "Erro ao desbloquear utilizador." });
+  }
+};
