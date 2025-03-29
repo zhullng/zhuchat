@@ -7,6 +7,7 @@ const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [lineCount, setLineCount] = useState(1);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
@@ -49,6 +50,7 @@ const MessageInput = () => {
       // Clear form
       setText("");
       setImagePreview(null);
+      setLineCount(1);
       if (imageInputRef.current) imageInputRef.current.value = "";
       
       // Reset textarea height
@@ -60,6 +62,26 @@ const MessageInput = () => {
     }
   };
 
+  // Contar linhas no texto
+  const countLines = (text) => {
+    if (!text) return 1;
+    
+    // Contar quebras de linha
+    const newLineCount = (text.match(/\n/g) || []).length + 1;
+    
+    // Contar linhas por quebra automática baseada no tamanho do textarea
+    // Esta é uma estimativa aproximada
+    if (textareaRef.current) {
+      const textWidth = text.length * 8; // Estimativa de largura média de caractere em pixels
+      const textareaWidth = textareaRef.current.clientWidth - 24; // Descontar o padding
+      const wrappedLines = Math.ceil(textWidth / textareaWidth);
+      
+      return Math.max(newLineCount, wrappedLines);
+    }
+    
+    return newLineCount;
+  };
+
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
     if (textareaRef.current) {
@@ -69,12 +91,21 @@ const MessageInput = () => {
       // Set the height to scrollHeight to fit all content
       const scrollHeight = textareaRef.current.scrollHeight;
       
+      // Estimar o número de linhas com base na altura
+      const lineHeight = 20; // Altura estimada de uma linha em pixels
+      const currentLines = Math.ceil(scrollHeight / lineHeight);
+      setLineCount(currentLines);
+      
       // Se o texto for vazio ou tiver apenas uma linha, mantenha a altura mínima
       if (text.trim() === "" || scrollHeight <= 40) {
         textareaRef.current.style.height = "40px";
+        setLineCount(1);
+      } else if (currentLines <= 2) {
+        // Para uma ou duas linhas, ajustar a altura exatamente
+        textareaRef.current.style.height = `${scrollHeight}px`;
       } else {
-        // Limiting max height to 120px
-        const newHeight = Math.min(scrollHeight, 120);
+        // Para mais de duas linhas, limitar a altura e ativar o scroll
+        const newHeight = Math.min(scrollHeight, 80); // Altura para 2 linhas + um pouco mais
         textareaRef.current.style.height = `${newHeight}px`;
       }
     }
@@ -174,7 +205,7 @@ const MessageInput = () => {
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
-            className="w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 max-h-32 overflow-y-auto resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words"
+            className={`w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words ${lineCount > 2 ? 'overflow-y-auto max-h-20' : 'overflow-hidden'}`}
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
