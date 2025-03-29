@@ -126,12 +126,13 @@ const UserItem = ({
         </div>
 
         <div className="flex-1 text-left">
-          <div className="flex items-center justify-between">
-            <span className="font-medium truncate text-sm lg:text-base mr-6">{displayName}</span>
+          <div className="flex items-center gap-1">
+            {/* Adicionado mr-8 para evitar sobreposição com o botão de três pontos */}
+            <span className="font-medium truncate text-sm lg:text-base mr-8">{displayName}</span>
             
             {/* Mostrar nome real em texto pequeno se tiver nickname */}
             {user.note && (
-              <span className="text-xs text-base-content/50 truncate hidden sm:inline">
+              <span className="text-xs text-base-content/50 truncate hidden sm:inline-block mr-6">
                 ({user.fullName})
               </span>
             )}
