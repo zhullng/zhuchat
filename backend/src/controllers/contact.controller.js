@@ -24,6 +24,29 @@ export const addContact = async (req, res) => {
       return res.status(400).json({ error: "Não pode adicionar-se a si mesmo como contacto." });
     }
 
+    // Verificar se um dos utilizadores bloqueou o outro
+    const blockExists = await Contact.findOne({
+      $or: [
+        { userId, contactId: contactUser._id, status: "blocked" },
+        { userId: contactUser._id, contactId: userId, status: "blocked" }
+      ]
+    });
+
+    if (blockExists) {
+      // Se o utilizador atual bloqueou o contacto
+      if (blockExists.userId.toString() === userId.toString()) {
+        return res.status(400).json({ 
+          error: "Não pode adicionar este utilizador pois tem-no bloqueado. Desbloqueie-o primeiro." 
+        });
+      } 
+      // Se o contacto bloqueou o utilizador atual
+      else {
+        return res.status(400).json({ 
+          error: "Não pode adicionar este utilizador pois ele bloqueou-o." 
+        });
+      }
+    }
+
     // Verificar se já existe um contacto ativo entre estes utilizadores
     // Só consideramos contactos ativos (aceites ou pendentes, não rejeitados)
     const existingContact = await Contact.findOne({
