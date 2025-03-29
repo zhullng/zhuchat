@@ -669,17 +669,13 @@ export const useChatStore = create((set, get) => ({
 
   deleteMessage: async (messageId) => {
     try {
-      // Atualize o estado local para feedback imediato
+      // Atualizar o estado local para feedback imediato
       set((state) => ({
         messages: state.messages.filter((message) => message._id !== messageId)
       }));
   
       // Chamada à API para excluir a mensagem no servidor
       const response = await axiosInstance.delete(`/messages/${messageId}`);
-      
-      if (!response.ok && response.status !== 204) {
-        throw new Error('Falha ao excluir mensagem');
-      }
       
       // Atualize as conversas para refletir a alteração
       setTimeout(() => {

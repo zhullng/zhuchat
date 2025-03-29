@@ -5,7 +5,8 @@ import {
     getUsersForSidebar, 
     sendMessage,
     getConversations,
-    markConversationAsRead
+    markConversationAsRead,
+    deleteMessage
   } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -14,6 +15,9 @@ const router = express.Router();
 router.get("/users", protectRoute, getUsersForSidebar);
 router.get("/conversations", protectRoute, getConversations);
 router.patch("/read/:id", protectRoute, markConversationAsRead);
+
+// Nova rota para excluir mensagem
+router.delete("/:id", protectRoute, deleteMessage);
 
 // Rotas com parâmetros dinâmicos depois
 router.get("/:id", protectRoute, getMessages);
