@@ -40,10 +40,10 @@ export const updatePassword = async (req, res) => {
 };
 
 export const signup = async (req, res) => {
-  const { fullName, gender, email, password } = req.body;
+  const { fullName, gender, email, password, profilePic } = req.body;
 
   try {
-    // Verifica se todos os campos foram fornecidos
+    // Verifica se todos os campos obrigatórios foram fornecidos
     if (!fullName || !gender || !email || !password) {
       return res.status(422).json({ message: "Todos os campos são obrigatórios" });
     }
@@ -86,14 +86,22 @@ export const signup = async (req, res) => {
       }
     }
 
-    // Cria o novo utilizador
-    const newUser = new User({
+    // Preparar objeto do usuário
+    const userData = {
       fullName,
       gender,
       email,
       password: hashedPassword,
       stripeCustomerId,
-    });
+    };
+
+    // Adicionar a foto de perfil se fornecida
+    if (profilePic) {
+      userData.profilePic = profilePic;
+    }
+
+    // Cria o novo utilizador com todos os dados
+    const newUser = new User(userData);
     
     await newUser.save();
 
