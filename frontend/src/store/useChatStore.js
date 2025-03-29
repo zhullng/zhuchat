@@ -47,7 +47,7 @@ export const useChatStore = create((set, get) => ({
 
   // Função para obter a lista de utilizadores
  // Função getUsers atualizada para filtrar usuários bloqueados
-ggetUsers: async () => {
+ getUsers: async () => {
   set({ isUsersLoading: true });
   try {
     // Primeiro, buscar a lista de usuários bloqueados para filtrá-los depois
@@ -772,7 +772,7 @@ ggetUsers: async () => {
       return false;
     }
   },
-  
+
   // Nova função para resetar o estado do chat (para usar no logout)
   resetChatState: () => {
     const authUser = useAuthStore.getState().authUser;
