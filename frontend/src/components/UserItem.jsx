@@ -31,6 +31,10 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
     setShowOptions(!showOptions);
   };
   
+  // Determina se deve mostrar a notificação "Nova Mensagem"
+  // Só mostra se houver mensagens não lidas E não estiver selecionado
+  const shouldShowNotification = hasUnread && !isSelected;
+  
   return (
     <div className="relative mb-1">
       <button
@@ -39,7 +43,7 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
           w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
           transition-colors hover:bg-base-200
           ${isSelected ? "bg-base-300 ring-1 ring-base-300" : ""} 
-          ${hasUnread ? "bg-primary/10" : ""}
+          ${shouldShowNotification ? "bg-primary/10" : ""}
         `}
       >
         <div className="relative">
@@ -77,17 +81,17 @@ const UserItem = ({ user, onUserClick, isSelected, hasUnread, unreadCount, conv,
           {/* Pré-visualização da última mensagem ou notificação */}
           <div className="flex items-center justify-between mt-1 max-w-full">
             {/* Texto da última mensagem */}
-            <div className={`text-xs ${hasUnread ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow`}>
+            <div className={`text-xs ${shouldShowNotification ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow`}>
               {conv?.latestMessage ? (
                 <>
-                  {conv.latestMessage.senderId === authUser?._id ? 'Você: ' : ''}
+                  {conv.latestMessage.senderId === authUser?._id ? 'Enviado: ' : ''}
                   {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
                 </>
               ) : ''}
             </div>
             
-            {/* Indicador de nova mensagem - separado da mensagem */}
-            {hasUnread && (
+            {/* Indicador de nova mensagem - separado da mensagem - APENAS se não estiver selecionado */}
+            {shouldShowNotification && (
               <span className="inline-flex items-center justify-center bg-primary text-primary-content rounded-lg px-2 py-0.5 text-xs font-medium ml-1">
                 Nova Mensagem
               </span>

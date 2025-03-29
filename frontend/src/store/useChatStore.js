@@ -229,97 +229,131 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para se inscrever para notificações de novas mensagens por WebSocket (versão melhorada)
-  subscribeToMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    
-    // Desinscrever primeiro para evitar duplicação
-    if (socket) {
-      socket.off("newMessage");
+// Função para se inscrever para notificações de novas mensagens por WebSocket (versão melhorada)
+subscribeToMessages: () => {
+  const socket = useAuthStore.getState().socket;
+  
+  // Desinscrever primeiro para evitar duplicação
+  if (socket) {
+    socket.off("newMessage");
 
-      socket.on("newMessage", (newMessage) => {
-        const authUser = useAuthStore.getState().authUser;
-        const currentSelectedUser = get().selectedUser;
+    socket.on("newMessage", (newMessage) => {
+      const authUser = useAuthStore.getState().authUser;
+      const currentSelectedUser = get().selectedUser;
+      
+      console.log("Nova mensagem recebida:", newMessage);
+      
+      // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
+      if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
+        set(state => ({
+          messages: [...state.messages, newMessage],
+        }));
         
-        console.log("Nova mensagem recebida:", newMessage);
+        // Marca como lida já que o utilizador está a visualizar a conversa
+        get().markConversationAsRead(currentSelectedUser._id);
         
-        // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
-        if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
-          set(state => ({
-            messages: [...state.messages, newMessage],
-          }));
+        // Importante: Não incrementa o contador de não lidas se o utilizador está visualizando a conversa
+        // Atualiza a última mensagem, mas mantém como lida
+        set(state => {
+          const updatedConversations = [...state.conversations];
           
-          // Marca como lida já que o utilizador está a visualizar a conversa
-          get().markConversationAsRead(currentSelectedUser._id);
-        } 
-        // Se a mensagem é para o utilizador atual mas de outro remetente
-        else if (newMessage.receiverId === authUser._id) {
-          // Tocar som de notificação aqui
-          try {
-            const notificationSound = new Audio('/notification.mp3');
-            notificationSound.volume = 0.5;
-            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-          } catch (err) {
-            console.log('Erro ao criar áudio:', err);
+          const existingConvIndex = updatedConversations.findIndex(
+            c => c.participants && c.participants.includes(newMessage.senderId)
+          );
+          
+          if (existingConvIndex >= 0) {
+            updatedConversations[existingConvIndex] = {
+              ...updatedConversations[existingConvIndex],
+              latestMessage: {
+                ...newMessage,
+                read: true // Marca explicitamente como lida
+              },
+              unreadCount: 0 // Mantém a contagem em zero
+            };
+            
+            // Mover para o topo da lista
+            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+            updatedConversations.unshift(updatedConv);
           }
           
-          // Incrementar contador de não lidos de forma segura
-          set(state => {
-            const senderId = newMessage.senderId;
-            const currentCount = state.unreadCounts[senderId] || 0;
-            
-            return {
-              unreadCounts: {
-                ...state.unreadCounts,
-                [senderId]: currentCount + 1
-              }
-            };
-          });
-          
-          // Atualizar imediatamente a conversa na UI
-          set(state => {
-            const updatedConversations = [...state.conversations];
-            
-            // Encontrar conversa existente ou criar nova
-            const existingConvIndex = updatedConversations.findIndex(
-              c => c.participants && c.participants.includes(newMessage.senderId)
-            );
-            
-            if (existingConvIndex >= 0) {
-              // Atualizar conversa existente
-              const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
-              
-              updatedConversations[existingConvIndex] = {
-                ...updatedConversations[existingConvIndex],
-                latestMessage: newMessage,
-                unreadCount: currentUnreadCount + 1
-              };
-              
-              // Mover para o topo da lista
-              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-              updatedConversations.unshift(updatedConv);
-            } else {
-              // Criar nova conversa
-              updatedConversations.unshift({
-                participants: [authUser._id, newMessage.senderId],
-                latestMessage: newMessage,
-                unreadCount: 1
-              });
+          return { 
+            conversations: updatedConversations,
+            // Também atualizar o unreadCounts para garantir que fica em zero
+            unreadCounts: {
+              ...state.unreadCounts,
+              [newMessage.senderId]: 0
             }
-            
-            return { conversations: updatedConversations };
-          });
+          };
+        });
+      } 
+      // Se a mensagem é para o utilizador atual mas de outro remetente
+      else if (newMessage.receiverId === authUser._id) {
+        // Tocar som de notificação aqui
+        try {
+          const notificationSound = new Audio('/notification.mp3');
+          notificationSound.volume = 0.5;
+          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+        } catch (err) {
+          console.log('Erro ao criar áudio:', err);
         }
         
-        // Sincronizar com o servidor depois de um curto atraso
-        setTimeout(() => {
-          get().getConversations();
-        }, 500);
-      });
-    } else {
-      console.warn("Socket não disponível para subscrever mensagens");
-    }
-  },
+        // Incrementar contador de não lidas de forma segura
+        set(state => {
+          const senderId = newMessage.senderId;
+          const currentCount = state.unreadCounts[senderId] || 0;
+          
+          return {
+            unreadCounts: {
+              ...state.unreadCounts,
+              [senderId]: currentCount + 1
+            }
+          };
+        });
+        
+        // Atualizar imediatamente a conversa na UI
+        set(state => {
+          const updatedConversations = [...state.conversations];
+          
+          // Encontrar conversa existente ou criar nova
+          const existingConvIndex = updatedConversations.findIndex(
+            c => c.participants && c.participants.includes(newMessage.senderId)
+          );
+          
+          if (existingConvIndex >= 0) {
+            // Atualizar conversa existente
+            const currentUnreadCount = updatedConversations[existingConvIndex].unreadCount || 0;
+            
+            updatedConversations[existingConvIndex] = {
+              ...updatedConversations[existingConvIndex],
+              latestMessage: newMessage,
+              unreadCount: currentUnreadCount + 1
+            };
+            
+            // Mover para o topo da lista
+            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+            updatedConversations.unshift(updatedConv);
+          } else {
+            // Criar nova conversa
+            updatedConversations.unshift({
+              participants: [authUser._id, newMessage.senderId],
+              latestMessage: newMessage,
+              unreadCount: 1
+            });
+          }
+          
+          return { conversations: updatedConversations };
+        });
+      }
+      
+      // Sincronizar com o servidor depois de um curto atraso
+      setTimeout(() => {
+        get().getConversations();
+      }, 500);
+    });
+  } else {
+    console.warn("Socket não disponível para subscrever mensagens");
+  }
+},
 
   // Função para se desinscrever das notificações de novas mensagens
   unsubscribeFromMessages: () => {
