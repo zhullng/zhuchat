@@ -54,6 +54,9 @@ const ChatContainer = () => {
     }
   }, [messages.length, initialScrollDone]);
 
+  // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
+  const selectedUserDisplayName = selectedUser.note || selectedUser.fullName || 'Nome Desconhecido';
+
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
@@ -105,7 +108,7 @@ const ChatContainer = () => {
                 // Para o outro user (selectedUser), o nome estará à esquerda e o horário à direita
                 <>
                   <span className="font-semibold text-sm">
-                    {selectedUser?.fullName || 'Nome Desconhecido'}
+                    {selectedUserDisplayName}
                   </span>
                   <time className="text-xs opacity-50 ml-2">
                     {formatMessageTime(message.createdAt)}

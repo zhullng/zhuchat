@@ -22,8 +22,7 @@ const UserItem = ({
   const [nickname, setNickname] = useState(user.note || "");
   const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
   
-  // Constante para o limite máximo de caracteres - reduzido para 25
-  const MAX_NICKNAME_LENGTH = 25;
+  const MAX_NICKNAME_LENGTH = 20;
   
   // Função para lidar com a remoção de contato
   const handleRemoveContact = (e) => {

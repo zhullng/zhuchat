@@ -8,6 +8,11 @@ const ChatHeader = () => {
 
   // Verifica se o user selecionado é um assistente AI
   const isAI = selectedUser?.isAI;
+  
+  // Determina o nome a ser exibido (nickname ou nome real)
+  const displayName = isAI 
+    ? "Assistente AI" 
+    : selectedUser.note || selectedUser.fullName;
 
   return (
     <div className="p-2.5 border-b border-base-300">
@@ -23,7 +28,7 @@ const ChatHeader = () => {
               ) : (
                 <img
                   src={selectedUser.profilePic || "/avatar.png"}
-                  alt={selectedUser.fullName}
+                  alt={displayName}
                 />
               )}
             </div>
@@ -31,7 +36,11 @@ const ChatHeader = () => {
 
           {/* User info */}
           <div>
-            <h3 className="font-medium">{isAI ? "Assistente AI" : selectedUser.fullName}</h3>
+            <h3 className="font-medium">{displayName}</h3>
+            {/* Mostrar nome real entre parênteses se tiver nickname */}
+            {!isAI && selectedUser.note && (
+              <p className="text-xs text-base-content/70">{selectedUser.fullName}</p>
+            )}
             <p className="text-sm text-base-content/70">
               {isAI ? "Sempre Online" : onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
             </p>
