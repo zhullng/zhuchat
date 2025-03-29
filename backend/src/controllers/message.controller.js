@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 
-import cloudinary from "../lib/cloudinary.js";
+import cloudinary, { uploadToCloudinary } from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
 // Função para obter os users a mostrar na barra lateral
@@ -30,7 +30,7 @@ export const getMessages = async (req, res) => {
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    });
+    }).sort({ createdAt: 1 }); // Ordenar por data de criação ascendente
 
     res.status(200).json(messages); 
   } catch (error) {
@@ -47,39 +47,49 @@ export const sendMessage = async (req, res) => {
     const senderId = req.user._id; // ID do user remetente
 
     let imageUrl;
-    let fileUrl;
-    let fileType;
-    let fileName;
+    let fileData = null;
 
-    // Upload de imagem, se fornecida
+    // Upload de imagem, se fornecida (e não for já uma URL)
     if (image) {
-      // Configurar o upload para aceitar imagens maiores
-      const uploadResponse = await cloudinary.uploader.upload(image, {
-        resource_type: "auto", // Detecta automaticamente o tipo de recurso
-        chunk_size: 6000000, // 6MB de tamanho de chunk para upload maior
-        timeout: 120000 // 120 segundos de timeout para uploads maiores
-      });
-      imageUrl = uploadResponse.secure_url;
+      if (image.startsWith('data:')) {
+        // É um base64, precisa fazer upload
+        try {
+          const uploadResult = await uploadToCloudinary(image, "chat_images");
+          imageUrl = uploadResult.url;
+        } catch (uploadError) {
+          console.error("Erro no upload de imagem:", uploadError);
+          return res.status(500).json({ error: "Falha no upload da imagem" });
+        }
+      } else if (image.startsWith('http')) {
+        // Já é uma URL, provavelmente já foi feito upload diretamente
+        imageUrl = image;
+      }
     }
 
-    // Upload de arquivo, se fornecido
-    if (file && file.data) {
-      const fileData = file.data;
-      fileName = file.name || "arquivo";
-      fileType = file.type || "application/octet-stream";
-      
-      // Configurando o upload para qualquer tipo de arquivo
-      const uploadResponse = await cloudinary.uploader.upload(fileData, {
-        resource_type: "auto", // Permite qualquer tipo de arquivo
-        public_id: `chat_files/${Date.now()}_${fileName.replace(/\s+/g, '_')}`,
-        use_filename: true,
-        unique_filename: true,
-        overwrite: false,
-        chunk_size: 6000000, // 6MB de tamanho de chunk
-        timeout: 150000 // 150 segundos de timeout
-      });
-      
-      fileUrl = uploadResponse.secure_url;
+    // Processar dados do arquivo, se fornecido
+    if (file) {
+      // Se o arquivo já tiver uma URL (upload direto do cliente para o Cloudinary)
+      if (file.url && file.url.startsWith('http')) {
+        fileData = {
+          url: file.url,
+          type: file.type || "application/octet-stream",
+          name: file.name || "arquivo"
+        };
+      } 
+      // Se for dados base64, fazer upload
+      else if (file.data && file.data.startsWith('data:')) {
+        try {
+          const uploadResult = await uploadToCloudinary(file.data, "chat_files");
+          fileData = {
+            url: uploadResult.url,
+            type: file.type || "application/octet-stream",
+            name: file.name || "arquivo"
+          };
+        } catch (uploadError) {
+          console.error("Erro no upload de arquivo:", uploadError);
+          return res.status(500).json({ error: "Falha no upload do arquivo" });
+        }
+      }
     }
 
     // Cria um novo objeto de mensagem com suporte a arquivos
@@ -88,11 +98,7 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text,
       image: imageUrl,
-      file: fileUrl ? {
-        url: fileUrl,
-        type: fileType,
-        name: fileName
-      } : undefined
+      file: fileData
     });
 
     // Guarda a nova mensagem na base de dados
@@ -111,6 +117,7 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
+
 // Função para obter todas as conversas do utilizador atual
 export const getConversations = async (req, res) => {
   try {
@@ -167,6 +174,8 @@ export const getConversations = async (req, res) => {
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
+
+// Função para excluir uma mensagem
 export const deleteMessage = async (req, res) => {
   try {
     const { id: messageId } = req.params; // ID da mensagem a ser excluída

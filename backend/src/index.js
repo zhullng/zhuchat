@@ -18,10 +18,14 @@ dotenv.config();
 const PORT = process.env.PORT;
 const __dirname = path.resolve();
 
-// Middlewares
-app.use(express.json());
+// Middlewares com limites aumentados para suportar uploads maiores
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 app.use(cors({ origin: "*", credentials: true }));
+
+// Aumentar o timeout da conexão HTTP para uploads grandes
+server.timeout = 300000; // 5 minutos
 
 // Rotas
 app.use("/api/auth", authRoutes);

@@ -2,18 +2,25 @@ import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
-  const [fileInfo, setFileInfo] = useState(null); // {name, type, size, data}
+  const [imageUrl, setImageUrl] = useState(null);
+  const [fileInfo, setFileInfo] = useState(null); // {name, type, size, url}
   const [showOptions, setShowOptions] = useState(false);
   const [lineCount, setLineCount] = useState(1);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
   const textareaRef = useRef(null);
   const { sendMessage } = useChatStore();
+
+  // Cloudinary upload preset e cloud name - você precisa configurar no Cloudinary
+  const CLOUDINARY_UPLOAD_PRESET = "chat_uploads"; // Substitua pelo seu preset
+  const CLOUDINARY_CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || "seu-cloud-name";
 
   // Função para converter tamanho de arquivo para formato legível
   const formatFileSize = (bytes) => {
@@ -23,7 +30,51 @@ const MessageInput = () => {
     else return (bytes / 1073741824).toFixed(1) + ' GB';
   };
 
-  const handleImageChange = (e) => {
+  // Upload direto para Cloudinary
+  const uploadToCloudinary = async (file, isImage = false) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("resource_type", "auto");
+    
+    try {
+      setIsUploading(true);
+      const toastId = toast.loading(
+        isImage ? "Enviando imagem..." : `Enviando ${file.name}...`
+      );
+      
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+        formData,
+        {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded / progressEvent.total) * 100
+            );
+            toast.loading(`Enviando... ${progress}%`, { id: toastId });
+          }
+        }
+      );
+      
+      toast.dismiss(toastId);
+      toast.success(isImage ? "Imagem carregada!" : "Arquivo carregado!");
+      
+      return {
+        url: response.data.secure_url,
+        type: file.type,
+        name: file.name,
+        size: formatFileSize(file.size)
+      };
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      toast.error("Falha no upload. Tente novamente.");
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
@@ -38,17 +89,29 @@ const MessageInput = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-      // Limpar qualquer arquivo previamente selecionado
-      setFileInfo(null);
-      setShowOptions(false);
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Preview local
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+        // Limpar qualquer arquivo previamente selecionado
+        setFileInfo(null);
+        setShowOptions(false);
+      };
+      reader.readAsDataURL(file);
+      
+      // Upload direto para Cloudinary
+      const uploadedImage = await uploadToCloudinary(file, true);
+      // Armazenar a URL do Cloudinary
+      setImageUrl(uploadedImage.url);
+    } catch (error) {
+      console.error("Erro ao processar imagem:", error);
+      setImagePreview(null);
+      setImageUrl(null);
+    }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -58,24 +121,31 @@ const MessageInput = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      // Upload direto para Cloudinary
+      const uploadedFile = await uploadToCloudinary(file);
+      
       // Guardar informações do arquivo
       setFileInfo({
         name: file.name,
         type: file.type,
         size: formatFileSize(file.size),
-        data: reader.result
+        url: uploadedFile.url
       });
+      
       // Limpar qualquer imagem previamente selecionada
       setImagePreview(null);
+      setImageUrl(null);
       setShowOptions(false);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Erro ao processar arquivo:", error);
+      setFileInfo(null);
+    }
   };
 
   const removeImage = () => {
     setImagePreview(null);
+    setImageUrl(null);
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
@@ -86,49 +156,34 @@ const MessageInput = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview && !fileInfo) return;
+    if ((!text.trim() && !imageUrl && !fileInfo) || isUploading) return;
 
     try {
       // Preparar dados para envio
       const messageData = {
-        text: text,
-        image: imagePreview
+        text: text
       };
+
+      // Se houver uma imagem, adicionar a URL aos dados
+      if (imageUrl) {
+        messageData.image = imageUrl;
+      }
 
       // Se houver um arquivo, adicionar aos dados
       if (fileInfo) {
         messageData.file = {
-          data: fileInfo.data,
+          url: fileInfo.url,
           type: fileInfo.type,
           name: fileInfo.name
         };
       }
 
-      // Mostrar toast de carregamento se houver imagem ou arquivo
-      let toastId;
-      if (imagePreview || fileInfo) {
-        toastId = toast.loading(
-          fileInfo 
-            ? `Enviando arquivo ${fileInfo.name}...` 
-            : "Enviando imagem..."
-        );
-      }
-
       await sendMessage(messageData);
-
-      // Remover toast de carregamento se existir
-      if (toastId) {
-        toast.dismiss(toastId);
-        toast.success(
-          fileInfo 
-            ? "Arquivo enviado com sucesso!" 
-            : "Imagem enviada com sucesso!"
-        );
-      }
 
       // Limpar formulário
       setText("");
       setImagePreview(null);
+      setImageUrl(null);
       setFileInfo(null);
       setLineCount(1);
       
@@ -249,6 +304,7 @@ const MessageInput = () => {
               className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
               flex items-center justify-center"
               type="button"
+              disabled={isUploading}
             >
               <X className="size-3" />
             </button>
@@ -262,6 +318,7 @@ const MessageInput = () => {
             type="button"
             className="btn btn-circle btn-md hover:bg-base-300"
             onClick={() => setShowOptions(!showOptions)}
+            disabled={isUploading}
           >
             <Plus size={22} />
           </button>
@@ -278,6 +335,7 @@ const MessageInput = () => {
                   imageInputRef.current?.click();
                   setShowOptions(false);
                 }}
+                disabled={isUploading}
               >
                 <Image size={20} className="text-base-content opacity-70" />
                 <span>Enviar imagem</span>
@@ -290,6 +348,7 @@ const MessageInput = () => {
                   fileInputRef.current?.click();
                   setShowOptions(false);
                 }}
+                disabled={isUploading}
               >
                 <FileText size={20} className="text-base-content opacity-70" />
                 <span>Enviar arquivo</span>
@@ -315,6 +374,7 @@ const MessageInput = () => {
               overflowWrap: "break-word",
               whiteSpace: "pre-wrap"
             }}
+            disabled={isUploading}
           />
           <style jsx>{`
             textarea::-webkit-scrollbar {
@@ -337,7 +397,7 @@ const MessageInput = () => {
         <button
           type="submit"
           className="btn btn-sm btn-circle hover:bg-base-300"
-          disabled={!text.trim() && !imagePreview && !fileInfo}
+          disabled={(!text.trim() && !imageUrl && !fileInfo) || isUploading}
         >
           <Send size={22} />
         </button>
@@ -349,6 +409,7 @@ const MessageInput = () => {
           className="hidden"
           ref={imageInputRef}
           onChange={handleImageChange}
+          disabled={isUploading}
         />
         
         {/* Input para upload de arquivo (hidden) */}
@@ -357,6 +418,7 @@ const MessageInput = () => {
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileChange}
+          disabled={isUploading}
         />
       </form>
     </div>
