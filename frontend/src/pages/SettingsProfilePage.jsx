@@ -327,7 +327,7 @@ const SettingsProfilePage = () => {
             </div>
             {/* Texto movido para fora do container relativo */}
             <p className="text-xs text-base-content/70 text-center">
-              Clique para alterar foto (Máx: 50MB)
+              Clique para alterar foto
             </p>
           </div>
 
