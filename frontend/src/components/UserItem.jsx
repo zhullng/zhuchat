@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { MoreVertical, UserX, UserMinus } from "lucide-react";
+import { MoreVertical, UserX, UserMinus, Edit } from "lucide-react";
+import { useChatStore } from "../store/useChatStore";
 
-// Componente de usuário com menu de opções (sem swipe)
+// Componente de usuário com menu de opções
 const UserItem = ({ 
   user, 
   onUserClick, 
@@ -13,9 +14,13 @@ const UserItem = ({
   authUser, 
   onRemove, 
   onBlock,
-  viewedConversations = {} // Nova prop para verificar se já foi visualizada, com valor padrão
+  viewedConversations = {} // Prop para verificar se já foi visualizada
 }) => {
+  const { updateContactNote } = useChatStore();
   const [showOptions, setShowOptions] = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [nickname, setNickname] = useState(user.note || "");
+  const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
   
   // Função para lidar com a remoção de contato
   const handleRemoveContact = (e) => {
@@ -43,11 +48,43 @@ const UserItem = ({
     setShowOptions(!showOptions);
   };
   
+  // Abrir modal de edição de nickname
+  const openNicknameModal = (e) => {
+    e.stopPropagation(); // Evita disparar o onUserClick
+    setShowOptions(false);
+    setNickname(user.note || ""); // Reiniciar para o valor atual
+    setShowNicknameModal(true);
+  };
+  
+  // Fechar modal de edição de nickname
+  const closeNicknameModal = (e) => {
+    if (e) e.stopPropagation();
+    setShowNicknameModal(false);
+  };
+  
+  // Atualizar nickname na base de dados
+  const handleUpdateNickname = async (e) => {
+    e.preventDefault();
+    
+    // Se o contactId não estiver disponível, não podemos prosseguir
+    if (!user.contactId) {
+      return;
+    }
+    
+    setIsUpdatingNickname(true);
+    
+    try {
+      await updateContactNote(user.contactId, nickname);
+      closeNicknameModal();
+    } finally {
+      setIsUpdatingNickname(false);
+    }
+  };
+  
   // Verifica se esta conversa já foi visualizada anteriormente
   const isConversationViewed = viewedConversations[user._id] === true;
   
-  // Ainda mantemos a lógica para determinar quando uma mensagem é nova
-  // (será usada para a formatação do texto da mensagem)
+  // Determina se deve mostrar a notificação
   const shouldShowNotification = hasUnread && !isSelected && !isConversationViewed;
   
   // Função para truncar a mensagem com reticências
@@ -64,6 +101,9 @@ const UserItem = ({
   
   const displayMessage = truncateMessage(messageText);
   
+  // Nome a ser exibido (nickname ou nome real)
+  const displayName = user.note || user.fullName || "Utilizador";
+  
   return (
     <div className="relative mb-1">
       <button
@@ -77,7 +117,7 @@ const UserItem = ({
         <div className="relative">
           <img
             src={user.profilePic || "/avatar.png"}
-            alt={user.fullName || "Utilizador"}
+            alt={displayName}
             className="size-10 lg:size-12 object-cover rounded-full border"
           />
           {isOnline && (
@@ -87,7 +127,14 @@ const UserItem = ({
 
         <div className="flex-1 text-left">
           <div className="flex items-center justify-between">
-            <span className="font-medium truncate text-sm lg:text-base mr-6">{user.fullName || "Utilizador"}</span>
+            <span className="font-medium truncate text-sm lg:text-base mr-6">{displayName}</span>
+            
+            {/* Mostrar nome real em texto pequeno se tiver nickname */}
+            {user.note && (
+              <span className="text-xs text-base-content/50 truncate hidden sm:inline">
+                ({user.fullName})
+              </span>
+            )}
           </div>
           
           <div className="flex items-center justify-between">
@@ -108,7 +155,6 @@ const UserItem = ({
           
           {/* Pré-visualização da última mensagem */}
           <div className="flex items-center justify-between mt-1 max-w-full">
-            {/* Texto da última mensagem - ainda mantemos formatação em negrito para mensagens não lidas */}
             <div className={`text-xs ${shouldShowNotification ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow pr-1`}>
               {displayMessage}
             </div>
@@ -116,7 +162,7 @@ const UserItem = ({
         </div>
       </button>
       
-      {/* Botão de três pontos para menu - Com z-index para ficar sempre visível */}
+      {/* Botão de três pontos para menu */}
       <button 
         onClick={toggleOptions}
         className="absolute top-2 right-2 p-1 rounded-full hover:bg-base-300 transition-colors z-10"
@@ -124,9 +170,16 @@ const UserItem = ({
         <MoreVertical size={16} />
       </button>
       
-      {/* Menu de opções - mostrado quando os três pontos são clicados */}
+      {/* Menu de opções */}
       {showOptions && (
         <div className="absolute top-10 right-2 bg-base-100 shadow-lg rounded-md py-1 z-20 w-36 border">
+          <button 
+            onClick={openNicknameModal}
+            className="w-full text-left px-4 py-2 text-sm hover:bg-base-200 flex items-center gap-2"
+          >
+            <Edit size={16} />
+            Alterar Nickname
+          </button>
           <button 
             onClick={handleRemoveContact}
             className="w-full text-left px-4 py-2 text-sm hover:bg-base-200 flex items-center gap-2"
@@ -141,6 +194,56 @@ const UserItem = ({
             <UserX size={16} />
             Bloquear
           </button>
+        </div>
+      )}
+      
+      {/* Modal para edição de nickname */}
+      {showNicknameModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={closeNicknameModal}
+        >
+          <div 
+            className="bg-base-100 p-4 rounded-lg w-80 max-w-full"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-medium mb-3">Alterar Nickname</h3>
+            
+            <form onSubmit={handleUpdateNickname}>
+              <div className="mb-4">
+                <label className="block text-sm mb-1">Nickname para {user.fullName}</label>
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="Insira um nickname"
+                  className="input input-bordered w-full"
+                  disabled={isUpdatingNickname}
+                />
+                <p className="text-xs mt-1 text-base-content/60">
+                  Deixe em branco para usar o nome original
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeNicknameModal}
+                  className="btn btn-ghost btn-sm"
+                  disabled={isUpdatingNickname}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={isUpdatingNickname}
+                >
+                  {isUpdatingNickname ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

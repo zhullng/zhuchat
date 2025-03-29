@@ -535,6 +535,23 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Atualizar nota/nickname do contacto
+  updateContactNote: async (contactId, note) => {
+    try {
+      const res = await axiosInstance.patch(`/contacts/${contactId}/note`, { note });
+      toast.success("Nickname atualizado com sucesso");
+      
+      // Atualizar a lista de contactos para refletir a mudança
+      get().getUsers();
+      
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("Erro ao atualizar nickname:", error);
+      toast.error(error.response?.data?.error || "Erro ao atualizar nickname");
+      return { success: false };
+    }
+  },
+  
   // Função para se inscrever para notificações de novas transferências por WebSocket
   subscribeToTransfers: () => {
     const socket = useAuthStore.getState().socket;
