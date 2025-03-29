@@ -1,5 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -18,21 +18,41 @@ const ChatContainer = () => {
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
 
+  // Efeito para carregar mensagens e configurar a subscrição de mensagens
   useEffect(() => {
     getMessages(selectedUser._id);
-
     subscribeToMessages();
-
+    
+    // Resetar estado de scroll inicial quando mudar de conversa
+    setInitialScrollDone(false);
+    
     return () => unsubscribeFromMessages();
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
-  // Só faz o scroll se houver mensagens e se a referência do final da mensagem estiver acessível
+  // Efeito para scroll automático quando as mensagens são carregadas inicialmente
   useEffect(() => {
-    if (messageEndRef.current && messages.length > 0) {
+    // Se não estiver carregando e temos mensagens
+    if (!isMessagesLoading && messages.length > 0 && !initialScrollDone) {
+      // Esperar um pouco para as mensagens renderizarem
+      setTimeout(() => {
+        if (messageEndRef.current) {
+          messageEndRef.current.scrollIntoView({ behavior: "auto" });
+          setInitialScrollDone(true);
+        }
+      }, 100);
+    }
+  }, [messages, isMessagesLoading, initialScrollDone]);
+
+  // Efeito separado para fazer scroll quando chegar uma nova mensagem
+  useEffect(() => {
+    // Só fazemos o scroll para novas mensagens se já tivermos feito o scroll inicial
+    if (initialScrollDone && messageEndRef.current && messages.length > 0) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages.length, initialScrollDone]);
 
   if (isMessagesLoading) {
     return (
@@ -47,7 +67,10 @@ const ChatContainer = () => {
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex-1 flex flex-col overflow-auto pb-5">
       <ChatHeader />
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
         {messages.map((message) => (
           <div
             key={message._id}
