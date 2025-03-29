@@ -26,8 +26,10 @@ const SettingsProfilePage = () => {
   const [srcImg, setSrcImg] = useState(null);
   const [crop, setCrop] = useState({ 
     unit: '%', 
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
+    x: 10,
+    y: 10,
     aspect: 1
   });
   const [completedCrop, setCompletedCrop] = useState(null);
@@ -188,8 +190,10 @@ const SettingsProfilePage = () => {
     setSrcImg(null);
     setCrop({ 
       unit: '%', 
-      width: 100,
-      height: 100,
+      width: 80,
+      height: 80,
+      x: 10,
+      y: 10,
       aspect: 1
     });
     setCompletedCrop(null);
@@ -418,18 +422,25 @@ const SettingsProfilePage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="overflow-auto max-h-[60vh]">
                     <ReactCrop
-                      src={srcImg}
-                      onImageLoaded={(img) => {
-                        imgRef.current = img;
-                        return false;
-                      }}
                       crop={crop}
-                      onChange={(c) => setCrop(c)}
+                      onChange={(_, percentageCrop) => setCrop(percentageCrop)}
                       onComplete={(c) => setCompletedCrop(c)}
                       circularCrop
                       keepSelection
                       aspect={1}
-                    />
+                      minWidth={100}
+                      minHeight={100}
+                    >
+                      <img 
+                        src={srcImg} 
+                        ref={imgRef} 
+                        style={{ maxWidth: '100%' }} 
+                        alt="Imagem para recortar"
+                        onLoad={(e) => {
+                          imgRef.current = e.currentTarget;
+                        }}
+                      />
+                    </ReactCrop>
                   </div>
                   
                   <div className="flex flex-col items-center justify-center">
