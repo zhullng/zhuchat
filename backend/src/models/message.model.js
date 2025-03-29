@@ -18,10 +18,25 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    file: {
+      url: {
+        type: String
+      },
+      type: {
+        type: String
+      },
+      name: {
+        type: String
+      }
+    },
+    read: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 );
 
-const Message = mongoose.model("Message", messageSchema);
+export const Message = mongoose.model("Message", messageSchema);
 
 export default Message;

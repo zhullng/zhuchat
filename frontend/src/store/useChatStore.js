@@ -251,8 +251,19 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
+      // Mostrar indicador de carregamento se houver um arquivo ou imagem
+      let toastId;
+      if (messageData.file || messageData.image) {
+        toastId = toast.loading("Enviando...");
+      }
+  
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
       const newMessage = res.data;
+      
+      // Remover o indicador de carregamento, se existir
+      if (toastId) {
+        toast.dismiss(toastId);
+      }
       
       // Adicionar mensagem à lista de mensagens
       set({ messages: [...messages, newMessage] });
@@ -297,7 +308,7 @@ export const useChatStore = create((set, get) => ({
       return newMessage;
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
-      toast.error(error.response?.data?.message || "Erro ao enviar mensagem");
+      toast.error("Falha ao enviar. Verifique sua conexão.");
       throw error;
     }
   },

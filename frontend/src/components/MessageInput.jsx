@@ -1,11 +1,12 @@
 import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X, Plus, FileText } from "lucide-react";
+import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [fileInfo, setFileInfo] = useState(null); // {name, type, size, data}
   const [showOptions, setShowOptions] = useState(false);
   const [lineCount, setLineCount] = useState(1);
   const fileInputRef = useRef(null);
@@ -14,18 +15,60 @@ const MessageInput = () => {
   const textareaRef = useRef(null);
   const { sendMessage } = useChatStore();
 
+  // Função para converter tamanho de arquivo para formato legível
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    else return (bytes / 1073741824).toFixed(1) + ' GB';
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Por favor, selecione um arquivo de imagem");
+      return;
+    }
+
+    // Verificar tamanho do arquivo (limite de 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 15MB");
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
+      // Limpar qualquer arquivo previamente selecionado
+      setFileInfo(null);
+      setShowOptions(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Verificar tamanho do arquivo (limite de 25MB)
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("O arquivo deve ter no máximo 25MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Guardar informações do arquivo
+      setFileInfo({
+        name: file.name,
+        type: file.type,
+        size: formatFileSize(file.size),
+        data: reader.result
+      });
+      // Limpar qualquer imagem previamente selecionada
+      setImagePreview(null);
       setShowOptions(false);
     };
     reader.readAsDataURL(file);
@@ -36,50 +79,70 @@ const MessageInput = () => {
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
+  const removeFile = () => {
+    setFileInfo(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
+    if (!text.trim() && !imagePreview && !fileInfo) return;
 
     try {
-      // Enviar o texto exatamente como está, preservando quebras de linha
-      await sendMessage({
+      // Preparar dados para envio
+      const messageData = {
         text: text,
-        image: imagePreview,
-      });
+        image: imagePreview
+      };
 
-      // Clear form
+      // Se houver um arquivo, adicionar aos dados
+      if (fileInfo) {
+        messageData.file = {
+          data: fileInfo.data,
+          type: fileInfo.type,
+          name: fileInfo.name
+        };
+      }
+
+      // Mostrar toast de carregamento se houver imagem ou arquivo
+      let toastId;
+      if (imagePreview || fileInfo) {
+        toastId = toast.loading(
+          fileInfo 
+            ? `Enviando arquivo ${fileInfo.name}...` 
+            : "Enviando imagem..."
+        );
+      }
+
+      await sendMessage(messageData);
+
+      // Remover toast de carregamento se existir
+      if (toastId) {
+        toast.dismiss(toastId);
+        toast.success(
+          fileInfo 
+            ? "Arquivo enviado com sucesso!" 
+            : "Imagem enviada com sucesso!"
+        );
+      }
+
+      // Limpar formulário
       setText("");
       setImagePreview(null);
+      setFileInfo(null);
       setLineCount(1);
+      
       if (imageInputRef.current) imageInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
       
       // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
     } catch (error) {
-      console.error("Failed to send message:", error);
+      console.error("Erro ao enviar mensagem:", error);
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
     }
-  };
-
-  // Contar linhas no texto
-  const countLines = (text) => {
-    if (!text) return 1;
-    
-    // Contar quebras de linha
-    const newLineCount = (text.match(/\n/g) || []).length + 1;
-    
-    // Contar linhas por quebra automática baseada no tamanho do textarea
-    // Esta é uma estimativa aproximada
-    if (textareaRef.current) {
-      const textWidth = text.length * 8; // Estimativa de largura média de caractere em pixels
-      const textareaWidth = textareaRef.current.clientWidth - 24; // Descontar o padding
-      const wrappedLines = Math.ceil(textWidth / textareaWidth);
-      
-      return Math.max(newLineCount, wrappedLines);
-    }
-    
-    return newLineCount;
   };
 
   // Função para ajustar a altura do textarea automaticamente
@@ -138,18 +201,51 @@ const MessageInput = () => {
     }
   };
 
+  // Determinar o ícone do arquivo com base no tipo MIME
+  const getFileIcon = (fileType) => {
+    if (!fileType) return <FileText size={24} />;
+    
+    if (fileType.startsWith('image/')) return <Image size={24} />;
+    if (fileType.startsWith('video/')) return <FilePlus size={24} />;
+    if (fileType.startsWith('audio/')) return <FilePlus size={24} />;
+    if (fileType.includes('pdf')) return <FileText size={24} />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} />;
+    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={24} />;
+    
+    return <FileText size={24} />;
+  };
+
   return (
     <div className="p-4 w-full">
-      {imagePreview && (
+      {/* Preview de arquivo ou imagem */}
+      {(imagePreview || fileInfo) && (
         <div className="mb-3 flex items-center gap-2">
-          <div className="relative">
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
-            />
+          <div className="relative p-2 bg-base-200 rounded-lg border border-base-300">
+            {imagePreview ? (
+              // Preview de imagem
+              <div className="flex items-center">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-20 h-20 object-cover rounded-lg"
+                />
+                <span className="ml-2 text-sm">Imagem anexada</span>
+              </div>
+            ) : fileInfo ? (
+              // Preview de arquivo
+              <div className="flex items-center">
+                <div className="p-2 bg-base-100 rounded-lg">
+                  {getFileIcon(fileInfo.type)}
+                </div>
+                <div className="ml-2">
+                  <p className="text-sm font-medium truncate max-w-[150px]">{fileInfo.name}</p>
+                  <p className="text-xs opacity-70">{fileInfo.size}</p>
+                </div>
+              </div>
+            ) : null}
+            
             <button
-              onClick={removeImage}
+              onClick={imagePreview ? removeImage : removeFile}
               className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
               flex items-center justify-center"
               type="button"
@@ -184,7 +280,7 @@ const MessageInput = () => {
                 }}
               >
                 <Image size={20} className="text-base-content opacity-70" />
-                <span>Upload imagem</span>
+                <span>Enviar imagem</span>
               </button>
               
               <button
@@ -196,7 +292,7 @@ const MessageInput = () => {
                 }}
               >
                 <FileText size={20} className="text-base-content opacity-70" />
-                <span>Upload arquivo</span>
+                <span>Enviar arquivo</span>
               </button>
             </div>
           )}
@@ -206,7 +302,7 @@ const MessageInput = () => {
           <textarea
             ref={textareaRef}
             className={`w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words ${lineCount > 2 ? 'overflow-y-auto max-h-20' : 'overflow-hidden'}`}
-            placeholder="Type a message..."
+            placeholder="Digite uma mensagem..."
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -241,11 +337,12 @@ const MessageInput = () => {
         <button
           type="submit"
           className="btn btn-sm btn-circle hover:bg-base-300"
-          disabled={!text.trim() && !imagePreview}
+          disabled={!text.trim() && !imagePreview && !fileInfo}
         >
           <Send size={22} />
         </button>
         
+        {/* Input para upload de imagem (hidden) */}
         <input
           type="file"
           accept="image/*"
@@ -254,15 +351,12 @@ const MessageInput = () => {
           onChange={handleImageChange}
         />
         
+        {/* Input para upload de arquivo (hidden) */}
         <input
           type="file"
           className="hidden"
           ref={fileInputRef}
-          onChange={(e) => {
-            // Implementar lógica para upload de arquivos aqui
-            toast.success("Arquivo selecionado: " + e.target.files[0]?.name);
-            setShowOptions(false);
-          }}
+          onChange={handleFileChange}
         />
       </form>
     </div>

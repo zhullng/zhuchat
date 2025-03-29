@@ -42,32 +42,66 @@ export const getMessages = async (req, res) => {
 // Função para enviar uma mensagem
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body; // Texto e imagem da mensagem
+    const { text, image, file } = req.body; // Texto, imagem e arquivo da mensagem
     const { id: receiverId } = req.params; // ID do user destinatário
     const senderId = req.user._id; // ID do user remetente
 
     let imageUrl;
+    let fileUrl;
+    let fileType;
+    let fileName;
+
+    // Upload de imagem, se fornecida
     if (image) {
-      // Se a mensagem contém uma imagem, faz o upload para o Cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url; // Obtém a URL segura da imagem
+      // Configurar o upload para aceitar imagens maiores
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        resource_type: "auto", // Detecta automaticamente o tipo de recurso
+        chunk_size: 6000000, // 6MB de tamanho de chunk para upload maior
+        timeout: 120000 // 120 segundos de timeout para uploads maiores
+      });
+      imageUrl = uploadResponse.secure_url;
     }
 
-    // Cria um novo objeto de mensagem
+    // Upload de arquivo, se fornecido
+    if (file && file.data) {
+      const fileData = file.data;
+      fileName = file.name || "arquivo";
+      fileType = file.type || "application/octet-stream";
+      
+      // Configurando o upload para qualquer tipo de arquivo
+      const uploadResponse = await cloudinary.uploader.upload(fileData, {
+        resource_type: "auto", // Permite qualquer tipo de arquivo
+        public_id: `chat_files/${Date.now()}_${fileName.replace(/\s+/g, '_')}`,
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        chunk_size: 6000000, // 6MB de tamanho de chunk
+        timeout: 150000 // 150 segundos de timeout
+      });
+      
+      fileUrl = uploadResponse.secure_url;
+    }
+
+    // Cria um novo objeto de mensagem com suporte a arquivos
     const newMessage = new Message({
       senderId,
       receiverId,
       text,
       image: imageUrl,
+      file: fileUrl ? {
+        url: fileUrl,
+        type: fileType,
+        name: fileName
+      } : undefined
     });
 
-    // Guarda a nova mensagem na bd
+    // Guarda a nova mensagem na base de dados
     await newMessage.save();
 
     // Obtém o socketId do user destinatário
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      // Se o user destinatário estiver online (conectado ao socket), envia a mensagem para ele
+      // Se o user destinatário estiver online, envia a mensagem para ele
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
