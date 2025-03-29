@@ -56,13 +56,20 @@ const MessageInput = () => {
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
     if (textareaRef.current) {
-      // Reset height to auto to get the correct scrollHeight
+      // Reset height to base height
       textareaRef.current.style.height = "40px";
+      
       // Set the height to scrollHeight to fit all content
       const scrollHeight = textareaRef.current.scrollHeight;
-      // Limiting max height to 150px
-      const newHeight = Math.min(scrollHeight, 150);
-      textareaRef.current.style.height = `${newHeight}px`;
+      
+      // Se o texto for vazio ou tiver apenas uma linha, mantenha a altura mínima
+      if (text.trim() === "" || scrollHeight <= 40) {
+        textareaRef.current.style.height = "40px";
+      } else {
+        // Limiting max height to 150px
+        const newHeight = Math.min(scrollHeight, 150);
+        textareaRef.current.style.height = `${newHeight}px`;
+      }
     }
   };
 
@@ -101,12 +108,12 @@ const MessageInput = () => {
         </div>
       )}
 
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <div className="flex-1 flex gap-2 relative shadow-sm hover:shadow-md focus-within:shadow-md transition-all duration-200">
-          <div className="relative w-full">
+      <form onSubmit={handleSendMessage}>
+        <div className="relative flex items-center">
+          <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
-              className="w-full textarea border border-base-300 bg-base-100 rounded-2xl py-3 px-4 min-h-10 max-h-36 overflow-y-auto resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+              className="w-full pl-4 pr-16 py-2 rounded-full border border-base-300 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none bg-base-100 min-h-10 overflow-y-auto scrollbar-thin scrollbar-thumb-base-300 scrollbar-track-transparent"
               placeholder="Type a message..."
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -114,7 +121,26 @@ const MessageInput = () => {
               rows={1}
               style={{ height: "40px" }}
             />
+            
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <button
+                type="button"
+                className={`flex items-center justify-center p-1 rounded-full hover:bg-base-200 transition-colors ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Image size={18} />
+              </button>
+              
+              <button
+                type="submit"
+                className="flex items-center justify-center p-1.5 rounded-full bg-primary hover:bg-primary-focus text-primary-content transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!text.trim() && !imagePreview}
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
+          
           <input
             type="file"
             accept="image/*"
@@ -122,23 +148,7 @@ const MessageInput = () => {
             ref={fileInputRef}
             onChange={handleImageChange}
           />
-
-          <button
-            type="button"
-            className={`flex btn btn-circle
-                     ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Image size={20} />
-          </button>
         </div>
-        <button
-          type="submit"
-          className="btn btn-sm btn-circle bg-primary hover:bg-primary-focus text-primary-content transition-colors"
-          disabled={!text.trim() && !imagePreview}
-        >
-          <Send size={20} />
-        </button>
       </form>
     </div>
   );
