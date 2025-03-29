@@ -40,8 +40,9 @@ const MessageInput = () => {
     if (!text.trim() && !imagePreview) return;
 
     try {
+      // Enviar o texto exatamente como está, preservando quebras de linha
       await sendMessage({
-        text: text.trim(),
+        text: text,
         image: imagePreview,
       });
 
@@ -173,7 +174,7 @@ const MessageInput = () => {
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
-            className="w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 max-h-32 overflow-y-auto resize-none focus:outline-none focus:ring-0 focus:border-base-300"
+            className="w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 max-h-32 overflow-y-auto resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words"
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -182,7 +183,10 @@ const MessageInput = () => {
             style={{ 
               height: "40px",
               scrollbarWidth: "thin",
-              msOverflowStyle: "none"
+              msOverflowStyle: "none",
+              wordWrap: "break-word",
+              overflowWrap: "break-word",
+              whiteSpace: "pre-wrap"
             }}
           />
           <style jsx>{`

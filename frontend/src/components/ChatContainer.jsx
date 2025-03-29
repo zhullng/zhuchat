@@ -132,8 +132,31 @@ const ChatContainer = () => {
                   <time className="text-xs opacity-50">
                     {formatMessageTime(message.createdAt)}
                   </time>
-                  <span className="font-semibold text-sm ml-2">
+                  <span className="font-semibold text-sm ml-2 flex items-center">
                     {authUser.fullName || 'Nome Desconhecido'}
+                    
+                    {/* Botão de opções movido para perto do nome */}
+                    <div className="message-menu-container ml-1">
+                      <button 
+                        onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
+                        className="p-1 rounded-full hover:bg-base-300 transition-colors"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                      
+                      {/* Menu de opções */}
+                      {activeMessageMenu === message._id && (
+                        <div className="absolute mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
+                          <button
+                            onClick={() => handleDeleteMessage(message._id)}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left"
+                          >
+                            <Trash2 size={16} />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </span>
                 </>
               ) : (
@@ -149,32 +172,7 @@ const ChatContainer = () => {
               )}
             </div>
 
-            <div className="chat-bubble flex flex-col relative group">
-              {/* Botão de opções (apenas para as próprias mensagens do usuário) */}
-              {message.senderId === authUser._id && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity message-menu-container">
-                  <button 
-                    onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
-                    className="p-1 rounded-full hover:bg-base-300 transition-colors"
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                  
-                  {/* Menu de opções */}
-                  {activeMessageMenu === message._id && (
-                    <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
-                      <button
-                        onClick={() => handleDeleteMessage(message._id)}
-                        className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left"
-                      >
-                        <Trash2 size={16} />
-                        <span>Eliminar</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              
+            <div className="chat-bubble flex flex-col relative">
               {message.image && (
                 <img
                   src={message.image}
@@ -182,7 +180,9 @@ const ChatContainer = () => {
                   className="sm:max-w-[200px] rounded-md mb-2"
                 />
               )}
-              {message.text && <p>{message.text}</p>}
+              {message.text && (
+                <p className="break-words whitespace-pre-wrap">{message.text}</p>
+              )}
             </div>
           </div>
         ))}
