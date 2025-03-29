@@ -3,6 +3,26 @@ import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 
+// Função auxiliar para carregar conversas visualizadas do localStorage
+const loadViewedConversations = (userId) => {
+  try {
+    const storedData = localStorage.getItem(`viewed_conversations_${userId}`);
+    return storedData ? JSON.parse(storedData) : {};
+  } catch (error) {
+    console.error("Erro ao carregar conversas visualizadas:", error);
+    return {};
+  }
+};
+
+// Função auxiliar para salvar conversas visualizadas no localStorage
+const saveViewedConversations = (userId, viewedConversations) => {
+  try {
+    localStorage.setItem(`viewed_conversations_${userId}`, JSON.stringify(viewedConversations));
+  } catch (error) {
+    console.error("Erro ao salvar conversas visualizadas:", error);
+  }
+};
+
 export const useChatStore = create((set, get) => ({
   // Estado do store
   messages: [], 
@@ -14,7 +34,16 @@ export const useChatStore = create((set, get) => ({
   isTransfersLoading: false, 
   conversations: [], 
   unreadCounts: {},
-  viewedConversations: {}, // Nova propriedade para rastrear conversas visualizadas 
+  viewedConversations: {}, // Nova propriedade para rastrear conversas visualizadas
+  
+  // Função para inicializar conversas visualizadas (chamada durante login)
+  initializeViewedConversations: () => {
+    const authUser = useAuthStore.getState().authUser;
+    if (authUser?._id) {
+      const savedViewedConversations = loadViewedConversations(authUser._id);
+      set({ viewedConversations: savedViewedConversations });
+    }
+  },
 
   // Função para obter a lista de utilizadores
   getUsers: async () => {
@@ -128,30 +157,42 @@ export const useChatStore = create((set, get) => ({
     if (!userId || userId === 'ai-assistant') return;
     
     try {
+      // Obter o ID do usuário autenticado
+      const authUser = useAuthStore.getState().authUser;
+      
       // Atualizar localmente primeiro para resposta imediata na UI
-      set(state => ({
-        viewedConversations: {
+      set(state => {
+        const updatedViewedConversations = {
           ...state.viewedConversations,
           [userId]: true  // Marcar esta conversa como já visualizada
-        },
-        unreadCounts: {
-          ...state.unreadCounts,
-          [userId]: 0  // Forçar contagem para zero
-        },
-        conversations: state.conversations.map(conv => {
-          if (conv.participants && conv.participants.includes(userId)) {
-            return {
-              ...conv,
-              latestMessage: conv.latestMessage ? {
-                ...conv.latestMessage,
-                read: true  // Marcar explicitamente como lida
-              } : null,
-              unreadCount: 0  // Zerar a contagem na conversa
-            };
-          }
-          return conv;
-        })
-      }));
+        };
+        
+        // Persistir no localStorage se o usuário estiver autenticado
+        if (authUser?._id) {
+          saveViewedConversations(authUser._id, updatedViewedConversations);
+        }
+        
+        return {
+          viewedConversations: updatedViewedConversations,
+          unreadCounts: {
+            ...state.unreadCounts,
+            [userId]: 0  // Forçar contagem para zero
+          },
+          conversations: state.conversations.map(conv => {
+            if (conv.participants && conv.participants.includes(userId)) {
+              return {
+                ...conv,
+                latestMessage: conv.latestMessage ? {
+                  ...conv.latestMessage,
+                  read: true  // Marcar explicitamente como lida
+                } : null,
+                unreadCount: 0  // Zerar a contagem na conversa
+              };
+            }
+            return conv;
+          })
+        };
+      });
       
       // Depois atualizar no servidor
       await axiosInstance.patch(`/messages/read/${userId}`);
@@ -173,14 +214,26 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get(`/messages/${userId}`);
       const messages = Array.isArray(res.data) ? res.data : [];
       
+      // Obter o ID do usuário autenticado
+      const authUser = useAuthStore.getState().authUser;
+      
       // Adiciona o usuário à lista de conversas visualizadas
-      set(state => ({
-        messages,
-        viewedConversations: {
+      set(state => {
+        const updatedViewedConversations = {
           ...state.viewedConversations,
           [userId]: true // Marcar como já visualizada
+        };
+        
+        // Persistir no localStorage se o usuário estiver autenticado
+        if (authUser?._id) {
+          saveViewedConversations(authUser._id, updatedViewedConversations);
         }
-      }));
+        
+        return {
+          messages,
+          viewedConversations: updatedViewedConversations
+        };
+      });
       
       // IMPORTANTE: Marcar como lidas imediatamente ao obter mensagens
       // usando await para garantir que a operação seja concluída
@@ -266,14 +319,23 @@ export const useChatStore = create((set, get) => ({
         
         // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
         if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
-          set(state => ({
-            messages: [...state.messages, newMessage],
-            // Marca esta conversa como já visualizada
-            viewedConversations: {
+          set(state => {
+            const updatedViewedConversations = {
               ...state.viewedConversations,
               [newMessage.senderId]: true
+            };
+            
+            // Persistir no localStorage se o usuário estiver autenticado
+            if (authUser?._id) {
+              saveViewedConversations(authUser._id, updatedViewedConversations);
             }
-          }));
+            
+            return {
+              messages: [...state.messages, newMessage],
+              // Marca esta conversa como já visualizada
+              viewedConversations: updatedViewedConversations
+            };
+          });
           
           // Marca como lida já que o utilizador está a visualizar a conversa
           get().markConversationAsRead(currentSelectedUser._id);
@@ -422,16 +484,29 @@ export const useChatStore = create((set, get) => ({
 
   // Função para definir o utilizador selecionado no chat
   setSelectedUser: (selectedUser) => {
-    set(state => ({
-      selectedUser,
-      // Se houver um usuário selecionado, marca como visualizado
-      ...(selectedUser && selectedUser._id !== 'ai-assistant' ? {
-        viewedConversations: {
+    const authUser = useAuthStore.getState().authUser;
+    
+    set(state => {
+      // Se houver um usuário selecionado que não é o assistente
+      if (selectedUser && selectedUser._id !== 'ai-assistant') {
+        const updatedViewedConversations = {
           ...state.viewedConversations,
           [selectedUser._id]: true
+        };
+        
+        // Persistir no localStorage se o usuário estiver autenticado
+        if (authUser?._id) {
+          saveViewedConversations(authUser._id, updatedViewedConversations);
         }
-      } : {})
-    }));
+        
+        return {
+          selectedUser,
+          viewedConversations: updatedViewedConversations
+        };
+      }
+      
+      return { selectedUser };
+    });
     
     // Se houver um utilizador selecionado, marcar como lida antes de buscar mensagens
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
@@ -577,6 +652,17 @@ export const useChatStore = create((set, get) => ({
   
   // Nova função para resetar o estado do chat (para usar no logout)
   resetChatState: () => {
+    const authUser = useAuthStore.getState().authUser;
+    
+    // Limpar localStorage ao fazer logout
+    if (authUser?._id) {
+      try {
+        localStorage.removeItem(`viewed_conversations_${authUser._id}`);
+      } catch (error) {
+        console.error("Erro ao limpar conversas visualizadas:", error);
+      }
+    }
+    
     set({
       messages: [],
       users: [],

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-import { useChatStore } from "./useChatStore"; // Adicione esta importação
+import { useChatStore } from "./useChatStore"; // Importação para acessar funções do chat store
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -38,6 +38,10 @@ export const useAuthStore = create((set, get) => ({
       }
       set({ authUser: res.data });
       console.log("Verificação de autenticação bem-sucedida, dados do utilizador:", res.data);
+      
+      // Inicializar conversas visualizadas após autenticação bem-sucedida
+      useChatStore.getState().initializeViewedConversations();
+      
       get().connectSocket();
     } catch (error) {
       console.error("Falha na verificação de autenticação:", error);
@@ -57,6 +61,10 @@ export const useAuthStore = create((set, get) => ({
       }
       set({ authUser: res.data });
       toast.success("Conta criada com sucesso!");
+      
+      // Inicializar conversas visualizadas após registro bem-sucedido
+      useChatStore.getState().initializeViewedConversations();
+      
       get().connectSocket();
     } catch (error) {
       toast.error(error.response?.data?.message || "Falha no registo!");
@@ -75,6 +83,10 @@ export const useAuthStore = create((set, get) => ({
       }
       set({ authUser: res.data });
       toast.success("Sessão iniciada!");
+      
+      // Inicializar conversas visualizadas após login bem-sucedido
+      useChatStore.getState().initializeViewedConversations();
+      
       get().connectSocket();
     } catch (error) {
       toast.error(error.response?.data?.message || "Falha no início de sessão!");
