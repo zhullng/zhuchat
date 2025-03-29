@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { PaperclipIcon, ImageIcon, Send, X, Plus, Github, HardDrive, Camera } from "lucide-react";
+import { Image, Send, X, Plus, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
@@ -8,8 +8,9 @@ const MessageInput = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const fileInputRef = useRef(null);
-  const textareaRef = useRef(null);
+  const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
+  const textareaRef = useRef(null);
   const { sendMessage } = useChatStore();
 
   const handleImageChange = (e) => {
@@ -31,7 +32,7 @@ const MessageInput = () => {
 
   const removeImage = () => {
     setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const handleSendMessage = async (e) => {
@@ -47,9 +48,9 @@ const MessageInput = () => {
       // Clear form
       setText("");
       setImagePreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (imageInputRef.current) imageInputRef.current.value = "";
       
-      // Reset textarea height
+      // Reset textarea height if using textarea
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
@@ -57,31 +58,6 @@ const MessageInput = () => {
       console.error("Failed to send message:", error);
     }
   };
-
-  // Função para ajustar a altura do textarea automaticamente
-  const autoResizeTextarea = () => {
-    if (textareaRef.current) {
-      // Reset height to base height
-      textareaRef.current.style.height = "40px";
-      
-      // Set the height to scrollHeight to fit all content
-      const scrollHeight = textareaRef.current.scrollHeight;
-      
-      // Se o texto for vazio ou tiver apenas uma linha, mantenha a altura mínima
-      if (text.trim() === "" || scrollHeight <= 40) {
-        textareaRef.current.style.height = "40px";
-      } else {
-        // Limiting max height to 150px
-        const newHeight = Math.min(scrollHeight, 150);
-        textareaRef.current.style.height = `${newHeight}px`;
-      }
-    }
-  };
-
-  // Ajustar a altura do textarea quando o texto muda
-  useEffect(() => {
-    autoResizeTextarea();
-  }, [text]);
 
   // Fechar menu de opções quando clicar fora dele
   useEffect(() => {
@@ -97,16 +73,8 @@ const MessageInput = () => {
     };
   }, []);
 
-  // Lidar com tecla Enter (Enviar com Enter, nova linha com Shift+Enter)
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage(e);
-    }
-  };
-
   return (
-    <div className="px-4 pb-4 w-full">
+    <div className="p-4 w-full">
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -127,93 +95,85 @@ const MessageInput = () => {
         </div>
       )}
 
-      <div className="w-full max-w-4xl mx-auto">
-        <form onSubmit={handleSendMessage}>
-          <div className="relative flex items-center rounded-full border border-zinc-300 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all duration-200 bg-white dark:bg-zinc-800 overflow-hidden">
-            <div className="relative">
+      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+        <div className="relative">
+          <button
+            type="button"
+            className="btn btn-circle btn-md"
+            onClick={() => setShowOptions(!showOptions)}
+          >
+            <Plus size={22} />
+          </button>
+          
+          {showOptions && (
+            <div 
+              ref={optionsRef}
+              className="absolute bottom-16 left-0 bg-base-100 rounded-lg shadow-lg border border-base-300 p-1 z-10 min-w-48"
+            >
               <button
                 type="button"
-                className="flex items-center justify-center w-10 h-10 ml-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                onClick={() => setShowOptions(!showOptions)}
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-md transition-colors"
+                onClick={() => {
+                  imageInputRef.current?.click();
+                  setShowOptions(false);
+                }}
               >
-                <Plus size={20} className="text-zinc-500 dark:text-zinc-400" />
+                <Image size={20} className="text-base-content opacity-70" />
+                <span>Upload imagem</span>
               </button>
               
-              {showOptions && (
-                <div 
-                  ref={optionsRef}
-                  className="absolute bottom-12 left-0 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 p-1 z-10 min-w-48"
-                >
-                  <button
-                    type="button"
-                    className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <PaperclipIcon size={20} className="text-zinc-500" />
-                    <span>Fazer upload de arquivo</span>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera size={20} className="text-zinc-500" />
-                    <span>Fazer captura de tela</span>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md transition-colors"
-                  >
-                    <Github size={20} className="text-zinc-500" />
-                    <span>Adicionar do GitHub</span>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md transition-colors"
-                  >
-                    <HardDrive size={20} className="text-zinc-500" />
-                    <span>Adicionar do Google Drive</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                className="w-full pl-1 pr-12 py-2.5 bg-transparent border-none focus:outline-none resize-none min-h-10 overflow-y-auto"
-                placeholder="Digite uma mensagem..."
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={1}
-                style={{ height: "40px" }}
-              />
-            </div>
-            
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
               <button
-                type="submit"
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!text.trim() && !imagePreview}
+                type="button"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-md transition-colors"
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setShowOptions(false);
+                }}
               >
-                <Send size={16} />
+                <FileText size={20} className="text-base-content opacity-70" />
+                <span>Upload arquivo</span>
               </button>
             </div>
-            
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-            />
-          </div>
-        </form>
-      </div>
+          )}
+        </div>
+        
+        <div className="flex-1">
+          <input
+            type="text"
+            className="w-full input input-bordered rounded-full input-md"
+            placeholder="Type a message..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+        </div>
+        
+        <button
+          type="submit"
+          className="btn btn-sm btn-circle"
+          disabled={!text.trim() && !imagePreview}
+        >
+          <Send size={22} />
+        </button>
+        
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={imageInputRef}
+          onChange={handleImageChange}
+        />
+        
+        <input
+          type="file"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={(e) => {
+            // Implementar lógica para upload de arquivos aqui
+            toast.success("Arquivo selecionado: " + e.target.files[0]?.name);
+            setShowOptions(false);
+          }}
+        />
+      </form>
     </div>
   );
 };
