@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 const stripe = new Stripe(process.env.STRIPE_API_SECRET);
 
-// Eliminar conta diretamente (sem confirmação por email)
+// Eliminar conta diretamente (com verificação de saldo)
 export const deleteAccount = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -14,6 +14,15 @@ export const deleteAccount = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Utilizador não encontrado" });
+    }
+
+    // Verificar se o utilizador tem saldo na conta
+    if (user.balance > 0) {
+      return res.status(400).json({ 
+        message: "Não é possível eliminar a conta enquanto tiver saldo. Por favor, transfira ou utilize o seu saldo antes de eliminar a conta.",
+        hasBalance: true,
+        balance: user.balance
+      });
     }
 
     // Se existir uma conta Stripe associada, marcar como excluída

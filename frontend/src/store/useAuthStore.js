@@ -219,30 +219,47 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Para eliminar conta diretamente (sem confirmação por email)
-  deleteAccount: async () => {
-    set({ isDeletingAccount: true });
-    try {
-      const res = await axiosInstance.delete("/auth/delete-account");
+ // Para eliminar conta diretamente (com verificação de saldo)
+deleteAccount: async () => {
+  set({ isDeletingAccount: true });
+  try {
+    const res = await axiosInstance.delete("/auth/delete-account");
+    
+    // Resetar estado do chat
+    useChatStore.getState().resetChatState();
+    
+    // Limpar dados do utilizador
+    set({ authUser: null });
+    
+    // Desconectar socket
+    get().disconnectSocket();
+    
+    toast.success(res.data.message || "Conta eliminada com sucesso");
+    return { success: true };
+  } catch (error) {
+    console.error("Erro ao eliminar conta:", error);
+    
+    // Verificar se o erro é devido a saldo na conta
+    if (error.response?.data?.hasBalance) {
+      const errorMessage = error.response?.data?.message || 
+        "Não é possível eliminar a conta enquanto tiver saldo. Por favor, transfira ou utilize o seu saldo antes de eliminar a conta.";
       
-      // Resetar estado do chat
-      useChatStore.getState().resetChatState();
-      
-      // Limpar dados do usuário
-      set({ authUser: null });
-      
-      // Desconectar socket
-      get().disconnectSocket();
-      
-      toast.success(res.data.message || "Conta eliminada com sucesso");
-      return { success: true };
-    } catch (error) {
-      console.error("Erro ao eliminar conta:", error);
-      const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
       toast.error(errorMessage);
-      return { success: false, message: errorMessage };
-    } finally {
-      set({ isDeletingAccount: false });
+      
+      return { 
+        success: false, 
+        message: errorMessage, 
+        hasBalance: true, 
+        balance: error.response?.data?.balance || 0 
+      };
     }
+    
+    // Outros erros
+    const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
+    toast.error(errorMessage);
+    return { success: false, message: errorMessage };
+  } finally {
+    set({ isDeletingAccount: false });
   }
+}
 }));
