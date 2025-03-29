@@ -173,14 +173,34 @@ const MessageInput = () => {
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
-            className="w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 max-h-32 overflow-y-auto resize-none hover:border-base-300"
+            className="w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 max-h-32 overflow-y-auto resize-none focus:outline-none focus:ring-0 focus:border-base-300"
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            style={{ height: "40px" }}
+            style={{ 
+              height: "40px",
+              scrollbarWidth: "thin",
+              msOverflowStyle: "none"
+            }}
           />
+          <style jsx>{`
+            textarea::-webkit-scrollbar {
+              width: 6px;
+            }
+            textarea::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            textarea::-webkit-scrollbar-thumb {
+              background-color: rgba(0, 0, 0, 0.2);
+              border-radius: 10px;
+              border: none;
+            }
+            textarea::-webkit-scrollbar-button {
+              display: none;
+            }
+          `}</style>
         </div>
         
         <button
