@@ -22,8 +22,8 @@ const UserItem = ({
   const [nickname, setNickname] = useState(user.note || "");
   const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
   
-  // Constante para o limite máximo de caracteres
-  const MAX_NICKNAME_LENGTH = 45;
+  // Constante para o limite máximo de caracteres - reduzido para 25
+  const MAX_NICKNAME_LENGTH = 25;
   
   // Função para lidar com a remoção de contato
   const handleRemoveContact = (e) => {
@@ -115,6 +115,9 @@ const UserItem = ({
   // Nome a ser exibido (nickname ou nome real)
   const displayName = user.note || user.fullName || "Utilizador";
   
+  // Truncar o displayName se estiver muito longo, mesmo sendo um nickname
+  const truncatedDisplayName = truncateMessage(displayName, MAX_NICKNAME_LENGTH);
+  
   return (
     <div className="relative mb-1">
       <button
@@ -139,12 +142,12 @@ const UserItem = ({
         <div className="flex-1 text-left">
           <div className="flex items-center gap-1">
             {/* Adicionado mr-8 para evitar sobreposição com o botão de três pontos */}
-            <span className="font-medium truncate text-sm lg:text-base mr-8">{displayName}</span>
+            <span className="font-medium truncate text-sm lg:text-base mr-8">{truncatedDisplayName}</span>
             
             {/* Mostrar nome real em texto pequeno se tiver nickname */}
             {user.note && (
               <span className="text-xs text-base-content/50 truncate hidden sm:inline-block mr-6">
-                ({user.fullName})
+                ({truncateMessage(user.fullName, 15)})
               </span>
             )}
           </div>
@@ -223,7 +226,7 @@ const UserItem = ({
             
             <form onSubmit={handleUpdateNickname}>
               <div className="mb-4">
-                <label className="block text-sm mb-1">Nickname para {user.fullName}</label>
+                <label className="block text-sm mb-1">Nickname para {truncateMessage(user.fullName, 20)}</label>
                 <input
                   type="text"
                   value={nickname}
