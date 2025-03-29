@@ -50,7 +50,7 @@ const MessageInput = () => {
       setImagePreview(null);
       if (imageInputRef.current) imageInputRef.current.value = "";
       
-      // Reset textarea height if using textarea
+      // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
@@ -58,6 +58,31 @@ const MessageInput = () => {
       console.error("Failed to send message:", error);
     }
   };
+
+  // Função para ajustar a altura do textarea automaticamente
+  const autoResizeTextarea = () => {
+    if (textareaRef.current) {
+      // Reset height to base height
+      textareaRef.current.style.height = "40px";
+      
+      // Set the height to scrollHeight to fit all content
+      const scrollHeight = textareaRef.current.scrollHeight;
+      
+      // Se o texto for vazio ou tiver apenas uma linha, mantenha a altura mínima
+      if (text.trim() === "" || scrollHeight <= 40) {
+        textareaRef.current.style.height = "40px";
+      } else {
+        // Limiting max height to 120px
+        const newHeight = Math.min(scrollHeight, 120);
+        textareaRef.current.style.height = `${newHeight}px`;
+      }
+    }
+  };
+
+  // Ajustar a altura do textarea quando o texto muda
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [text]);
 
   // Fechar menu de opções quando clicar fora dele
   useEffect(() => {
@@ -72,6 +97,14 @@ const MessageInput = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Lidar com tecla Enter (Enviar com Enter, nova linha com Shift+Enter)
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
+    }
+  };
 
   return (
     <div className="p-4 w-full">
@@ -99,7 +132,7 @@ const MessageInput = () => {
         <div className="relative">
           <button
             type="button"
-            className="btn btn-circle btn-md"
+            className="btn btn-circle btn-md hover:bg-base-300"
             onClick={() => setShowOptions(!showOptions)}
           >
             <Plus size={22} />
@@ -108,11 +141,11 @@ const MessageInput = () => {
           {showOptions && (
             <div 
               ref={optionsRef}
-              className="absolute bottom-16 left-0 bg-base-100 rounded-lg shadow-lg border border-base-300 p-1 z-10 min-w-48"
+              className="absolute bottom-16 left-0 bg-base-100 rounded-md shadow-md border border-base-300 p-1 z-10 min-w-48"
             >
               <button
                 type="button"
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-md transition-colors"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
                 onClick={() => {
                   imageInputRef.current?.click();
                   setShowOptions(false);
@@ -124,7 +157,7 @@ const MessageInput = () => {
               
               <button
                 type="button"
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-md transition-colors"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
                 onClick={() => {
                   fileInputRef.current?.click();
                   setShowOptions(false);
@@ -137,19 +170,22 @@ const MessageInput = () => {
           )}
         </div>
         
-        <div className="flex-1">
-          <input
-            type="text"
-            className="w-full input input-bordered rounded-full input-md"
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            className="w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 max-h-32 overflow-y-auto resize-none hover:border-base-300"
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            style={{ height: "40px" }}
           />
         </div>
         
         <button
           type="submit"
-          className="btn btn-sm btn-circle"
+          className="btn btn-sm btn-circle hover:bg-base-300"
           disabled={!text.trim() && !imagePreview}
         >
           <Send size={22} />
