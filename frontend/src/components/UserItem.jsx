@@ -50,6 +50,20 @@ const UserItem = ({
   // (será usada para a formatação do texto da mensagem)
   const shouldShowNotification = hasUnread && !isSelected && !isConversationViewed;
   
+  // Função para truncar a mensagem com reticências
+  const truncateMessage = (text, maxLength = 25) => {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  };
+  
+  // Prepara o texto da mensagem com prefixo e truncamento
+  const messageText = conv?.latestMessage ? 
+    (conv.latestMessage.senderId === authUser?._id ? 'Enviado: ' : '') + 
+    (conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem'))
+    : '';
+  
+  const displayMessage = truncateMessage(messageText);
+  
   return (
     <div className="relative mb-1">
       <button
@@ -95,13 +109,8 @@ const UserItem = ({
           {/* Pré-visualização da última mensagem */}
           <div className="flex items-center justify-between mt-1 max-w-full">
             {/* Texto da última mensagem - ainda mantemos formatação em negrito para mensagens não lidas */}
-            <div className={`text-xs ${shouldShowNotification ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow`}>
-              {conv?.latestMessage ? (
-                <>
-                  {conv.latestMessage.senderId === authUser?._id ? 'Enviado: ' : ''}
-                  {conv.latestMessage.text || (conv.latestMessage.img ? 'Imagem' : 'Mensagem')}
-                </>
-              ) : ''}
+            <div className={`text-xs ${shouldShowNotification ? "font-medium text-base-content" : "text-base-content/70"} truncate flex-grow pr-1`}>
+              {displayMessage}
             </div>
           </div>
         </div>
