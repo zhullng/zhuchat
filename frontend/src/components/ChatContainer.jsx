@@ -136,7 +136,7 @@ const ChatContainer = () => {
                     {authUser.fullName || 'Nome Desconhecido'}
                     
                     {/* Botão de opções movido para perto do nome */}
-                    <div className="message-menu-container ml-1">
+                    <div className="message-menu-container ml-1 relative">
                       <button 
                         onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
                         className="p-1 rounded-full hover:bg-base-300 transition-colors"
@@ -146,10 +146,10 @@ const ChatContainer = () => {
                       
                       {/* Menu de opções */}
                       {activeMessageMenu === message._id && (
-                        <div className="absolute mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
+                        <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
                           <button
                             onClick={() => handleDeleteMessage(message._id)}
-                            className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left"
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
                           >
                             <Trash2 size={16} />
                             <span>Eliminar</span>
