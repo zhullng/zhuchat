@@ -244,29 +244,22 @@ const Sidebar = () => {
     }
   };
 
-  // Função para lidar com clique no utilizador
-  const handleUserClick = (user) => {
-    if (!user) return;
-    
-    // Fechar o swipe de todos os itens abertos antes de mudar de usuário
-    document.querySelectorAll('[id^="user-item-"]').forEach(element => {
-      element.style.transform = 'translateX(0)';
-    });
-    document.querySelectorAll('[id^="delete-btn-"]').forEach(element => {
-      element.style.opacity = '0';
-    });
-    
-    // Fechar menu de opções se estiver aberto
-    setShowContactMenu(false);
-    
-    // Definir o usuário selecionado
-    setSelectedUser(user);
-    
-    // Forçar marcação como lida imediatamente se houver mensagens não lidas
-    if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
-      markConversationAsRead(user._id);
-    }
-  };
+ 
+// Função para lidar com clique no utilizador
+const handleUserClick = (user) => {
+  if (!user) return;
+  
+  // Fechar menu de opções se estiver aberto
+  setShowContactMenu(false);
+  
+  // Definir o usuário selecionado
+  setSelectedUser(user);
+  
+  // Forçar marcação como lida imediatamente se houver mensagens não lidas
+  if (user._id !== 'ai-assistant' && unreadCounts[user._id] > 0) {
+    markConversationAsRead(user._id);
+  }
+};
 
   // Função melhorada para ordenar utilizadores 
   const getSortedAndFilteredUsers = useCallback(() => {
