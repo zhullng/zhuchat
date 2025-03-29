@@ -666,6 +666,39 @@ export const useChatStore = create((set, get) => ({
       return false;
     }
   },
+
+  deleteMessage: async (messageId) => {
+    try {
+      // Atualize o estado local para feedback imediato
+      set((state) => ({
+        messages: state.messages.filter((message) => message._id !== messageId)
+      }));
+  
+      // Chamada à API para excluir a mensagem no servidor
+      const response = await axiosInstance.delete(`/messages/${messageId}`);
+      
+      if (!response.ok && response.status !== 204) {
+        throw new Error('Falha ao excluir mensagem');
+      }
+      
+      // Atualize as conversas para refletir a alteração
+      setTimeout(() => {
+        get().getConversations();
+      }, 300);
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir mensagem:', error);
+      
+      // Em caso de erro, recarregue as mensagens para restaurar o estado
+      const state = get();
+      if (state.selectedUser?._id) {
+        get().getMessages(state.selectedUser._id);
+      }
+      
+      throw error;
+    }
+  },
   
   // Nova função para resetar o estado do chat (para usar no logout)
   resetChatState: () => {
