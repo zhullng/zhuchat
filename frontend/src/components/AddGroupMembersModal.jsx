@@ -1,68 +1,68 @@
-// components/AddGroupMembersModal.jsx (continuação)
+// components/AddGroupMembersModal.jsx
 import { useState, useEffect } from "react";
+import { X, Search, Check, Users, UserPlus } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
-import { X, Search, Check, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 
 const AddGroupMembersModal = ({ isOpen, onClose }) => {
   const { users } = useChatStore();
   const { selectedGroup, addGroupMembers } = useGroupStore();
   
-  const [selectedMembers, setSelectedMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Filtrar usuários que já são membros do grupo
-  const nonMembers = users.filter(user => 
-    !selectedGroup?.members?.some(member => member._id === user._id)
+  
+  // Resetar seleções quando o modal abre
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedUsers([]);
+      setSearchQuery("");
+    }
+  }, [isOpen]);
+  
+  if (!isOpen || !selectedGroup) return null;
+  
+  // Obter IDs de membros atuais
+  const currentMemberIds = selectedGroup.members.map(member => member._id);
+  
+  // Filtrar usuários que não são membros e correspondem à pesquisa
+  const filteredUsers = users.filter(user => 
+    !currentMemberIds.includes(user._id) && 
+    (user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     user.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-
-  // Filtrar usuários com base na pesquisa
-  const filteredUsers = nonMembers.filter(user => 
-    user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Alternar seleção de membro
-  const toggleMemberSelection = (userId) => {
-    if (selectedMembers.includes(userId)) {
-      setSelectedMembers(prev => prev.filter(id => id !== userId));
+  
+  // Alternar seleção de usuário
+  const toggleUserSelection = (userId) => {
+    if (selectedUsers.includes(userId)) {
+      setSelectedUsers(prev => prev.filter(id => id !== userId));
     } else {
-      setSelectedMembers(prev => [...prev, userId]);
+      setSelectedUsers(prev => [...prev, userId]);
     }
   };
-
+  
   // Adicionar membros ao grupo
   const handleAddMembers = async () => {
-    if (selectedMembers.length === 0) {
-      toast.error("Selecione pelo menos um membro para adicionar");
+    if (selectedUsers.length === 0) {
+      toast.error("Selecione pelo menos um usuário para adicionar");
       return;
     }
     
     setIsLoading(true);
     
     try {
-      await addGroupMembers(selectedGroup._id, selectedMembers);
-      setSelectedMembers([]);
+      await addGroupMembers(selectedGroup._id, selectedUsers);
+      toast.success("Membros adicionados com sucesso");
       onClose();
     } catch (error) {
       console.error("Erro ao adicionar membros:", error);
+      toast.error("Erro ao adicionar membros ao grupo");
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Resetar seleção quando fechar o modal
-  useEffect(() => {
-    if (!isOpen) {
-      setSelectedMembers([]);
-      setSearchQuery("");
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
       <div className="bg-base-100 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
@@ -74,12 +74,23 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
           <button 
             onClick={onClose}
             className="btn btn-ghost btn-sm btn-circle"
+            disabled={isLoading}
           >
             <X size={20} />
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="p-4">
+          <div className="flex flex-col gap-2 mb-4">
+            <h3 className="font-medium text-sm flex gap-2 items-center">
+              <Users size={16} />
+              Grupo: {selectedGroup.name}
+            </h3>
+            <p className="text-xs text-base-content/70">
+              Selecione os contatos que você deseja adicionar ao grupo
+            </p>
+          </div>
+          
           {/* Barra de pesquisa */}
           <div className="relative mb-4">
             <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/60" />
@@ -88,73 +99,69 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input input-bordered w-full pl-10"
-              placeholder="Pesquisar contactos..."
+              placeholder="Pesquisar contatos..."
               disabled={isLoading}
             />
           </div>
           
-          {/* Contador de selecionados */}
-          <div className="mb-2 text-sm">
-            {selectedMembers.length} {selectedMembers.length === 1 ? 'contacto' : 'contactos'} selecionado
-            {selectedMembers.length === 1 ? '' : 's'}
-          </div>
-          
           {/* Lista de usuários */}
-          <div className="bg-base-200 rounded-lg max-h-96 overflow-y-auto">
-            {filteredUsers.length === 0 ? (
-              <div className="p-4 text-center text-base-content/60">
-                {nonMembers.length === 0 
-                  ? "Todos os seus contactos já são membros deste grupo" 
-                  : "Nenhum contacto encontrado"}
-              </div>
-            ) : (
-              filteredUsers.map(user => (
-                <div 
-                  key={user._id}
-                  onClick={() => toggleMemberSelection(user._id)}
-                  className={`flex items-center p-2 hover:bg-base-300 cursor-pointer ${
-                    selectedMembers.includes(user._id) ? 'bg-base-300' : ''
-                  }`}
-                >
-                  <div className="flex items-center flex-1 gap-2">
-                    <img 
-                      src={user.profilePic || "/avatar.png"} 
-                      alt={user.fullName}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                    <div>
-                      <div className="font-medium text-sm">{user.fullName}</div>
-                      <div className="text-xs text-base-content/60">{user.email}</div>
+          <div className="border border-base-300 rounded-lg overflow-hidden mb-4">
+            <div className="max-h-64 overflow-y-auto">
+              {filteredUsers.length === 0 ? (
+                <div className="p-4 text-center text-base-content/60">
+                  {searchQuery ? "Nenhum contato encontrado" : "Todos os seus contatos já estão no grupo"}
+                </div>
+              ) : (
+                filteredUsers.map(user => (
+                  <div 
+                    key={user._id}
+                    onClick={() => toggleUserSelection(user._id)}
+                    className={`flex items-center p-2 hover:bg-base-200 cursor-pointer border-b border-base-200 last:border-b-0 ${
+                      selectedUsers.includes(user._id) ? 'bg-base-200' : ''
+                    }`}
+                  >
+                    <div className="flex items-center flex-1 gap-2">
+                      <img 
+                        src={user.profilePic || "/avatar.png"} 
+                        alt={user.fullName}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <div>
+                        <div className="font-medium text-sm">{user.fullName}</div>
+                        <div className="text-xs text-base-content/60">{user.email}</div>
+                      </div>
+                    </div>
+                    
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                      selectedUsers.includes(user._id) 
+                        ? 'bg-primary text-white' 
+                        : 'border border-base-content/40'
+                    }`}>
+                      {selectedUsers.includes(user._id) && <Check size={12} />}
                     </div>
                   </div>
-                  
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                    selectedMembers.includes(user._id) 
-                      ? 'bg-primary text-white' 
-                      : 'border border-base-content/40'
-                  }`}>
-                    {selectedMembers.includes(user._id) && <Check size={12} />}
-                  </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
+          </div>
+          
+          <div className="text-sm mb-4">
+            <span className="font-medium">{selectedUsers.length}</span> contato(s) selecionado(s)
           </div>
         </div>
         
         <div className="p-4 border-t border-base-300 flex justify-end gap-2">
           <button 
-            type="button"
-            onClick={onClose} 
+            onClick={onClose}
             className="btn btn-ghost"
             disabled={isLoading}
           >
             Cancelar
           </button>
           <button 
-            type="button"
-            onClick={handleAddMembers} 
+            onClick={handleAddMembers}
             className="btn btn-primary"
-            disabled={isLoading || selectedMembers.length === 0}
+            disabled={isLoading || selectedUsers.length === 0}
           >
             {isLoading ? (
               <>
@@ -162,7 +169,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
                 Adicionando...
               </>
             ) : (
-              'Adicionar'
+              'Adicionar ao Grupo'
             )}
           </button>
         </div>

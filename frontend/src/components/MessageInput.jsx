@@ -1,8 +1,8 @@
+// components/MessageInput.jsx
 import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
 import toast from "react-hot-toast";
-import axios from "axios";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
@@ -232,7 +232,7 @@ const MessageInput = () => {
   };
 
   return (
-    <div className="p-4 w-full">
+    <div className="p-4 w-full bg-base-100">
       {/* Preview de arquivo ou imagem */}
       {(imagePreview || fileInfo) && (
         <div className="mb-3 flex items-center gap-2">
@@ -337,22 +337,6 @@ const MessageInput = () => {
             }}
             disabled={isUploading}
           />
-          <style jsx>{`
-            textarea::-webkit-scrollbar {
-              width: 6px;
-            }
-            textarea::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            textarea::-webkit-scrollbar-thumb {
-              background-color: rgba(0, 0, 0, 0.2);
-              border-radius: 10px;
-              border: none;
-            }
-            textarea::-webkit-scrollbar-button {
-              display: none;
-            }
-          `}</style>
         </div>
         
         <button

@@ -1,7 +1,6 @@
 // components/GroupTab.jsx
-import { useState } from "react";
-import { useGroupStore } from "../store/useGroupStore";
 import { Users, UserPlus } from "lucide-react";
+import { useGroupStore } from "../store/useGroupStore";
 import GroupItem from "./GroupItem";
 
 const GroupTab = ({ searchQuery, onCreateGroup }) => {

@@ -116,7 +116,7 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount }) => {
                 onClick={handleLeaveGroup}
                 className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left text-error"
               >
-                  <LogOut size={16} />
+                <LogOut size={16} />
                 <span>Sair do grupo</span>
               </button>
             )}

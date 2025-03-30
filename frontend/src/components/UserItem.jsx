@@ -1,3 +1,4 @@
+// components/UserItem.jsx
 import { useState } from "react";
 import { MoreVertical, UserX, UserMinus, Edit, AlertTriangle } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
@@ -14,6 +15,7 @@ const UserItem = ({
   authUser, 
   onRemove, 
   onBlock,
+  onEditNick,
   viewedConversations = {} // Prop para verificar se já foi visualizada
 }) => {
   const { updateContactNote } = useChatStore();
@@ -169,19 +171,26 @@ const UserItem = ({
             )}
           </div>
           
-          {/* Pré-visualização da última mensagem - sem estilo de destaque */}
+          {/* Pré-visualização da última mensagem */}
           <div className="flex items-center justify-between mt-1 max-w-full">
-            <div className="text-xs text-base-content/70 truncate flex-grow pr-1">
+            <div className={`text-xs ${hasUnread ? "font-semibold text-primary" : "text-base-content/70"} truncate flex-grow pr-1`}>
               {displayMessage}
             </div>
+            
+            {/* Indicador de mensagens não lidas */}
+            {hasUnread && (
+              <div className="bg-primary text-primary-content text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </div>
+            )}
           </div>
         </div>
       </button>
       
-      {/* Botão de três pontos para menu - agora sempre visível */}
+      {/* Botão de opções - agora posicionado dentro do card para melhor layout */}
       <button 
         onClick={toggleOptions}
-        className="absolute top-2 right-2 p-1 rounded-full hover:bg-base-300 transition-colors z-10 opacity-100"
+        className="absolute top-2 right-2 p-1 rounded-full hover:bg-base-300 transition-colors z-10"
       >
         <MoreVertical size={16} />
       </button>

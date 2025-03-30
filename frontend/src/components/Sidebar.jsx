@@ -339,7 +339,7 @@ const Sidebar = () => {
   const sortedUsers = getSortedAndFilteredUsers();
 
   return (
-    <aside className="h-full overflow-auto w-full border-r border-base-300 flex flex-col">
+    <aside className="h-full overflow-auto w-full border-r border-base-300 flex flex-col bg-base-100">
       <div className="border-b border-base-300 w-full p-3 lg:p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

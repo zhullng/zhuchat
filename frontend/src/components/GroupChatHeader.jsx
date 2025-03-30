@@ -1,6 +1,6 @@
 // components/GroupChatHeader.jsx
 import { useState } from "react";
-import { X, Users, Info, Settings, UserPlus, UserX } from "lucide-react";
+import { X, Users, Info, Settings, UserPlus } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";

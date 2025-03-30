@@ -1,3 +1,4 @@
+// components/ChatContainer.jsx
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState } from "react";
 
@@ -104,7 +105,7 @@ const ChatContainer = () => {
       <ChatHeader />
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
         {messages.map((message) => (
           <div
