@@ -1,6 +1,6 @@
 // src/store/useCallStore.js
 import { create } from 'zustand';
-import callService from '../services/callService';
+import callService from '../services/callService.js';
 
 const useCallStore = create((set, get) => ({
   callState: 'idle', // idle, calling, incoming, ongoing, ending

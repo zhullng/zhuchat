@@ -1,6 +1,6 @@
 // src/socket.js
 import { io } from "socket.io-client";
-import { useAuthStore } from "./store/useAuthStore";
+import { useAuthStore } from "../store/useAuthStore.js";
 
 let socket = null;
 
