@@ -1,6 +1,7 @@
 import { Server } from "socket.io"; // Importa a classe Server da biblioteca socket.io
 import http from "http"; // Importa a biblioteca http para criar um servidor HTTP
 import express from "express"; // Importa a biblioteca express para criar o servidor Express
+import Group from "../models/group.model.js";
 
 // Cria a aplicação Express
 const app = express();
