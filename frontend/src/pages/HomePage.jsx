@@ -47,6 +47,21 @@ const HomePage = () => {
   // No mobile, se tiver um chat selecionado, esconder o sidebar e mostrar apenas o chat
   const isActiveChat = selectedUser || selectedGroup;
 
+  // Função para renderizar o componente de chat correto
+  const renderActiveChat = () => {
+    if (isAI) {
+      return <AIChat setSelectedUser={setSelectedUser} isMobile={isMobile} onBack={handleBackToList} />;
+    } else if (selectedUser) {
+      return <ChatContainer isMobile={isMobile} onBack={handleBackToList} />;
+    } else if (selectedGroup) {
+      return <GroupChatContainer isMobile={isMobile} onBack={handleBackToList} />;
+    } else if (!isMobile) {
+      return <NoChatSelected />;
+    }
+    
+    return null;
+  };
+
   return (
     <div className="h-screen bg-base-100">
       <div className="flex h-full pl-16 sm:pl-20">
@@ -60,15 +75,7 @@ const HomePage = () => {
         {/* Área de chat - ocupa toda a largura no mobile quando um chat estiver ativo */}
         {(!isMobile || isActiveChat) && (
           <div className={`${isMobile && isActiveChat ? 'w-full' : 'flex-1'} flex`}>
-            {isAI ? (
-              <AIChat setSelectedUser={setSelectedUser} isMobile={isMobile} onBack={handleBackToList} />
-            ) : selectedUser ? (
-              <ChatContainer isMobile={isMobile} onBack={handleBackToList} />
-            ) : selectedGroup ? (
-              <GroupChatContainer isMobile={isMobile} onBack={handleBackToList} />
-            ) : !isMobile && (
-              <NoChatSelected />
-            )}
+            {renderActiveChat()}
           </div>
         )}
       </div>
