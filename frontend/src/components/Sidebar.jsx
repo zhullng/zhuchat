@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Users, Bot, UserPlus, UserPlus, X, Radio } from "lucide-react";
+import { Users, Bot, UserPlus, UserGroup, X, Radio } from "lucide-react";
 import { debounce } from "lodash";
 import UserItem from "./UserItem";
 import GroupTab from "./GroupTab";
@@ -212,7 +212,7 @@ const Sidebar = () => {
               className="btn btn-sm btn-ghost btn-circle"
               title="Criar novo grupo"
             >
-              <UserPlus size={18} />
+              <UserGroup size={18} />
             </button>
             
             <button 
