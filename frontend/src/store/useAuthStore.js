@@ -3,6 +3,7 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import { useChatStore } from "./useChatStore";
+import { useGroupStore } from "./useGroupStore";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -42,6 +43,9 @@ export const useAuthStore = create((set, get) => ({
       // Inicializar conversas visualizadas após autenticação bem-sucedida
       useChatStore.getState().initializeViewedConversations();
       
+      // Inicializar grupos
+      useGroupStore.getState().initializeGroups();
+      
       get().connectSocket();
     } catch (error) {
       console.error("Falha na verificação de autenticação:", error);
@@ -74,41 +78,47 @@ export const useAuthStore = create((set, get) => ({
   },
 
   login: async (data) => {
-    set({ isLoggingIn: true });
-    try {
-      const res = await axiosInstance.post("/auth/login", data);
-      // Garantir que o saldo está definido
-      if (res.data && res.data.balance === undefined) {
-        res.data.balance = 0;
-      }
-      set({ authUser: res.data });
-      toast.success("Sessão iniciada!");
-      
-      // Inicializar conversas visualizadas após login bem-sucedido
-      useChatStore.getState().initializeViewedConversations();
-      
-      get().connectSocket();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Falha no início de sessão!");
-    } finally {
-      set({ isLoggingIn: false });
+  set({ isLoggingIn: true });
+  try {
+    const res = await axiosInstance.post("/auth/login", data);
+    // Garantir que o saldo está definido
+    if (res.data && res.data.balance === undefined) {
+      res.data.balance = 0;
     }
-  },
+    set({ authUser: res.data });
+    toast.success("Sessão iniciada!");
+    
+    // Inicializar conversas visualizadas após login bem-sucedido
+    useChatStore.getState().initializeViewedConversations();
+    
+    // Inicializar grupos
+    useGroupStore.getState().initializeGroups();
+    
+    get().connectSocket();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Falha no início de sessão!");
+  } finally {
+    set({ isLoggingIn: false });
+  }
+},
 
-  logout: async () => {
-    try {
-      await axiosInstance.post("/auth/logout");
-      
-      // IMPORTANTE: Resetar o estado do chat ao fazer logout
-      useChatStore.getState().resetChatState();
-      
-      set({ authUser: null });
-      toast.success("Sessão terminada com sucesso!");
-      get().disconnectSocket();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
-    }
-  },
+logout: async () => {
+  try {
+    await axiosInstance.post("/auth/logout");
+    
+    // IMPORTANTE: Resetar o estado do chat ao fazer logout
+    useChatStore.getState().resetChatState();
+    
+    // Resetar estado dos grupos
+    useGroupStore.getState().resetGroupState();
+    
+    set({ authUser: null });
+    toast.success("Sessão terminada com sucesso!");
+    get().disconnectSocket();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
+  }
+},
 
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });

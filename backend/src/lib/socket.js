@@ -23,22 +23,42 @@ export function getReceiverSocketId(userId) {
 // Mapa para armazenar os users online
 const userSocketMap = {}; // Exemplo: {userId: socketId}
 
-// Evento de conexão do Socket.IO
 io.on("connection", (socket) => {
   console.log("Um utilizador conectou-se", socket.id); 
 
-  // Obtém o userId a partir dos dados da handshake (informações de conexão)
+  // Obtém o userId a partir dos dados da handshake
   const userId = socket.handshake.query.userId;
-  if (userId) userSocketMap[userId] = socket.id; // Associa o userId ao socketId
+  if (userId) userSocketMap[userId] = socket.id;
 
-  // Emite um evento para todos os users conectados, com a lista de users online
+  // Emite um evento para todos os users conectados
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+  // Juntar-se a salas de grupo
+  if (userId) {
+    // Buscar grupos do usuário e entrar nas salas correspondentes
+    Group.find({ members: userId })
+      .then(groups => {
+        groups.forEach(group => {
+          socket.join(`group-${group._id}`);
+        });
+      })
+      .catch(err => console.error("Erro ao entrar em salas de grupo:", err));
+  }
 
   // Evento de desconexão do Socket.IO
   socket.on("disconnect", () => {
     console.log("Um utilizador desconectou-se", socket.id);
-    delete userSocketMap[userId]; // Remove o user desconectado do mapa de users
-    io.emit("getOnlineUsers", Object.keys(userSocketMap)); // Emite a lista atualizada de users online
+    delete userSocketMap[userId];
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  });
+
+  // Eventos específicos para grupos
+  socket.on("joinGroup", (groupId) => {
+    socket.join(`group-${groupId}`);
+  });
+
+  socket.on("leaveGroup", (groupId) => {
+    socket.leave(`group-${groupId}`);
   });
 });
 

@@ -1,12 +1,25 @@
-import { useChatStore } from "../store/useChatStore";
+// pages/HomePage.jsx (atualizado)
+import { useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
+import GroupChatContainer from "../components/GroupChatContainer";
 import AIChat from "./AIChat";
+import { useChatStore } from "../store/useChatStore";
+import { useGroupStore } from "../store/useGroupStore";
 
 const HomePage = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, resetChatState } = useChatStore();
+  const { selectedGroup, resetGroupState } = useGroupStore();
   const isAI = selectedUser?.isAI;
+
+  // Limpar estado dos chats quando desmontar o componente
+  useEffect(() => {
+    return () => {
+      resetChatState();
+      resetGroupState();
+    };
+  }, [resetChatState, resetGroupState]);
 
   return (
     <div className="h-screen bg-base-200">
@@ -17,10 +30,12 @@ const HomePage = () => {
           <div className="flex-1 flex">
             {isAI ? (
               <AIChat setSelectedUser={setSelectedUser} />
-            ) : !selectedUser ? (
-              <NoChatSelected />
-            ) : (
+            ) : selectedUser ? (
               <ChatContainer />
+            ) : selectedGroup ? (
+              <GroupChatContainer />
+            ) : (
+              <NoChatSelected />
             )}
           </div>
         </div>

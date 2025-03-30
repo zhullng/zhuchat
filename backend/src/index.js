@@ -5,6 +5,7 @@ import cors from "cors";
 import path from "path"; 
 import { connectDB } from "./lib/db.js"; // Conexão com o MongoDB
 
+import groupRoutes from "./routes/group.route.js";
 import aiRoutes from './routes/ai.route.js';
 import authRoutes from "./routes/auth.route.js"; 
 import messageRoutes from "./routes/message.route.js";
@@ -34,6 +35,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/transfers", transferRoutes); // ✅ Corrigido
 app.use("/api/transactions", transactionRoutes); // Nova rota para transações
 app.use("/api/contacts", contactRoutes);
+app.use("/api/groups", groupRoutes);
 
 // Serve frontend em produção
 if (process.env.NODE_ENV === "production") {  
