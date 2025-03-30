@@ -2,6 +2,7 @@
 import { X } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import CallButtons from "./CallButtons";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
@@ -40,13 +41,24 @@ const ChatHeader = () => {
           </div>
         </div>
 
-        {/* Close button */}
-        <button 
-          onClick={() => setSelectedUser(null)} 
-          className="btn btn-ghost btn-sm btn-circle"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center">
+          {/* Botões de chamada (apenas para usuários reais, não para AI) */}
+          {!isAI && (
+            <CallButtons 
+              userId={selectedUser._id} 
+              username={selectedUser.fullName} 
+              disabled={!onlineUsers.includes(selectedUser._id)}
+            />
+          )}
+          
+          {/* Close button */}
+          <button 
+            onClick={() => setSelectedUser(null)} 
+            className="btn btn-ghost btn-sm btn-circle"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
