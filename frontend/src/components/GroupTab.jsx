@@ -1,7 +1,7 @@
 // components/GroupTab.jsx
 import { useState } from "react";
 import { useGroupStore } from "../store/useGroupStore";
-import { Users, UsersPlus } from "lucide-react";
+import { Users, UserPlus } from "lucide-react";
 import GroupItem from "./GroupItem";
 
 const GroupTab = ({ searchQuery, onCreateGroup }) => {
@@ -45,7 +45,7 @@ const GroupTab = ({ searchQuery, onCreateGroup }) => {
             onClick={onCreateGroup}
             className="btn btn-sm btn-primary mt-2"
           >
-            <UsersPlus size={16} />
+            <UserPlus size={16} />
             Criar Novo Grupo
           </button>
         </div>
