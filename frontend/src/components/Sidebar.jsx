@@ -1,4 +1,4 @@
-// components/Sidebar.jsx (atualizado)
+// components/Sidebar.jsx
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
@@ -8,8 +8,149 @@ import { debounce } from "lodash";
 import UserItem from "./UserItem";
 import GroupTab from "./GroupTab";
 import CreateGroupModal from "./CreateGroupModal";
+import toast from "react-hot-toast";
 
-// Componente para o Sidebar
+// Componente para adicionar contactos
+const AddContact = ({ onContactAdded }) => {
+  const { addContact } = useChatStore();
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!email.trim()) {
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      await addContact(email);
+      setEmail("");
+      if (onContactAdded) {
+        onContactAdded();
+      }
+    } catch (error) {
+      // Erro já tratado no store
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <h3 className="text-sm font-medium mb-2">Adicionar Contacto</h3>
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email do contacto"
+          className="input input-bordered input-sm flex-grow"
+          disabled={isLoading}
+        />
+        
+        <button 
+          type="submit" 
+          className="btn btn-primary btn-sm"
+          disabled={isLoading}
+        >
+          {isLoading ? "A adicionar..." : "Adicionar"}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// Componente para pedidos pendentes
+const PendingRequests = ({ onRequestResponded }) => {
+  const { getPendingRequests, respondToRequest } = useChatStore();
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchPendingRequests = async () => {
+    setIsLoading(true);
+    try {
+      const requests = await getPendingRequests();
+      setPendingRequests(Array.isArray(requests) ? requests : []);
+    } catch (error) {
+      console.error("Erro ao obter pedidos pendentes:", error);
+      setPendingRequests([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingRequests();
+    
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(fetchPendingRequests, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleResponse = async (contactId, status) => {
+    try {
+      await respondToRequest(contactId, status);
+      fetchPendingRequests();
+      
+      if (onRequestResponded) {
+        onRequestResponded();
+      }
+    } catch (error) {
+      // Erro já tratado no store
+    }
+  };
+
+  if (!pendingRequests || pendingRequests.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-3">
+      <h3 className="text-sm font-medium mb-2">Pedidos de Contacto ({pendingRequests.length})</h3>
+      
+      <div className="space-y-2 max-h-60 overflow-y-auto">
+        {pendingRequests.map(request => (
+          <div key={request._id} className="flex items-center justify-between bg-base-200 p-2 rounded-lg">
+            <div className="flex items-center gap-2">
+              <img 
+                src={request.userId?.profilePic || "/avatar.png"} 
+                alt={request.userId?.fullName || "Utilizador"}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div>
+                <div className="font-medium text-sm">{request.userId?.fullName || "Utilizador"}</div>
+                <div className="text-xs text-base-content/70">{request.userId?.email || ""}</div>
+              </div>
+            </div>
+            
+            <div className="flex gap-1">
+              <button 
+                onClick={() => handleResponse(request._id, "accepted")}
+                className="btn btn-xs btn-success"
+                title="Aceitar"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              
+              <button 
+                onClick={() => handleResponse(request._id, "rejected")}
+                className="btn btn-xs btn-error"
+                title="Rejeitar"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Componente principal da barra lateral
 const Sidebar = () => {
   const { 
     getUsers, 
@@ -228,40 +369,47 @@ const Sidebar = () => {
         {/* Menu de Gestão de Contactos */}
         {showContactMenu && (
           <div className="mt-3 border-t border-base-300 pt-3">
-            {/* Seus componentes AddContact e PendingRequests aqui */}
+            <AddContact onContactAdded={refreshContacts} />
+            <PendingRequests onRequestResponded={refreshContacts} />
           </div>
         )}
 
         {/* Abas Chats/Grupos */}
-        <div className="mt-4 flex">
+        <div className="mt-4 flex border-b border-base-300">
           <button
             onClick={() => setActiveTab("chats")}
-            className={`flex-1 py-2 font-medium text-sm border-b-2 transition-colors
+            className={`flex-1 py-3 font-medium text-sm transition-colors relative
               ${activeTab === "chats" 
-                ? "border-primary text-primary" 
-                : "border-transparent hover:border-base-300"}
+                ? "text-primary font-semibold" 
+                : "text-base-content/70 hover:text-base-content"}
             `}
           >
             Chats
+            {activeTab === "chats" && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary"></div>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("groups")}
-            className={`flex-1 py-2 font-medium text-sm border-b-2 transition-colors
+            className={`flex-1 py-3 font-medium text-sm transition-colors relative
               ${activeTab === "groups" 
-                ? "border-primary text-primary" 
-                : "border-transparent hover:border-base-300"}
+                ? "text-primary font-semibold" 
+                : "text-base-content/70 hover:text-base-content"}
             `}
           >
             Grupos
+            {activeTab === "groups" && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary"></div>
+            )}
           </button>
         </div>
 
-        <div className="mt-2 lg:mt-3 space-y-2">
+        <div className="mt-3 lg:mt-4 space-y-3">
           <input
             type="text"
             placeholder={`Pesquisar ${activeTab === "chats" ? "contactos" : "grupos"}...`}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="input input-bordered input-sm w-full"
+            className="input input-bordered w-full"
           />
 
           {activeTab === "chats" && (
@@ -283,37 +431,37 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="overflow-y-auto flex-1 p-1 lg:p-2">
+      <div className="overflow-y-auto flex-1 p-2 lg:p-3">
         {activeTab === "chats" ? (
           <>
             {/* Assistente Virtual */}
             <button
               onClick={() => handleUserClick(aiAssistant)}
               className={`
-                w-full flex items-center gap-3 p-2 lg:p-3 rounded-lg
-                transition-colors hover:bg-base-200 mb-2
-                ${selectedUser?.isAI ? "bg-base-300 ring-1 ring-base-300" : "hover:bg-base-200"}
+                w-full flex items-center gap-4 p-3 lg:p-4 rounded-lg
+                transition-colors mb-2
+                ${selectedUser?.isAI ? "bg-base-300" : "hover:bg-base-200"}
               `}
             >
               <div className="relative">
-                <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-full border border-base-300">
-                  <Bot className="size-6" />
+                <div className="w-12 h-12 lg:w-14 lg:h-14 flex items-center justify-center rounded-full border border-base-300">
+                  <Bot className="size-7" />
                 </div>
-                <span className="absolute bottom-0 right-0 size-2.5 lg:size-3 bg-green-500 rounded-full border-2 border-base-100" />
+                <span className="absolute bottom-0 right-0 size-3 lg:size-4 bg-green-500 rounded-full border-2 border-base-100" />
               </div>
 
               <div className="flex-1 text-left">
-                <div className="font-medium truncate text-sm lg:text-base">
+                <div className="font-medium truncate text-base">
                   Assistente Virtual
                 </div>
-                <div className="text-xs text-green-500">
+                <div className="text-sm text-green-500">
                   Sempre Online
                 </div>
               </div>
             </button>
 
             {/* Separador */}
-            <div className="h-px bg-base-200 my-2" />
+            <div className="h-px bg-base-200 my-3" />
 
             {/* Lista de Utilizadores */}
             {sortedUsers.map((user) => {
