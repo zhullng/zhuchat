@@ -1,12 +1,14 @@
-// components/GroupItem.jsx
+// components/GroupItem.jsx - versão atualizada
 import { useState } from "react";
 import { Users, MoreVertical, Settings, LogOut, Trash2 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useGroupStore } from "../store/useGroupStore";
+import { useChatStore } from "../store/useChatStore";
 
-const GroupItem = ({ group, isSelected, hasUnread, unreadCount }) => {
+const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
   const { authUser } = useAuthStore();
   const { selectGroup, leaveGroup, deleteGroup } = useGroupStore();
+  const { selectedUser, setSelectedUser } = useChatStore();
   const [showMenu, setShowMenu] = useState(false);
 
   // Verificar se o usuário logado é o criador do grupo
@@ -14,7 +16,18 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount }) => {
 
   // Manipular clique no grupo
   const handleGroupClick = () => {
+    // Limpar qualquer usuário selecionado
+    if (selectedUser) {
+      setSelectedUser(null);
+    }
+    
+    // Selecionar o grupo
     selectGroup(group);
+    
+    // Chamar callback adicional se fornecido
+    if (onSelect) {
+      onSelect(group);
+    }
   };
 
   // Manipular saída do grupo

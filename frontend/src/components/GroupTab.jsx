@@ -1,10 +1,12 @@
-// components/GroupTab.jsx
+// components/GroupTab.jsx - versão atualizada
 import { Users, UserPlus } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
+import { useChatStore } from "../store/useChatStore";
 import GroupItem from "./GroupItem";
 
 const GroupTab = ({ searchQuery, onCreateGroup }) => {
   const { groups, selectedGroup, unreadGroupCounts } = useGroupStore();
+  const { selectedUser, setSelectedUser } = useChatStore();
 
   // Filtrar grupos com base na pesquisa
   const filteredGroups = groups.filter(group => 
@@ -22,6 +24,14 @@ const GroupTab = ({ searchQuery, onCreateGroup }) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
+  // Função para lidar com a seleção de grupo
+  const handleGroupSelect = (group) => {
+    // Limpar o usuário selecionado quando um grupo é selecionado
+    if (selectedUser) {
+      setSelectedUser(null);
+    }
+  };
+
   return (
     <>
       {sortedGroups.length > 0 ? (
@@ -32,6 +42,7 @@ const GroupTab = ({ searchQuery, onCreateGroup }) => {
             isSelected={selectedGroup?._id === group._id}
             hasUnread={unreadGroupCounts[group._id] > 0}
             unreadCount={unreadGroupCounts[group._id] || 0}
+            onSelect={handleGroupSelect}
           />
         ))
       ) : (

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import { useGroupStore } from "./useGroupStore"; // Importar useGroupStore
 
 // Função auxiliar para carregar conversas visualizadas do localStorage
 const loadViewedConversations = (userId) => {
@@ -512,9 +513,21 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para definir o utilizador selecionado no chat
+  // Função para definir o utilizador selecionado no chat - MODIFICADA PARA LIMPAR GRUPO SELECIONADO
   setSelectedUser: (selectedUser) => {
     const authUser = useAuthStore.getState().authUser;
+    
+    // Limpar qualquer grupo selecionado quando um usuário é selecionado
+    if (selectedUser) {
+      try {
+        const groupStore = useGroupStore.getState();
+        if (groupStore && groupStore.selectGroup) {
+          groupStore.selectGroup(null);
+        }
+      } catch (error) {
+        console.warn("Não foi possível limpar o grupo selecionado:", error);
+      }
+    }
     
     set(state => {
       // Se houver um usuário selecionado que não é o assistente

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import { useChatStore } from "./useChatStore"; // Importação adicionada
 
 export const useGroupStore = create((set, get) => ({
   // Estado
@@ -66,6 +67,16 @@ export const useGroupStore = create((set, get) => ({
         selectedGroup: newGroup
       }));
       
+      // Limpar qualquer chat selecionado quando um novo grupo é criado
+      try {
+        const chatStore = useChatStore.getState();
+        if (chatStore && chatStore.setSelectedUser) {
+          chatStore.setSelectedUser(null);
+        }
+      } catch (error) {
+        console.warn("Não foi possível limpar o usuário selecionado:", error);
+      }
+      
       toast.success("Grupo criado com sucesso!");
       return newGroup;
     } catch (error) {
@@ -75,13 +86,27 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // Selecionar um grupo
-  selectGroup: async (group) => {
-    if (!group) return;
-    
+  // Selecionar um grupo - MODIFICADA para limpar chat selecionado
+  selectGroup: (group) => {
+    // Definir o grupo selecionado
     set({ selectedGroup: group });
-    await get().getGroupMessages(group._id);
-    await get().markGroupAsRead(group._id);
+    
+    // Se um grupo foi selecionado
+    if (group) {
+      // Limpar qualquer chat selecionado quando um grupo é selecionado
+      try {
+        const chatStore = useChatStore.getState();
+        if (chatStore && chatStore.setSelectedUser) {
+          chatStore.setSelectedUser(null);
+        }
+      } catch (error) {
+        console.warn("Não foi possível limpar o usuário selecionado:", error);
+      }
+      
+      // Carregar mensagens e marcar como lidas
+      get().getGroupMessages(group._id);
+      get().markGroupAsRead(group._id);
+    }
   },
   
   // Obter mensagens de um grupo

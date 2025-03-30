@@ -277,7 +277,7 @@ const Sidebar = () => {
     // Fechar menu de opções se estiver aberto
     setShowContactMenu(false);
     
-    // Limpar seleção de grupo
+    // Limpar seleção de grupo ao selecionar um usuário
     if (selectedGroup) {
       selectGroup(null);
     }
@@ -344,7 +344,7 @@ const Sidebar = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Radio className="size-6" />
-            <span className="font-medium">WeChat</span>
+            <span className="font-medium">ZhuChat</span>
           </div>
           
           <div className="flex gap-2">
