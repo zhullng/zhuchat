@@ -5,7 +5,7 @@ import callService from '../services/callService';
 import { useAuthStore } from '../store/useAuthStore'; 
 import CallInterface from './CallInterface';
 import IncomingCallModal from './IncomingCallModal';
-import { initializeSocket, disconnectSocket } from '../socket';
+import { initializeSocket, disconnectSocket } from '../services/socket.js';
 
 const CallsProvider = ({ children }) => {
   const { authUser } = useAuthStore();

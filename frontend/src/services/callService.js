@@ -1,6 +1,6 @@
 // src/services/callService.js
 import SimplePeer from 'simple-peer';
-import { getSocket } from '../socket';
+import { getSocket } from './socket.js';
 
 const mediaConstraints = {
   video: {
