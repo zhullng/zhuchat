@@ -109,12 +109,68 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // Obter mensagens de um grupo
+  // Obter mensagens de um grupo - CORRIGIDA
   getGroupMessages: async (groupId) => {
     set({ isGroupMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/groups/${groupId}/messages`);
-      set({ groupMessages: res.data || [] });
+      const messages = res.data || [];
+      const authUser = useAuthStore.getState().authUser;
+      const selectedGroup = get().selectedGroup;
+      
+      // Processar mensagens para garantir que todas tenham os dados de remetente corretamente formatados
+      const formattedMessages = messages.map(message => {
+        // Se já for um objeto completo, não precisamos modificar
+        if (typeof message.senderId === 'object' && 
+            message.senderId && 
+            message.senderId.fullName) {
+          return message;
+        }
+        
+        // Obter o ID do remetente
+        const senderId = typeof message.senderId === 'object' 
+          ? message.senderId?._id 
+          : message.senderId;
+        
+        // Se for o usuário atual
+        if (senderId === authUser._id) {
+          return {
+            ...message,
+            senderId: {
+              _id: authUser._id,
+              fullName: authUser.fullName || 'Você',
+              profilePic: authUser.profilePic || '/avatar.png'
+            }
+          };
+        }
+        
+        // Tenta encontrar o membro no grupo selecionado
+        if (selectedGroup && selectedGroup.members) {
+          const member = selectedGroup.members.find(m => m._id === senderId);
+          if (member) {
+            return {
+              ...message,
+              senderId: {
+                _id: member._id,
+                fullName: member.fullName || 'Membro do grupo',
+                profilePic: member.profilePic || '/avatar.png'
+              }
+            };
+          }
+        }
+        
+        // Se não conseguir encontrar, usa um valor padrão
+        return {
+          ...message,
+          senderId: {
+            _id: senderId || 'unknown',
+            fullName: 'Membro do grupo',
+            profilePic: '/avatar.png'
+          }
+        };
+      });
+      
+      set({ groupMessages: formattedMessages });
     } catch (error) {
       console.error("Erro ao obter mensagens do grupo:", error);
       toast.error("Erro ao carregar mensagens do grupo");
@@ -141,38 +197,73 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // Enviar mensagem para o grupo
+  // Enviar mensagem para o grupo - CORRIGIDA
   sendGroupMessage: async (groupId, messageData) => {
     try {
       const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
       const newMessage = res.data;
       
-      // Formatar a nova mensagem para compatibilidade com a interface
-      // Garantir que senderId seja um objeto compatível se vier como string
+      // Obter dados do usuário autenticado
       const authUser = useAuthStore.getState().authUser;
+      
+      // Criar uma versão formatada da mensagem que seja compatível com a UI
+      // Isso é crucial quando a resposta do servidor não inclui todos os dados do remetente
       let formattedMessage = {...newMessage};
       
-      // Se senderId for uma string, transformar em um objeto similar
-      if (typeof formattedMessage.senderId === 'string') {
-        if (formattedMessage.senderId === authUser._id) {
+      // Verificar se senderId é uma string (ID) ou objeto (dados completos do usuário)
+      if (typeof formattedMessage.senderId === 'string' || 
+          (formattedMessage.senderId && !formattedMessage.senderId.fullName)) {
+        
+        // Se a mensagem foi enviada pelo usuário atual, podemos preencher com seus dados
+        const senderIdValue = typeof formattedMessage.senderId === 'string' 
+          ? formattedMessage.senderId 
+          : formattedMessage.senderId?._id;
+          
+        if (senderIdValue === authUser._id) {
           formattedMessage = {
             ...formattedMessage,
             senderId: {
               _id: authUser._id,
-              fullName: authUser.fullName,
-              profilePic: authUser.profilePic
+              fullName: authUser.fullName || 'Você',
+              profilePic: authUser.profilePic || '/avatar.png'
             }
           };
+        } 
+        // Se for de outro usuário, verificar se temos seus dados no grupo selecionado
+        else {
+          // Tentar encontrar o usuário no grupo atual
+          const selectedGroup = get().selectedGroup;
+          const sender = selectedGroup?.members?.find(member => member._id === senderIdValue);
+          
+          if (sender) {
+            formattedMessage = {
+              ...formattedMessage,
+              senderId: {
+                _id: sender._id,
+                fullName: sender.fullName || 'Membro do grupo',
+                profilePic: sender.profilePic || '/avatar.png'
+              }
+            };
+          } else {
+            // Se não encontrarmos, usamos um objeto com informações básicas
+            formattedMessage = {
+              ...formattedMessage,
+              senderId: {
+                _id: senderIdValue || 'unknown',
+                fullName: 'Membro do grupo',
+                profilePic: '/avatar.png'
+              }
+            };
+          }
         }
       }
       
-      // Atualizar imediatamente o estado local com a mensagem formatada para melhor experiência do usuário
+      // Agora podemos adicionar a mensagem formatada ao estado
       set(state => ({
         groupMessages: [...state.groupMessages, formattedMessage]
       }));
       
-      // Notificar a UI de que há uma nova mensagem
-      // Isso deve acionar os efeitos de scroll para a nova mensagem
+      // Garantir que o scroll se mova para a nova mensagem
       setTimeout(() => {
         const messageEnd = document.getElementById('message-end-ref');
         if (messageEnd) {
@@ -297,13 +388,51 @@ export const useGroupStore = create((set, get) => ({
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
+      // Formatar a mensagem recebida via socket
+      let formattedMessage = {...message};
+      const senderId = typeof message.senderId === 'object' ? message.senderId._id : message.senderId;
+      
+      // Se a mensagem for do usuário atual
+      if (senderId === authUser._id) {
+        formattedMessage = {
+          ...formattedMessage,
+          senderId: {
+            _id: authUser._id,
+            fullName: authUser.fullName || 'Você',
+            profilePic: authUser.profilePic || '/avatar.png'
+          }
+        };
+      } 
+      // Se for de outro usuário e temos o grupo, verificar se temos dados do membro
+      else if (group && group.members) {
+        const member = group.members.find(m => m._id === senderId);
+        if (member) {
+          formattedMessage = {
+            ...formattedMessage,
+            senderId: {
+              _id: member._id,
+              fullName: member.fullName || 'Membro do grupo',
+              profilePic: member.profilePic || '/avatar.png'
+            }
+          };
+        }
+      }
+      
       // Se o grupo da mensagem é o grupo atualmente selecionado
       if (currentGroup && currentGroup._id === message.groupId) {
         // Adicionar mensagem à lista e marcar como lida
         set(state => ({
-          groupMessages: [...state.groupMessages, message]
+          groupMessages: [...state.groupMessages, formattedMessage]
         }));
         get().markGroupAsRead(message.groupId);
+        
+        // Garantir que o scroll se mova para a nova mensagem
+        setTimeout(() => {
+          const messageEnd = document.getElementById('message-end-ref');
+          if (messageEnd) {
+            messageEnd.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 50);
       } else {
         // Caso contrário, incrementar contador de não lidas
         set(state => ({

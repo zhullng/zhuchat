@@ -93,19 +93,39 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
         {groupMessages.map((message) => {
-          // Verificar se message.senderId é um objeto ou string
-          const isMyMessage = typeof message.senderId === 'object' 
-            ? message.senderId._id === authUser._id 
-            : message.senderId === authUser._id;
+          // Validação robusta para verificar se message.senderId é um objeto ou string
+          let senderId, isMyMessage, senderName, senderPic;
           
-          // Determinar nome e foto do remetente
-          const senderName = typeof message.senderId === 'object' 
-            ? message.senderId.fullName || 'Nome Desconhecido'
-            : authUser._id === message.senderId ? authUser.fullName : 'Nome Desconhecido';
+          // Determinar o ID do remetente independente do formato
+          if (typeof message.senderId === 'object' && message.senderId !== null) {
+            senderId = message.senderId._id;
+          } else {
+            senderId = message.senderId;
+          }
           
-          const senderPic = typeof message.senderId === 'object'
-            ? message.senderId.profilePic || '/avatar.png'
-            : isMyMessage ? (authUser.profilePic || '/avatar.png') : '/avatar.png';
+          // Verificar se a mensagem é do usuário atual
+          isMyMessage = senderId === authUser._id;
+          
+          // Determinar nome do remetente
+          if (isMyMessage) {
+            // Se for minha mensagem, uso meu nome
+            senderName = authUser.fullName || 'Você';
+            senderPic = authUser.profilePic || '/avatar.png';
+          } else if (typeof message.senderId === 'object' && message.senderId !== null && message.senderId.fullName) {
+            // Se for objeto de outro usuário com nome, uso os dados fornecidos
+            senderName = message.senderId.fullName;
+            senderPic = message.senderId.profilePic || '/avatar.png';
+          } else {
+            // Se for string de ID ou objeto sem nome, tento encontrar o membro no grupo
+            const sender = selectedGroup?.members?.find(member => member._id === senderId);
+            if (sender) {
+              senderName = sender.fullName || 'Membro do grupo';
+              senderPic = sender.profilePic || '/avatar.png';
+            } else {
+              senderName = 'Membro do grupo';
+              senderPic = '/avatar.png';
+            }
+          }
           
           return (
             <div
@@ -129,7 +149,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                       {formatMessageTime(message.createdAt)}
                     </time>
                     <span className="font-semibold text-sm ml-2 flex items-center">
-                      {authUser.fullName || 'Nome Desconhecido'}
+                      {senderName}
                       
                       {/* Opções de mensagem */}
                       <div className="message-menu-container ml-1 relative">
