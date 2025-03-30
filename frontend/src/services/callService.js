@@ -1,7 +1,7 @@
-// services/callService.js
+// src/services/callService.js
 import SimplePeer from 'simple-peer';
+import { getSocket } from '../socket';
 
-// Configurações de mídia para diferentes tipos de chamada
 const mediaConstraints = {
   video: {
     width: { ideal: 1280 },
@@ -24,12 +24,15 @@ class CallService {
     this.calleeId = null;
   }
 
-  // Inicializar o serviço de chamadas com o socket
   init(socketInstance, userId) {
     this.socket = socketInstance;
     this.userId = userId;
 
-    // Configurar listeners de eventos do socket
+    if (!this.socket) {
+      console.error("Socket não inicializado");
+      return;
+    }
+
     this.socket.on('call:incoming', this._handleIncomingCall.bind(this));
     this.socket.on('call:accepted', this._handleCallAccepted.bind(this));
     this.socket.on('call:rejected', this._handleCallRejected.bind(this));
@@ -37,14 +40,12 @@ class CallService {
     this.socket.on('call:ended', this._handleCallEnded.bind(this));
   }
 
-  // Registrar callbacks
   registerCallbacks({ onIncomingCall, onRemoteStream, onCallEnded }) {
     this.onIncomingCall = onIncomingCall;
     this.onRemoteStream = onRemoteStream;
     this.onCallEnded = onCallEnded;
   }
 
-  // Obter stream local (áudio/vídeo ou apenas áudio)
   async getLocalStream(withVideo = true) {
     try {
       const constraints = {
@@ -61,20 +62,19 @@ class CallService {
     }
   }
 
-  // Iniciar uma chamada para outro usuário
   initiateCall(targetUserId, callType) {
     return new Promise((resolve, reject) => {
-      if (!this.socket || !this.localStream) {
+      const socket = this.socket || getSocket();
+      
+      if (!socket || !this.localStream) {
         reject(new Error('Socket ou stream local não inicializado'));
         return;
       }
 
-      // Gerar ID único para a chamada
       this.currentCallId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       this.calleeId = targetUserId;
 
-      // Enviar sinal de chamada para o servidor
-      this.socket.emit('call:initiate', {
+      socket.emit('call:initiate', {
         targetUserId,
         callerId: this.userId,
         callType,
@@ -89,24 +89,23 @@ class CallService {
     });
   }
 
-  // Aceitar uma chamada recebida
   acceptCall(callerId) {
     return new Promise((resolve, reject) => {
-      if (!this.socket || !this.localStream) {
+      const socket = this.socket || getSocket();
+      
+      if (!socket || !this.localStream) {
         reject(new Error('Socket ou stream local não inicializado'));
         return;
       }
 
       this.callerId = callerId;
 
-      // Informar ao servidor que a chamada foi aceita
-      this.socket.emit('call:accept', {
+      socket.emit('call:accept', {
         callerId,
         calleeId: this.userId,
         callId: this.currentCallId
       }, (response) => {
         if (response && response.success) {
-          // Iniciar peer como receptor da chamada
           this._createPeer(false);
           resolve();
         } else {
@@ -116,11 +115,12 @@ class CallService {
     });
   }
 
-  // Rejeitar uma chamada recebida
   rejectCall(callerId) {
     return new Promise((resolve) => {
-      if (this.socket) {
-        this.socket.emit('call:reject', {
+      const socket = this.socket || getSocket();
+      
+      if (socket) {
+        socket.emit('call:reject', {
           callerId,
           calleeId: this.userId,
           callId: this.currentCallId
@@ -131,7 +131,6 @@ class CallService {
     });
   }
 
-  // Encerrar a chamada atual
   endCurrentCall() {
     return new Promise((resolve) => {
       if (this.peer) {
@@ -139,8 +138,10 @@ class CallService {
         this.peer = null;
       }
 
-      if (this.socket && this.currentCallId) {
-        this.socket.emit('call:end', {
+      const socket = this.socket || getSocket();
+      
+      if (socket && this.currentCallId) {
+        socket.emit('call:end', {
           userId: this.userId,
           callId: this.currentCallId
         });
@@ -153,7 +154,6 @@ class CallService {
     });
   }
 
-  // Métodos privados para tratamento de eventos do socket
   _handleIncomingCall(data) {
     const { callerId, callerName, callType, callId } = data;
     this.currentCallId = callId;
@@ -165,7 +165,6 @@ class CallService {
   }
 
   _handleCallAccepted(data) {
-    // A chamada foi aceita, iniciar peer como iniciador
     this._createPeer(true);
   }
 
@@ -202,24 +201,26 @@ class CallService {
     }
   }
 
-  // Criar um objeto Peer do SimplePeer
   _createPeer(initiator) {
-    // Destruir peer existente, se houver
     if (this.peer) {
       this.peer.destroy();
     }
 
-    // Criar novo peer
     this.peer = new SimplePeer({
       initiator,
       stream: this.localStream,
       trickle: true
     });
 
-    // Configurar event listeners do peer
+    const socket = this.socket || getSocket();
+    
+    if (!socket) {
+      console.error("Socket não disponível para sinalização WebRTC");
+      return;
+    }
+
     this.peer.on('signal', (signal) => {
-      // Enviar sinal para o outro peer via servidor
-      this.socket.emit('call:signal', {
+      socket.emit('call:signal', {
         signal,
         targetUserId: initiator ? this.calleeId : this.callerId,
         callId: this.currentCallId
@@ -227,7 +228,6 @@ class CallService {
     });
 
     this.peer.on('stream', (stream) => {
-      // Recebemos o stream do outro peer
       if (this.onRemoteStream) {
         this.onRemoteStream(stream);
       }
@@ -245,6 +245,5 @@ class CallService {
   }
 }
 
-// Exportar como singleton
 const callService = new CallService();
 export default callService;

@@ -1,4 +1,4 @@
-// components/CallInterface.jsx
+// src/components/CallInterface.jsx
 import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
 import useCallStore from '../store/useCallStore';
@@ -17,7 +17,6 @@ const CallInterface = () => {
   const [callDuration, setCallDuration] = useState(0);
   const [callTimer, setCallTimer] = useState(null);
 
-  // Configurar os streams de vídeo quando disponíveis
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
@@ -28,7 +27,6 @@ const CallInterface = () => {
     }
   }, [localStream, remoteStream]);
 
-  // Iniciar timer da chamada quando conectada
   useEffect(() => {
     if (callState === 'ongoing' && !callTimer) {
       const timer = setInterval(() => {
@@ -45,17 +43,14 @@ const CallInterface = () => {
     };
   }, [callState, callTimer]);
 
-  // Formatar duração da chamada
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' + secs : secs}`;
   };
 
-  // Nome a ser exibido na chamada
   const displayName = calleeName || callerName || 'Usuário';
   
-  // Status da chamada
   const getCallStatus = () => {
     switch (callState) {
       case 'calling':
@@ -69,9 +64,7 @@ const CallInterface = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Área principal do vídeo/chamada */}
       <div className="flex-1 relative">
-        {/* Vídeo remoto (tela inteira) */}
         {callType === 'video' && remoteStream && (
           <video
             ref={remoteVideoRef}
@@ -81,7 +74,6 @@ const CallInterface = () => {
           />
         )}
         
-        {/* Indicador de chamada de voz (quando não há vídeo) */}
         {(callType === 'voice' || !remoteStream) && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center">
@@ -92,21 +84,19 @@ const CallInterface = () => {
           </div>
         )}
         
-        {/* Vídeo local (pequeno, no canto) */}
         {callType === 'video' && localStream && (
           <div className="absolute bottom-5 right-5 w-32 h-48 overflow-hidden rounded-lg border-2 border-white">
             <video
               ref={localVideoRef}
               autoPlay
               playsInline
-              muted // Sempre mute o vídeo local para evitar eco
+              muted
               className="w-full h-full object-cover"
             />
           </div>
         )}
       </div>
       
-      {/* Barra de controles */}
       <div className="h-20 bg-gray-900 flex items-center justify-between px-4">
         <div className="text-white">
           <div className="font-semibold">{displayName}</div>
@@ -114,7 +104,6 @@ const CallInterface = () => {
         </div>
         
         <div className="flex gap-3">
-          {/* Botão de áudio */}
           <button
             onClick={toggleAudio}
             className={`p-3 rounded-full ${
@@ -128,7 +117,6 @@ const CallInterface = () => {
             )}
           </button>
           
-          {/* Botão de vídeo (apenas em chamadas de vídeo) */}
           {callType === 'video' && (
             <button
               onClick={toggleVideo}
@@ -144,7 +132,6 @@ const CallInterface = () => {
             </button>
           )}
           
-          {/* Botão de encerrar chamada */}
           <button
             onClick={endCall}
             className="p-3 rounded-full bg-red-600"
@@ -153,8 +140,7 @@ const CallInterface = () => {
           </button>
         </div>
         
-        <div className="w-20"> {/* Espaço vazio para balancear o layout */}
-        </div>
+        <div className="w-20"></div>
       </div>
     </div>
   );

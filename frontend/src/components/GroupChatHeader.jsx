@@ -1,11 +1,10 @@
-// components/GroupChatHeader.jsx
+// src/components/GroupChatHeader.jsx
 import { useState } from "react";
 import { X, Users, Info, Settings, UserPlus, Phone, Video } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
-import CallButtons from "./CallButtons";
 
 const GroupChatHeader = () => {
   const { selectedGroup, selectGroup } = useGroupStore();
@@ -14,19 +13,10 @@ const GroupChatHeader = () => {
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [showCallDisabledTooltip, setShowCallDisabledTooltip] = useState(false);
 
-  // Verificar se o usuário logado é o criador do grupo
   const isCreator = selectedGroup?.createdBy === authUser._id;
-
-  // Total de membros no grupo
   const memberCount = selectedGroup?.members?.length || 0;
 
-  // Funções para quando chamadas em grupo estiverem disponíveis no futuro
-  const handleGroupVoiceCall = () => {
-    setShowCallDisabledTooltip(true);
-    setTimeout(() => setShowCallDisabledTooltip(false), 3000);
-  };
-
-  const handleGroupVideoCall = () => {
+  const handleGroupCallButton = () => {
     setShowCallDisabledTooltip(true);
     setTimeout(() => setShowCallDisabledTooltip(false), 3000);
   };
@@ -36,7 +26,6 @@ const GroupChatHeader = () => {
       <div className="p-2.5 border-b border-base-300 bg-base-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Avatar do grupo */}
             <div className="avatar">
               <div className="size-10 rounded-full relative">
                 {selectedGroup?.profilePic ? (
@@ -53,7 +42,6 @@ const GroupChatHeader = () => {
               </div>
             </div>
 
-            {/* Informações do grupo */}
             <div>
               <h3 className="font-medium">{selectedGroup?.name}</h3>
               <p className="text-sm text-base-content/70">
@@ -62,11 +50,9 @@ const GroupChatHeader = () => {
             </div>
           </div>
 
-          {/* Botões de ação */}
           <div className="flex items-center gap-2 relative">
-            {/* Botões de chamada de grupo (em implementação futura) */}
             <button 
-              onClick={handleGroupVoiceCall}
+              onClick={handleGroupCallButton}
               className="btn btn-ghost btn-sm btn-circle opacity-50"
               title="Chamada de voz em grupo (em breve)"
             >
@@ -74,7 +60,7 @@ const GroupChatHeader = () => {
             </button>
             
             <button 
-              onClick={handleGroupVideoCall}
+              onClick={handleGroupCallButton}
               className="btn btn-ghost btn-sm btn-circle opacity-50"
               title="Videochamada em grupo (em breve)"
             >
@@ -124,7 +110,6 @@ const GroupChatHeader = () => {
         </div>
       </div>
       
-      {/* Modais */}
       {showInfoModal && (
         <GroupInfoModal 
           isOpen={showInfoModal} 

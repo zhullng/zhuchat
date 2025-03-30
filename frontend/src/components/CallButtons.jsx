@@ -1,4 +1,4 @@
-// components/CallButtons.jsx
+// src/components/CallButtons.jsx
 import { useState } from 'react';
 import { Video, Phone } from 'lucide-react';
 import useCallStore from '../store/useCallStore';
@@ -7,7 +7,6 @@ const CallButtons = ({ userId, username, isGroup = false, disabled = false }) =>
   const { startCall } = useCallStore();
   const [isCallLoading, setIsCallLoading] = useState(false);
 
-  // Iniciar chamada de voz
   const handleVoiceCall = async () => {
     if (disabled || isCallLoading) return;
     
@@ -21,7 +20,6 @@ const CallButtons = ({ userId, username, isGroup = false, disabled = false }) =>
     }
   };
 
-  // Iniciar chamada de vídeo
   const handleVideoCall = async () => {
     if (disabled || isCallLoading) return;
     
@@ -35,14 +33,10 @@ const CallButtons = ({ userId, username, isGroup = false, disabled = false }) =>
     }
   };
 
-  // Renderizar botões apenas para chat individual (não grupo) por enquanto
-  if (isGroup) {
-    return null; // Desabilitar chamadas de grupo por enquanto
-  }
+  if (isGroup) return null;
 
   return (
     <div className="flex items-center gap-2">
-      {/* Botão de chamada de voz */}
       <button
         onClick={handleVoiceCall}
         disabled={disabled || isCallLoading}
@@ -52,7 +46,6 @@ const CallButtons = ({ userId, username, isGroup = false, disabled = false }) =>
         <Phone size={18} className={isCallLoading ? 'animate-pulse' : ''} />
       </button>
 
-      {/* Botão de chamada de vídeo */}
       <button
         onClick={handleVideoCall}
         disabled={disabled || isCallLoading}

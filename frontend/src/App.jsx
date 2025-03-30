@@ -1,3 +1,4 @@
+// src/App.jsx
 import Navbar from "./components/Navbar";
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage"; 
@@ -19,7 +20,6 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore"; 
 import { useThemeStore } from "./store/useThemeStore"; 
 import { useEffect } from "react"; 
-import { socket } from "./services/socket"; // Importar o socket
 
 import { Loader } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; 
@@ -67,7 +67,7 @@ const App = () => {
   // Wrapper de conteúdo com CallsProvider quando o usuário está autenticado
   const ContentWrapper = ({ children }) => {
     return authUser ? (
-      <CallsProvider socket={socket}>
+      <CallsProvider>
         {children}
       </CallsProvider>
     ) : children;
@@ -90,12 +90,9 @@ const App = () => {
           <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/wallet" element={authUser ? <WalletPage /> : <Navigate to="/login" />} />
-
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          
           <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
-
           <Route path="/privacy/blocked" element={authUser ? <BlockedUsersPage /> : <Navigate to="/login" />} />
         </Routes>
       </ContentWrapper>

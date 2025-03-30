@@ -1,9 +1,8 @@
-// store/useCallStore.js
+// src/store/useCallStore.js
 import { create } from 'zustand';
 import callService from '../services/callService';
 
 const useCallStore = create((set, get) => ({
-  // Estado da chamada
   callState: 'idle', // idle, calling, incoming, ongoing, ending
   callType: null, // 'video' ou 'voice'
   callerId: null,
@@ -11,15 +10,12 @@ const useCallStore = create((set, get) => ({
   calleeId: null,
   calleeName: null,
   
-  // Streams
   localStream: null,
   remoteStream: null,
   
-  // Controles de mídia
   isAudioMuted: false,
   isVideoOff: false,
   
-  // Ações
   startCall: async (userId, username, type = 'video') => {
     try {
       set({ 
@@ -29,14 +25,10 @@ const useCallStore = create((set, get) => ({
         calleeName: username 
       });
       
-      // Iniciar stream local
       const stream = await callService.getLocalStream(type === 'video');
       set({ localStream: stream });
       
-      // Iniciar sinalização para o outro usuário
       await callService.initiateCall(userId, type);
-      
-      // O resto da lógica (conexão peer) será tratado pelos eventos do socket
     } catch (error) {
       console.error('Erro ao iniciar chamada:', error);
       get().endCall();
@@ -56,14 +48,10 @@ const useCallStore = create((set, get) => ({
     try {
       const { callType, callerId } = get();
       
-      // Obter stream local
       const stream = await callService.getLocalStream(callType === 'video');
       set({ localStream: stream, callState: 'ongoing' });
       
-      // Aceitar a chamada no serviço
       await callService.acceptCall(callerId);
-      
-      // Eventos do socket tratarão a conexão peer
     } catch (error) {
       console.error('Erro ao aceitar chamada:', error);
       get().endCall();
@@ -79,28 +67,23 @@ const useCallStore = create((set, get) => ({
   endCall: async () => {
     const { callState, localStream } = get();
     
-    // Só termina se houver uma chamada ativa
     if (callState !== 'idle') {
       set({ callState: 'ending' });
       
-      // Parar streams
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
       
-      // Desconectar peer
       await callService.endCurrentCall();
       
       get().resetCallState();
     }
   },
   
-  // Definir stream remoto quando a conexão for estabelecida
   setRemoteStream: (stream) => {
     set({ remoteStream: stream, callState: 'ongoing' });
   },
   
-  // Controles de mídia
   toggleAudio: () => {
     const { localStream, isAudioMuted } = get();
     if (localStream) {
@@ -123,7 +106,6 @@ const useCallStore = create((set, get) => ({
     }
   },
   
-  // Resetar o estado
   resetCallState: () => {
     set({
       callState: 'idle',
