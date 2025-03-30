@@ -16,7 +16,7 @@ const GroupMessageInput = () => {
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
   const textareaRef = useRef(null);
-  const { sendGroupMessage, selectedGroup } = useGroupStore();
+  const { sendGroupMessage, selectedGroup, getGroupMessages } = useGroupStore();
 
   // Função para converter tamanho de arquivo para formato legível
   const formatFileSize = (bytes) => {
@@ -127,7 +127,25 @@ const GroupMessageInput = () => {
         };
       }
 
-      await sendGroupMessage(selectedGroup._id, messageData);
+      // Enviar a mensagem
+      const result = await sendGroupMessage(selectedGroup._id, messageData);
+
+      // IMPORTANTE: Recarregar as mensagens para garantir que a nova mensagem seja exibida corretamente
+      await getGroupMessages(selectedGroup._id);
+
+      // Forçar scroll para baixo após enviar a mensagem
+      setTimeout(() => {
+        const messageEndElement = document.getElementById('message-end-ref');
+        if (messageEndElement) {
+          messageEndElement.scrollIntoView({ behavior: "smooth" });
+        } else {
+          // Tenta encontrar o último elemento de mensagem
+          const chatContainer = document.querySelector('.overflow-y-auto');
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        }
+      }, 100);
 
       // Remover toast de carregamento se existir
       if (toastId) {

@@ -147,11 +147,40 @@ export const useGroupStore = create((set, get) => ({
       const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
       const newMessage = res.data;
       
+      // Formatar a nova mensagem para compatibilidade com a interface
+      // Garantir que senderId seja um objeto compatível se vier como string
+      const authUser = useAuthStore.getState().authUser;
+      let formattedMessage = {...newMessage};
+      
+      // Se senderId for uma string, transformar em um objeto similar
+      if (typeof formattedMessage.senderId === 'string') {
+        if (formattedMessage.senderId === authUser._id) {
+          formattedMessage = {
+            ...formattedMessage,
+            senderId: {
+              _id: authUser._id,
+              fullName: authUser.fullName,
+              profilePic: authUser.profilePic
+            }
+          };
+        }
+      }
+      
+      // Atualizar imediatamente o estado local com a mensagem formatada para melhor experiência do usuário
       set(state => ({
-        groupMessages: [...state.groupMessages, newMessage]
+        groupMessages: [...state.groupMessages, formattedMessage]
       }));
       
-      return newMessage;
+      // Notificar a UI de que há uma nova mensagem
+      // Isso deve acionar os efeitos de scroll para a nova mensagem
+      setTimeout(() => {
+        const messageEnd = document.getElementById('message-end-ref');
+        if (messageEnd) {
+          messageEnd.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 50);
+      
+      return formattedMessage;
     } catch (error) {
       console.error("Erro ao enviar mensagem ao grupo:", error);
       toast.error("Erro ao enviar mensagem");

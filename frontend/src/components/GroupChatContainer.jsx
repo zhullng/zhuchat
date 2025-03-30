@@ -9,7 +9,7 @@ import { Trash2, MoreVertical, Users } from "lucide-react";
 import { formatMessageTime } from "../lib/utils";
 import toast from "react-hot-toast";
 
-const GroupChatContainer = () => {
+const GroupChatContainer = ({ isMobile = false, onBack }) => {
   const {
     groupMessages,
     isGroupMessagesLoading,
@@ -54,6 +54,20 @@ const GroupChatContainer = () => {
     }
   }, [groupMessages.length, initialScrollDone]);
 
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeMessageMenu && !e.target.closest('.message-menu-container')) {
+        setActiveMessageMenu(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeMessageMenu]);
+
   // Função para excluir mensagem (a ser implementada no backend)
   const handleDeleteMessage = async (messageId) => {
     // Implementação futura
@@ -64,7 +78,7 @@ const GroupChatContainer = () => {
   if (isGroupMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
-        <GroupChatHeader />
+        <GroupChatHeader isMobile={isMobile} onBack={onBack} />
         <MessageSkeleton />
         <GroupMessageInput />
       </div>
@@ -73,13 +87,25 @@ const GroupChatContainer = () => {
 
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex-1 flex flex-col overflow-auto pb-5">
-      <GroupChatHeader />
+      <GroupChatHeader isMobile={isMobile} onBack={onBack} />
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
         {groupMessages.map((message) => {
-          const isMyMessage = message.senderId._id === authUser._id;
+          // Verificar se message.senderId é um objeto ou string
+          const isMyMessage = typeof message.senderId === 'object' 
+            ? message.senderId._id === authUser._id 
+            : message.senderId === authUser._id;
+          
+          // Determinar nome e foto do remetente
+          const senderName = typeof message.senderId === 'object' 
+            ? message.senderId.fullName || 'Nome Desconhecido'
+            : authUser._id === message.senderId ? authUser.fullName : 'Nome Desconhecido';
+          
+          const senderPic = typeof message.senderId === 'object'
+            ? message.senderId.profilePic || '/avatar.png'
+            : isMyMessage ? (authUser.profilePic || '/avatar.png') : '/avatar.png';
           
           return (
             <div
@@ -89,12 +115,9 @@ const GroupChatContainer = () => {
               <div className="chat-image avatar">
                 <div className="size-10 rounded-full border">
                   <img
-                    src={
-                      isMyMessage
-                        ? authUser.profilePic || "/avatar.png"
-                        : message.senderId.profilePic || "/avatar.png"
-                    }
+                    src={senderPic}
                     alt="profile pic"
+                    className="w-full h-full object-cover"
                   />
                 </div>
               </div>
@@ -134,7 +157,7 @@ const GroupChatContainer = () => {
                 ) : (
                   <>
                     <span className="font-semibold text-sm">
-                      {message.senderId.fullName || 'Nome Desconhecido'}
+                      {senderName}
                     </span>
                     <time className="text-xs opacity-50 ml-2">
                       {formatMessageTime(message.createdAt)}
@@ -172,7 +195,7 @@ const GroupChatContainer = () => {
         )}
         
         {/* Referência para o final da lista de mensagens */}
-        <div ref={messageEndRef}></div>
+        <div ref={messageEndRef} id="message-end-ref"></div>
       </div>
       <GroupMessageInput />
     </div>
