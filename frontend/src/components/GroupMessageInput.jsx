@@ -16,7 +16,7 @@ const GroupMessageInput = () => {
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
   const textareaRef = useRef(null);
-  const { sendGroupMessage, selectedGroup, getGroupMessages } = useGroupStore();
+  const { sendGroupMessage, selectedGroup } = useGroupStore();
 
   // Função para converter tamanho de arquivo para formato legível
   const formatFileSize = (bytes) => {
@@ -91,7 +91,10 @@ const GroupMessageInput = () => {
   };
 
   const handleSendMessage = async (e) => {
+    // Importante: Previnir o comportamento padrão do formulário 
+    // para evitar refresh da página
     e.preventDefault();
+    
     if (!text.trim() && !imageData && !fileInfo) return;
     if (isUploading || !selectedGroup) return;
 
@@ -127,25 +130,9 @@ const GroupMessageInput = () => {
         };
       }
 
-      // Enviar a mensagem
-      const result = await sendGroupMessage(selectedGroup._id, messageData);
-
-      // IMPORTANTE: Recarregar as mensagens para garantir que a nova mensagem seja exibida corretamente
-      await getGroupMessages(selectedGroup._id);
-
-      // Forçar scroll para baixo após enviar a mensagem
-      setTimeout(() => {
-        const messageEndElement = document.getElementById('message-end-ref');
-        if (messageEndElement) {
-          messageEndElement.scrollIntoView({ behavior: "smooth" });
-        } else {
-          // Tenta encontrar o último elemento de mensagem
-          const chatContainer = document.querySelector('.overflow-y-auto');
-          if (chatContainer) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-          }
-        }
-      }, 100);
+      // Importante: Não recarregamos as mensagens inteiras após o envio
+      // para evitar resets na interface
+      await sendGroupMessage(selectedGroup._id, messageData);
 
       // Remover toast de carregamento se existir
       if (toastId) {
@@ -218,6 +205,7 @@ const GroupMessageInput = () => {
   }, []);
 
   const handleKeyDown = (e) => {
+    // Também previne o comportamento padrão aqui ao pressionar Enter para enviar
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
