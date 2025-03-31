@@ -5,7 +5,7 @@ import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
-import JitsiCall from "./JitsiCall";
+import AgoraCall from "./AgoraCall"; // Novo componente Agora
 import toast from "react-hot-toast";
 
 const GroupChatHeader = () => {
@@ -133,10 +133,10 @@ const GroupChatHeader = () => {
         />
       )}
       
-      {/* Interface de Chamada Jitsi para Grupo */}
+      {/* Interface de Chamada Agora para Grupo */}
       {showCall && callRoom && (
-        <JitsiCall
-          roomName={callRoom}
+        <AgoraCall
+          channelName={callRoom}
           userName={authUser.fullName}
           onClose={closeCall}
         />

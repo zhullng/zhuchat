@@ -3,7 +3,7 @@ import { useState } from "react";
 import { X, Phone, Video } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
-import JitsiCall from "./JitsiCall";
+import AgoraCall from "./AgoraCall"; // Novo componente Agora
 import toast from "react-hot-toast";
 
 const ChatHeader = () => {
@@ -98,10 +98,10 @@ const ChatHeader = () => {
         </div>
       </div>
 
-      {/* Interface de Chamada Jitsi */}
+      {/* Interface de Chamada Agora */}
       {showCall && callRoom && (
-        <JitsiCall
-          roomName={callRoom}
+        <AgoraCall
+          channelName={callRoom}
           userName={authUser.fullName}
           onClose={closeCall}
         />
