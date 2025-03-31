@@ -1,4 +1,3 @@
-// src/components/DailyCall.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import toast from "react-hot-toast";
@@ -10,15 +9,12 @@ const DailyCall = ({ roomName, userName, onClose }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!roomName || !userName) return; // Evita inicialização desnecessária
+    if (!roomName || !userName) return; // Evita chamadas desnecessárias
 
-    const loadDailyScript = () => {
+    const loadDailyScript = async () => {
+      if (window.DailyIframe) return window.DailyIframe;
+      
       return new Promise((resolve, reject) => {
-        if (window.DailyIframe) {
-          resolve(window.DailyIframe);
-          return;
-        }
-
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@daily-co/daily-js/dist/daily-iframe.js';
         script.async = true;
@@ -30,11 +26,14 @@ const DailyCall = ({ roomName, userName, onClose }) => {
 
     const initializeCall = async () => {
       try {
+        // Garante que não há outra instância ativa
+        if (callFrameRef.current) {
+          console.warn("Tentativa de criar uma instância duplicada bloqueada.");
+          return;
+        }
+
         const DailyIframe = await loadDailyScript();
         const roomUrl = `https://zhuchat.daily.co/${roomName}`;
-
-        // Verifica se já existe uma instância do iframe
-        if (callFrameRef.current) return;
 
         const callFrameOptions = {
           url: roomUrl,
@@ -66,8 +65,9 @@ const DailyCall = ({ roomName, userName, onClose }) => {
             })
             .on('left-meeting', () => {
               console.log('Saiu da reunião');
-              onClose();
+              callFrameRef.current.destroy();
               callFrameRef.current = null; // Libera a instância
+              onClose();
             })
             .on('error', (err) => {
               console.error('Erro Daily:', err);
@@ -94,7 +94,7 @@ const DailyCall = ({ roomName, userName, onClose }) => {
         callFrameRef.current = null;
       }
     };
-  }, [roomName, userName, onClose]);
+  }, [roomName, userName]);
 
   if (error) {
     return (
