@@ -1,12 +1,12 @@
 // src/components/AgoraCall.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { X, Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { X, Mic, MicOff, Video, VideoOff, Users, Share2 } from 'lucide-react';
 import toast from "react-hot-toast";
 
 const AgoraCall = ({ channelName, userName, onClose }) => {
   // Substitua pela sua App ID da Agora
-  const appId = '96d68e46467e4119814df82609085f82';
+  const appId = 'SEU_APP_ID_AGORA';
   
   const [localVideoTrack, setLocalVideoTrack] = useState(null);
   const [localAudioTrack, setLocalAudioTrack] = useState(null);
@@ -15,10 +15,13 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [waitingForUsers, setWaitingForUsers] = useState(false);
   const [error, setError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
   
   const agoraEngineRef = useRef(null);
   const localPlayerContainerRef = useRef(null);
+  const clientUidRef = useRef(null);
   
   // Validar nome do canal antes de usar
   const validateChannelName = (name) => {
@@ -33,6 +36,8 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   };
   
   useEffect(() => {
+    console.log("Iniciando componente AgoraCall com canal:", channelName);
+    
     // Verificar nome do canal
     if (!validateChannelName(channelName)) {
       setError("Nome do canal inválido. Deve ter menos de 64 caracteres e usar apenas caracteres permitidos.");
@@ -44,6 +49,19 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
     // Criar cliente Agora
     agoraEngineRef.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     
+    // Adicionar handlers de eventos de conexão
+    agoraEngineRef.current.on("connection-state-change", (curState, prevState) => {
+      console.log(`Agora - Estado da conexão mudou: ${prevState} -> ${curState}`);
+      setConnectionStatus(curState);
+      
+      if (curState === "CONNECTED") {
+        toast.success("Conectado ao servidor de chamadas");
+      } else if (curState === "DISCONNECTED") {
+        toast.error("Desconectado do servidor de chamadas");
+        setIsLoading(false);
+      }
+    });
+    
     // Inicializar função de chamada
     const initializeAgora = async () => {
       // Escutar eventos de usuários remotos
@@ -54,17 +72,31 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
       agoraEngineRef.current.on("exception", handleException);
       
       try {
+        console.log("Agora - Solicitando permissões de mídia");
         // Solicitar permissões de mídia primeiro
         await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
         
         // Gerar um UID aleatório para o usuário
         const uid = Math.floor(Math.random() * 1000000);
+        clientUidRef.current = uid;
         
+        console.log(`Agora - Tentando entrar no canal: ${channelName} com UID: ${uid}`);
         // Entrar no canal
         await agoraEngineRef.current.join(appId, channelName, null, uid);
+        console.log("Agora - Entrou no canal com sucesso");
         toast.success("Conectado ao canal de chamada");
         setIsJoined(true);
         
+        // Verificar se há outros usuários no canal
+        const usersInChannel = agoraEngineRef.current.remoteUsers;
+        console.log("Agora - Usuários no canal:", usersInChannel.length);
+        
+        if (usersInChannel.length === 0) {
+          setWaitingForUsers(true);
+          toast.info("Aguardando outros participantes entrarem...");
+        }
+        
+        console.log("Agora - Criando tracks de áudio e vídeo");
         // Criar e publicar tracks de áudio e vídeo locais
         const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
         const videoTrack = await AgoraRTC.createCameraVideoTrack();
@@ -72,11 +104,14 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
         setLocalAudioTrack(audioTrack);
         setLocalVideoTrack(videoTrack);
         
+        console.log("Agora - Publicando tracks locais");
         // Publicar os tracks locais
         await agoraEngineRef.current.publish([audioTrack, videoTrack]);
+        console.log("Agora - Tracks publicados com sucesso");
         
         // Mostrar vídeo local
         if (localPlayerContainerRef.current) {
+          console.log("Agora - Reproduzindo vídeo local");
           videoTrack.play(localPlayerContainerRef.current);
         }
         
@@ -92,6 +127,7 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
     // Definir timeout para evitar chamadas presas em carregamento
     const timeoutId = setTimeout(() => {
       if (isLoading) {
+        console.log("Agora - Timeout ao tentar conectar");
         setError("Tempo esgotado ao tentar conectar. Verifique sua conexão.");
         setIsLoading(false);
         toast.error("Tempo esgotado ao conectar");
@@ -109,6 +145,7 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   
   // Função para encerrar a chamada
   const leaveCall = async () => {
+    console.log("Agora - Encerrando chamada");
     try {
       if (localAudioTrack) {
         localAudioTrack.close();
@@ -120,6 +157,7 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
       // Deixar o canal
       if (agoraEngineRef.current) {
         await agoraEngineRef.current.leave();
+        console.log("Agora - Saiu do canal com sucesso");
       }
     } catch (error) {
       console.error("Erro ao encerrar chamada:", error);
@@ -133,9 +171,13 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   
   // Manipular publicação de usuário remoto
   const handleUserPublished = async (user, mediaType) => {
+    console.log(`Agora - Usuário ${user.uid} publicou ${mediaType}`);
+    setWaitingForUsers(false);
+    
     try {
       // Inscrever-se no usuário
       await agoraEngineRef.current.subscribe(user, mediaType);
+      console.log(`Agora - Inscrito no usuário ${user.uid} para ${mediaType}`);
       
       // Se for vídeo, atualizar UI
       if (mediaType === "video") {
@@ -155,12 +197,13 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
         user.audioTrack?.play();
       }
     } catch (error) {
-      console.error("Erro ao receber mídia do usuário remoto:", error);
+      console.error(`Agora - Erro ao receber mídia do usuário ${user.uid}:`, error);
     }
   };
   
   // Manipular despublicação de usuário remoto
   const handleUserUnpublished = (user, mediaType) => {
+    console.log(`Agora - Usuário ${user.uid} despublicou ${mediaType}`);
     if (mediaType === "video") {
       setRemoteUsers(prevUsers => 
         prevUsers.map(u => u.uid === user.uid ? { ...u, videoTrack: null } : u)
@@ -170,13 +213,21 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   
   // Manipular entrada de novo usuário
   const handleUserJoined = (user) => {
+    console.log(`Agora - Usuário ${user.uid} entrou na chamada`);
     toast.info(`Outro usuário entrou na chamada`);
+    setWaitingForUsers(false);
   };
   
   // Manipular saída de usuário
   const handleUserLeft = (user) => {
+    console.log(`Agora - Usuário ${user.uid} saiu da chamada`);
     toast.info(`Outro usuário saiu da chamada`);
     setRemoteUsers(prevUsers => prevUsers.filter(u => u.uid !== user.uid));
+    
+    // Se não houver mais usuários remotos, mostrar mensagem de espera
+    if (agoraEngineRef.current?.remoteUsers.length === 0) {
+      setWaitingForUsers(true);
+    }
   };
   
   // Manipular exceções
@@ -187,6 +238,27 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
       return;
     }
     toast.error(`Erro: ${event.msg || 'Erro desconhecido'}`);
+  };
+  
+  // Compartilhar link da chamada
+  const shareCallLink = async () => {
+    try {
+      const callUrl = `${window.location.origin}/join-call/${channelName}`;
+      
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Entrar na chamada ZhuChat',
+          text: 'Entre na minha chamada ZhuChat:',
+          url: callUrl
+        });
+      } else {
+        await navigator.clipboard.writeText(callUrl);
+        toast.success("Link da chamada copiado para a área de transferência!");
+      }
+    } catch (error) {
+      console.error("Erro ao compartilhar link:", error);
+      toast.error("Não foi possível compartilhar o link da chamada");
+    }
   };
   
   // Alternar áudio
@@ -205,6 +277,24 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
     }
   };
   
+  // Obter status da conexão
+  const getConnectionStatusText = () => {
+    switch (connectionStatus) {
+      case 'DISCONNECTED':
+        return 'Desconectado';
+      case 'CONNECTING':
+        return 'Conectando...';
+      case 'CONNECTED':
+        return 'Conectado';
+      case 'RECONNECTING':
+        return 'Reconectando...';
+      case 'ABORTED':
+        return 'Conexão interrompida';
+      default:
+        return isJoined ? 'Chamada em andamento' : 'Conectando...';
+    }
+  };
+  
   // Encerrar a chamada
   const handleClose = async () => {
     await leaveCall();
@@ -220,6 +310,7 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
     // Usado para reproduzir o vídeo após a renderização do componente
     setTimeout(() => {
       if (user.videoTrack) {
+        console.log(`Agora - Reproduzindo vídeo do usuário ${user.uid}`);
         user.videoTrack.play(playerContainerId);
       }
     }, 100);
@@ -271,15 +362,25 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
       {/* Cabeçalho da chamada */}
       <div className="p-4 flex justify-between items-center bg-gray-900">
         <h2 className="text-white font-medium">
-          {isLoading ? 'Iniciando chamada...' : isJoined ? 'Chamada em andamento' : 'Conectando...'}
+          {isLoading ? 'Iniciando chamada...' : getConnectionStatusText()}
         </h2>
-        <button 
-          onClick={handleClose}
-          className="p-2 rounded-full bg-red-500 text-white"
-          title="Encerrar chamada"
-        >
-          <X size={20} />
-        </button>
+        <div className="flex items-center">
+          <span className="text-gray-300 mr-3 text-sm">
+            {waitingForUsers && !isLoading ? 
+              <span className="flex items-center text-yellow-300">
+                <Users size={16} className="mr-1"/> Aguardando participantes
+              </span> : 
+              clientUidRef.current ? `Seu ID: ${clientUidRef.current}` : ''
+            }
+          </span>
+          <button 
+            onClick={handleClose}
+            className="p-2 rounded-full bg-red-500 text-white"
+            title="Encerrar chamada"
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
       
       {/* Área de vídeo */}
@@ -297,7 +398,24 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
             remoteUsers.map(renderRemoteUser)
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <p className="text-white text-lg">Aguardando outro participante...</p>
+              {waitingForUsers ? (
+                <div className="text-center">
+                  <div className="animate-pulse mb-4">
+                    <Users size={64} className="text-gray-400 mx-auto"/>
+                  </div>
+                  <p className="text-white text-lg">Aguardando outros participantes...</p>
+                  <p className="text-gray-400 mt-2">Envie o link para convidar alguém para a chamada</p>
+                  <button 
+                    onClick={shareCallLink}
+                    className="mt-4 flex items-center mx-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                  >
+                    <Share2 size={18} className="mr-2" />
+                    Compartilhar link da chamada
+                  </button>
+                </div>
+              ) : (
+                <p className="text-white text-lg">Conectando à chamada...</p>
+              )}
             </div>
           )}
         </div>
