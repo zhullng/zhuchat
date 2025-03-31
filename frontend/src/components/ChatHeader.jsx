@@ -17,7 +17,10 @@ const ChatHeader = () => {
   const isUserOnline = onlineUsers.includes(selectedUser?._id);
 
   const startCall = (type) => {
-    if (isAI || !isUserOnline) return;
+    if (isAI || !isUserOnline) {
+      toast.error(`Não é possível iniciar uma chamada ${type === 'voice' ? 'de voz' : 'de vídeo'} com ${isAI ? 'o assistente AI' : 'um usuário offline'}.`);
+      return;
+    }
     
     // Criar um nome de sala único para esta conversa
     const roomName = `zhuchat_${authUser._id}_${selectedUser._id}_${Date.now()}`.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -25,7 +28,7 @@ const ChatHeader = () => {
     setCallType(type);
     setShowCall(true);
     
-    toast.success(`Iniciando chamada com ${selectedUser.fullName}...`);
+    toast.success(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'} com ${selectedUser.fullName}...`);
   };
 
   const closeCall = () => {
