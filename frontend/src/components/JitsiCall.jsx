@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 const JitsiCall = ({ roomName, userName, onClose }) => {
   const apiRef = useRef(null);
   const containerRef = useRef(null);
+  const hasTriedToJoin = useRef(false);
 
   useEffect(() => {
     // Função para carregar a API do Jitsi
@@ -17,6 +18,54 @@ const JitsiCall = ({ roomName, userName, onClose }) => {
       });
     };
 
+    // Função para automaticamente clicar no botão de iniciar sessão
+    const tryToStartMeeting = () => {
+      if (hasTriedToJoin.current) return;
+      
+      console.log("Tentando iniciar sessão automaticamente...");
+      hasTriedToJoin.current = true;
+      
+      // Tentar encontrar e clicar no botão de iniciar sessão
+      setTimeout(() => {
+        // Tentativa 1: Botão específico
+        let joinButton = document.querySelector('button[data-testid="lobby.joinButton"]');
+        if (joinButton) {
+          console.log("Botão de iniciar sessão encontrado por data-testid");
+          joinButton.click();
+          return;
+        }
+        
+        // Tentativa 2: Qualquer botão com o texto "Iniciar sessão"
+        const buttons = document.querySelectorAll('button');
+        for (const button of buttons) {
+          if (button.textContent.includes('Iniciar sessão')) {
+            console.log("Botão de iniciar sessão encontrado por texto");
+            button.click();
+            return;
+          }
+        }
+        
+        // Tentativa 3: Elementos da interface com o texto "Iniciar sessão"
+        const allElements = document.querySelectorAll('*');
+        for (const element of allElements) {
+          if (element.textContent === 'Iniciar sessão' && element.tagName.toLowerCase() === 'button') {
+            console.log("Botão de iniciar sessão encontrado (busca geral)");
+            element.click();
+            return;
+          }
+        }
+        
+        // Tentativa 4: Usar o API do Jitsi diretamente
+        if (apiRef.current) {
+          console.log("Tentando usar comandos API para iniciar sessão");
+          apiRef.current.executeCommand('startMeeting');
+          apiRef.current.executeCommand('joinAsParticipant');
+        }
+        
+        console.log("Botão de iniciar sessão não encontrado automaticamente");
+      }, 1500);
+    };
+
     // Função para inicializar o Jitsi
     const initJitsi = async () => {
       if (!window.JitsiMeetExternalAPI) {
@@ -25,7 +74,7 @@ const JitsiCall = ({ roomName, userName, onClose }) => {
 
       const domain = 'meet.jit.si';
       const options = {
-        roomName,
+        roomName: roomName,
         width: '100%',
         height: '100%',
         parentNode: containerRef.current,
@@ -47,51 +96,88 @@ const JitsiCall = ({ roomName, userName, onClose }) => {
           MOBILE_APP_PROMO: false
         },
         configOverwrite: {
+          // Configurações para tentar evitar a tela de moderador
+          disableModeratorIndicator: true,
+          enableLobbyChat: false,
+          requireDisplayName: false,
+          enableWelcomePage: false,
           startWithAudioMuted: false,
           startWithVideoMuted: false,
+          startAsModerator: true,
           prejoinPageEnabled: false,
           disableDeepLinking: true,
-          startAsModerator: true,
-          enableWelcomePage: false,
-          enableClosePage: true
+          enableClosePage: true,
+          lobby: {
+            autoKnock: false,
+            enableChat: false
+          }
         }
       };
 
       try {
+        console.log("Inicializando Jitsi API");
         apiRef.current = new window.JitsiMeetExternalAPI(domain, options);
         
         // Definir o tema da conferência
         apiRef.current.executeCommand('subject', 'ZhuChat Videochamada');
         
-        // Iniciar a sessão automaticamente
-        setTimeout(() => {
-          const buttons = document.querySelectorAll('button');
-          for (const button of buttons) {
-            if (button.textContent.includes('Iniciar sessão') || 
-                button.hasAttribute('data-testid') && button.getAttribute('data-testid') === 'lobby.joinButton') {
-              button.click();
-              break;
-            }
-          }
-        }, 1500);
-        
-        // Adicionar event listeners
+        // Registrar evento para quando a interface estiver pronta
         apiRef.current.addListener('videoConferenceJoined', () => {
-          console.log('Entrou na conferência');
-          // Podemos adicionar ações adicionais quando o usuário entrar na conferência
-        });
-        
-        apiRef.current.addListener('videoConferenceLeft', () => {
-          if (onClose) onClose();
+          console.log("Entrou na conferência com sucesso");
         });
         
         apiRef.current.addListener('readyToClose', () => {
+          console.log("Conferência pronta para fechar");
           if (onClose) onClose();
         });
         
-        apiRef.current.addListener('participantJoined', (participant) => {
-          console.log('Participante entrou:', participant);
+        apiRef.current.addListener('videoConferenceLeft', () => {
+          console.log("Saiu da conferência");
+          if (onClose) onClose();
         });
+        
+        // Primeiro método para tentar iniciar automaticamente
+        tryToStartMeeting();
+        
+        // Segunda tentativa após um tempo maior
+        setTimeout(tryToStartMeeting, 3000);
+        
+        // Verificar se precisamos mostrar um botão manual
+        setTimeout(() => {
+          const moderatorScreen = document.querySelector('[data-testid="lobby.container"]');
+          if (moderatorScreen) {
+            console.log("Tela de moderador ainda visível após tentativas automáticas");
+            
+            // Criar botão alternativo direto no DOM
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.position = 'fixed';
+            buttonContainer.style.bottom = '20px';
+            buttonContainer.style.left = '50%';
+            buttonContainer.style.transform = 'translateX(-50%)';
+            buttonContainer.style.zIndex = '9999';
+            
+            const startButton = document.createElement('button');
+            startButton.innerText = 'Iniciar Sessão Manualmente';
+            startButton.style.padding = '12px 24px';
+            startButton.style.backgroundColor = '#2196F3';
+            startButton.style.color = 'white';
+            startButton.style.border = 'none';
+            startButton.style.borderRadius = '4px';
+            startButton.style.cursor = 'pointer';
+            startButton.style.fontSize = '16px';
+            
+            startButton.onclick = () => {
+              const joinButton = document.querySelector('button[data-testid="lobby.joinButton"]');
+              if (joinButton) {
+                joinButton.click();
+              }
+            };
+            
+            buttonContainer.appendChild(startButton);
+            document.body.appendChild(buttonContainer);
+          }
+        }, 5000);
+        
       } catch (error) {
         console.error('Erro ao inicializar Jitsi:', error);
       }
@@ -101,9 +187,11 @@ const JitsiCall = ({ roomName, userName, onClose }) => {
 
     // Cleanup ao desmontar
     return () => {
+      console.log("Desmontando componente Jitsi");
       if (apiRef.current) {
         apiRef.current.dispose();
       }
+      hasTriedToJoin.current = false;
     };
   }, [roomName, userName, onClose]);
 
