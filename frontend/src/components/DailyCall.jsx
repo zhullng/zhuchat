@@ -1,6 +1,6 @@
 // src/components/DailyCall.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { X } from 'lucide-react';
 import toast from "react-hot-toast";
 
 const DailyCall = ({ roomName, userName, onClose }) => {
@@ -10,36 +10,32 @@ const DailyCall = ({ roomName, userName, onClose }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Função para carregar o SDK do Daily.co
+    if (!roomName || !userName) return; // Evita inicialização desnecessária
+
     const loadDailyScript = () => {
       return new Promise((resolve, reject) => {
-        // Verificar se o script já foi carregado
         if (window.DailyIframe) {
           resolve(window.DailyIframe);
           return;
         }
 
-        // Carregar o script
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@daily-co/daily-js/dist/daily-iframe.js';
         script.async = true;
         script.onload = () => resolve(window.DailyIframe);
-        script.onerror = (err) => reject(new Error('Falha ao carregar Daily.co SDK'));
+        script.onerror = () => reject(new Error('Falha ao carregar Daily.co SDK'));
         document.body.appendChild(script);
       });
     };
 
     const initializeCall = async () => {
       try {
-        // Carregar o SDK
         const DailyIframe = await loadDailyScript();
-        
-        // Gerar URL da sala no Daily.co baseado no roomName
-        // Em produção: Você deve criar salas via API do Daily.co no seu backend
-        // Para este exemplo, usaremos uma demo domain
         const roomUrl = `https://zhuchat.daily.co/${roomName}`;
-        
-        // Configurações do iframe
+
+        // Verifica se já existe uma instância do iframe
+        if (callFrameRef.current) return;
+
         const callFrameOptions = {
           url: roomUrl,
           showLeaveButton: true,
@@ -53,16 +49,12 @@ const DailyCall = ({ roomName, userName, onClose }) => {
             zIndex: 1
           }
         };
-        
-        // Criar o iframe para a chamada
+
         if (wrapperRef.current) {
           callFrameRef.current = DailyIframe.createFrame(wrapperRef.current, callFrameOptions);
-          
-          // Adicionar event listeners
+
           callFrameRef.current
-            .on('loaded', () => {
-              console.log('Daily iframe carregado');
-            })
+            .on('loaded', () => console.log('Daily iframe carregado'))
             .on('joining-meeting', () => {
               console.log('Entrando na reunião...');
               toast.success("Conectando à chamada...");
@@ -75,6 +67,7 @@ const DailyCall = ({ roomName, userName, onClose }) => {
             .on('left-meeting', () => {
               console.log('Saiu da reunião');
               onClose();
+              callFrameRef.current = null; // Libera a instância
             })
             .on('error', (err) => {
               console.error('Erro Daily:', err);
@@ -82,8 +75,7 @@ const DailyCall = ({ roomName, userName, onClose }) => {
               toast.error(`Erro na chamada: ${err.errorMsg || 'Erro desconhecido'}`);
               setIsLoading(false);
             });
-            
-          // Iniciar a reunião
+
           await callFrameRef.current.join();
         }
       } catch (err) {
@@ -96,28 +88,23 @@ const DailyCall = ({ roomName, userName, onClose }) => {
 
     initializeCall();
 
-    // Cleanup ao desmontar o componente
     return () => {
       if (callFrameRef.current) {
         callFrameRef.current.destroy();
+        callFrameRef.current = null;
       }
     };
   }, [roomName, userName, onClose]);
 
-  // Se houver erro, mostrar mensagem
   if (error) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
         <div className="p-4 flex justify-between items-center bg-gray-900">
           <h2 className="text-white font-medium">Erro na chamada</h2>
-          <button 
-            onClick={onClose}
-            className="p-2 rounded-full bg-red-500 text-white"
-          >
+          <button onClick={onClose} className="p-2 rounded-full bg-red-500 text-white">
             <X size={20} />
           </button>
         </div>
-        
         <div className="flex-1 flex items-center justify-center bg-gray-800">
           <div className="text-center text-white p-4">
             <div className="bg-red-500 p-4 rounded-lg mb-4">
@@ -125,10 +112,7 @@ const DailyCall = ({ roomName, userName, onClose }) => {
               <h3 className="text-xl font-bold mb-2">Não foi possível iniciar a chamada</h3>
               <p>{error}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded"
-            >
+            <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded">
               Voltar
             </button>
           </div>
@@ -139,7 +123,6 @@ const DailyCall = ({ roomName, userName, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Cabeçalho da chamada */}
       <div className="p-4 flex justify-between items-center bg-gray-900">
         <h2 className="text-white font-medium">
           {isLoading ? 'Iniciando chamada...' : 'Chamada em andamento'}
@@ -158,8 +141,7 @@ const DailyCall = ({ roomName, userName, onClose }) => {
           <X size={20} />
         </button>
       </div>
-      
-      {/* Área da chamada */}
+
       <div className="flex-1 relative bg-gray-800">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
