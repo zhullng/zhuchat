@@ -5,7 +5,7 @@ import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
-import AgoraCall from "./AgoraCall";
+import DailyCall from "./DailyCall";
 import toast from "react-hot-toast";
 
 const GroupChatHeader = () => {
@@ -21,13 +21,12 @@ const GroupChatHeader = () => {
   const memberCount = selectedGroup?.members?.length || 0;
 
   const startGroupCall = (type) => {
-    // Criar um nome de sala mais curto para este grupo
-    // Usar os últimos 6 caracteres do ID do grupo e um timestamp curto
+    // Criar um nome de sala Daily para grupo
     const groupId = selectedGroup._id.slice(-6);
     const timeStamp = Date.now().toString().slice(-6);
     
-    // Formato: zc_g_ID_time (curto e com caracteres permitidos)
-    const roomName = `zc_g_${groupId}_${timeStamp}`;
+    // Formato compatível com Daily.co
+    const roomName = `zc-g-${groupId}-${timeStamp}`;
     
     setCallRoom(roomName);
     setCallType(type);
@@ -139,10 +138,10 @@ const GroupChatHeader = () => {
         />
       )}
       
-      {/* Interface de Chamada Agora para Grupo */}
+      {/* Interface de Chamada Daily para Grupo */}
       {showCall && callRoom && (
-        <AgoraCall
-          channelName={callRoom}
+        <DailyCall
+          roomName={callRoom}
           userName={authUser.fullName}
           onClose={closeCall}
         />

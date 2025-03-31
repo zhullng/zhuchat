@@ -3,7 +3,7 @@ import { useState } from "react";
 import { X, Phone, Video } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
-import AgoraCall from "./AgoraCall";
+import DailyCall from "./DailyCall";
 import toast from "react-hot-toast";
 
 const ChatHeader = () => {
@@ -23,18 +23,16 @@ const ChatHeader = () => {
     }
     
     if (!isUserOnline) {
-      // Substituindo toast.info (que pode não existir) por toast.success ou toast
       toast.success(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'}, mas o usuário está offline. Ele receberá uma notificação quando ficar online.`);
     }
     
-    // Criar um nome de sala mais curto para esta conversa
-    // Usar os últimos 6 caracteres de cada ID e um timestamp curto
+    // Criar um nome de sala Daily
     const userId1 = authUser._id.slice(-6);
     const userId2 = selectedUser._id.slice(-6);
     const timeStamp = Date.now().toString().slice(-6);
     
-    // Formato: zc_u1_u2_time (curto e com caracteres permitidos)
-    const roomName = `zc_${userId1}_${userId2}_${timeStamp}`;
+    // Formato compatível com Daily.co
+    const roomName = `zc-${userId1}-${userId2}-${timeStamp}`;
     
     setCallRoom(roomName);
     setCallType(type);
@@ -108,10 +106,10 @@ const ChatHeader = () => {
         </div>
       </div>
 
-      {/* Interface de Chamada Agora */}
+      {/* Interface de Chamada Daily */}
       {showCall && callRoom && (
-        <AgoraCall
-          channelName={callRoom}
+        <DailyCall
+          roomName={callRoom}
           userName={authUser.fullName}
           onClose={closeCall}
         />
