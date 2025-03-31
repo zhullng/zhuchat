@@ -1,6 +1,6 @@
 // src/socket.js
 import { io } from "socket.io-client";
-import { useAuthStore } from "../store/useAuthStore.js";
+import { useAuthStore } from "../store/useAuthStore";
 
 let socket = null;
 
@@ -13,50 +13,43 @@ export const initializeSocket = () => {
       return null;
     }
     
-    // Se já existe um socket conectado, retorne ele
-    if (socket?.connected) {
-      console.log("Reutilizando socket existente");
-      return socket;
-    }
-    
-    // Certifique-se de desconectar qualquer socket existente
+    // Desconectar qualquer socket existente para garantir conexão limpa
     if (socket) {
-      console.log("Desconectando socket antigo antes de criar novo");
+      console.log("Desconectando socket existente para reconectar");
       socket.disconnect();
       socket = null;
     }
     
-    // Obter URL do backend - o domínio deve ser o backend, não o frontend!
-    // Você estava usando o URL do frontend como backend
-    // Substitua pelo URL correto do seu backend
-    const BACKEND_URL = "https://zhuchat-backend.onrender.com"; // Ajuste para a URL real do seu backend
+    // URL do backend - ajuste para seu servidor real
+    const BACKEND_URL = "https://zhuchat.onrender.com"; 
     
-    console.log("Inicializando socket com URL:", BACKEND_URL);
+    console.log("Inicializando novo socket com URL:", BACKEND_URL);
     
-    // Criar nova conexão com configurações melhoradas
     socket = io(BACKEND_URL, {
       query: { userId: authUser._id },
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      timeout: 10000,
-      transports: ['websocket', 'polling'], // Tente websocket primeiro, depois polling
+      timeout: 20000,
+      forceNew: true
     });
     
-    // Registrar handlers de eventos com mais logs para depuração
     socket.on("connect", () => {
       console.log("Socket conectado com ID:", socket.id);
     });
     
-    socket.on("connect_error", (error) => {
-      console.error("Erro de conexão socket:", error);
-    });
-    
     socket.on("disconnect", (reason) => {
       console.log("Socket desconectado. Motivo:", reason);
+      
+      // Tentar reconectar automaticamente em caso de desconexão inesperada
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        console.log("Tentando reconectar automaticamente...");
+        socket.connect();
+      }
     });
     
-    socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(`Tentativa de reconexão #${attemptNumber}`);
+    // Adicionar handler específico para eventos de chamada para debugging
+    socket.on("call:incoming", (data) => {
+      console.log("🔔 EVENTO CALL:INCOMING RECEBIDO!", data);
     });
     
     return socket;

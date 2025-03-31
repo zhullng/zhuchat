@@ -5,10 +5,9 @@ import callService from '../services/callService';
 import { useAuthStore } from '../store/useAuthStore'; 
 import CallInterface from './CallInterface';
 import IncomingCallModal from './IncomingCallModal';
-import { initializeSocket, disconnectSocket } from '../services/socket.js';
+import { initializeSocket, disconnectSocket, getSocket } from '../socket';
 import toast from 'react-hot-toast';
 
-// Este componente vai configurar e gerenciar as chamadas em nível de aplicativo
 const CallsProvider = ({ children }) => {
   const { authUser } = useAuthStore();
   const [socketInitialized, setSocketInitialized] = useState(false);
@@ -29,6 +28,28 @@ const CallsProvider = ({ children }) => {
         if (socket) {
           console.log("Socket inicializado com sucesso, configurando serviço de chamadas");
           
+          // Remover handlers antigos para evitar duplicação
+          socket.off("call:incoming");
+          
+          // Adicionar handler direto aqui também para garantir que seja chamado
+          socket.on("call:incoming", (data) => {
+            console.log("CHAMADA RECEBIDA NO PROVIDER:", data);
+            const { callerId, callerName, callType } = data;
+            
+            // Notificar o usuário de várias maneiras
+            toast.success(`Chamada recebida de ${callerName || "Alguém"}!`, {
+              duration: 10000,
+              icon: '📞',
+            });
+            
+            // Forçar alerta para garantir que o usuário receba a notificação
+            setTimeout(() => {
+              alert(`Chamada recebida de ${callerName || "Alguém"}!`);
+            }, 500);
+            
+            handleIncomingCall(callerId, callerName || "Usuário", callType);
+          });
+          
           // Inicializar o serviço com o socket
           callService.init(socket, authUser._id);
 
@@ -36,13 +57,6 @@ const CallsProvider = ({ children }) => {
           callService.registerCallbacks({
             onIncomingCall: (callerId, callerName, callType) => {
               console.log(`Callback onIncomingCall: ${callerName} está chamando (${callType})`);
-              
-              // Notificação visual como backup para o modal
-              toast('Chamada recebida!', {
-                icon: callType === 'video' ? '📹' : '📞',
-                duration: 10000,
-              });
-              
               handleIncomingCall(callerId, callerName, callType);
             },
             onRemoteStream: (stream) => {
@@ -71,6 +85,26 @@ const CallsProvider = ({ children }) => {
       disconnectSocket();
     };
   }, [authUser?._id, socketInitialized]);
+
+  // Lidar com mudanças de visibilidade da página (quando o app vai para segundo plano)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Documento voltou a ficar visível, reconectando socket");
+        // Reiniciar socket quando o app volta a ficar visível
+        const socket = initializeSocket();
+        if (socket) {
+          callService.init(socket, authUser?._id);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [authUser?._id]);
 
   // Debug log para verificar o estado atual da chamada
   useEffect(() => {

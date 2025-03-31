@@ -5,42 +5,58 @@ import toast from 'react-hot-toast';
 
 const IncomingCallModal = ({ caller, callType, onAccept, onReject }) => {
   const audioRef = useRef(null);
-  const [showMobileAlert, setShowMobileAlert] = useState(false);
+  const [showMobileAlert, setShowMobileAlert] = useState(true);
   
   // Reproduzir som de chamada e mostrar alertas
   useEffect(() => {
-    console.log("Modal de chamada recebida montado");
+    console.log("Modal de chamada recebida montado para:", caller);
     
     // Mostrar um toast adicional para garantir visibilidade
     toast.success(`Chamada recebida de ${caller}`, {
-      duration: 10000, // 10 segundos
+      duration: 10000,
       icon: callType === 'video' ? '📹' : '📞',
       id: 'incoming-call'
     });
     
-    // No dispositivo móvel, pode ser útil mostrar um segundo alerta
-    setShowMobileAlert(true);
+    // Garantir que a página esteja em foco
+    window.focus();
     
     try {
       // Criar o elemento de áudio para o toque de chamada
       const audio = new Audio('/sounds/ringtone.mp3');
       audio.loop = true;
+      audio.volume = 1.0; // Volume máximo
       
       // Em alguns navegadores, o áudio só pode ser reproduzido após interação do usuário
-      const playPromise = audio.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch(e => {
+      const playAudio = () => {
+        audio.play().catch(e => {
           console.log('Não foi possível reproduzir o som automaticamente:', e);
-          // Tenta novamente com um click do usuário
-          document.addEventListener('click', function tryPlayOnce() {
-            audio.play().catch(err => console.log('Ainda não foi possível reproduzir:', err));
-            document.removeEventListener('click', tryPlayOnce);
-          });
         });
+      };
+      
+      playAudio();
+      
+      // Tentar tocar novamente a cada segundo (para dispositivos móveis)
+      const audioInterval = setInterval(playAudio, 1000);
+      
+      // Tentar vibrar o dispositivo se disponível
+      if ('vibrate' in navigator) {
+        try {
+          navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
+        } catch (e) {
+          console.log('Vibração não suportada:', e);
+        }
       }
       
       audioRef.current = audio;
+      
+      return () => {
+        clearInterval(audioInterval);
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+      };
     } catch (error) {
       console.error("Erro ao configurar áudio de chamada:", error);
     }
@@ -83,8 +99,8 @@ const IncomingCallModal = ({ caller, callType, onAccept, onReject }) => {
 
   return (
     <>
-      {/* Modal principal para dispositivos maiores */}
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      {/* Modal principal - Z-index extremamente alto para garantir visibilidade */}
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999] p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-lg">
           <div className="flex flex-col items-center justify-center">
             {/* Ícone da chamada */}
@@ -126,11 +142,14 @@ const IncomingCallModal = ({ caller, callType, onAccept, onReject }) => {
         </div>
       </div>
       
-      {/* Alerta móvel especial - Fixo na parte inferior */}
+      {/* Alerta móvel fixo na parte inferior - Interface alternativa para dispositivos móveis */}
       {showMobileAlert && (
-        <div className="fixed bottom-0 left-0 right-0 bg-green-600 p-4 flex justify-between items-center z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-green-600 p-4 flex justify-between items-center z-[9999]">
           <div className="flex items-center">
-            {callType === 'video' ? <Video className="w-6 h-6 text-white mr-2" /> : <Phone className="w-6 h-6 text-white mr-2" />}
+            {callType === 'video' ? 
+              <Video className="w-6 h-6 text-white mr-2" /> : 
+              <Phone className="w-6 h-6 text-white mr-2" />
+            }
             <span className="text-white font-medium">Chamada de {caller}</span>
           </div>
           <div className="flex gap-2">
