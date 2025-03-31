@@ -1,25 +1,30 @@
-// src/components/CallsProvider.jsx
-import { useEffect, useState } from 'react';
+// src/components/CallsProvider.jsx - Corrigido
+import { useEffect, useState, useRef } from 'react';
 import useCallStore from '../store/useCallStore';
 import callService from '../services/callService';
 import { useAuthStore } from '../store/useAuthStore'; 
 import CallInterface from './CallInterface';
 import IncomingCallModal from './IncomingCallModal';
-import { initializeSocket, disconnectSocket, getSocket } from '../services/socket.js';
+import { initializeSocket, disconnectSocket, getSocket } from '../services/socket';
 import toast from 'react-hot-toast';
 
 const CallsProvider = ({ children }) => {
   const { authUser } = useAuthStore();
   const [socketInitialized, setSocketInitialized] = useState(false);
+  const providerMounted = useRef(false);
   const { 
     callState, callType, callerId, callerName, 
     handleIncomingCall, setRemoteStream, endCall, 
     acceptCall, rejectCall
   } = useCallStore();
 
-  // Inicializar o socket e o serviço de chamada quando o componente montar
+  // Inicializar o socket e o serviço de chamada quando o componente montar - APENAS UMA VEZ
   useEffect(() => {
-    if (authUser?._id && !socketInitialized) {
+    console.log("CallsProvider - Efeito de montagem inicial");
+    providerMounted.current = true;
+    
+    // Esta função só deve executar UMA VEZ quando o componente montar
+    if (authUser?._id && !socketInitialized && providerMounted.current) {
       console.log("CallsProvider - Inicializando socket e serviço de chamadas");
       
       try {
@@ -44,10 +49,14 @@ const CallsProvider = ({ children }) => {
             
             // Forçar alerta para garantir que o usuário receba a notificação
             setTimeout(() => {
-              alert(`Chamada recebida de ${callerName || "Alguém"}!`);
+              if (providerMounted.current) {
+                alert(`Chamada recebida de ${callerName || "Alguém"}!`);
+              }
             }, 500);
             
-            handleIncomingCall(callerId, callerName || "Usuário", callType);
+            if (providerMounted.current) {
+              handleIncomingCall(callerId, callerName || "Usuário", callType);
+            }
           });
           
           // Inicializar o serviço com o socket
@@ -57,15 +66,21 @@ const CallsProvider = ({ children }) => {
           callService.registerCallbacks({
             onIncomingCall: (callerId, callerName, callType) => {
               console.log(`Callback onIncomingCall: ${callerName} está chamando (${callType})`);
-              handleIncomingCall(callerId, callerName, callType);
+              if (providerMounted.current) {
+                handleIncomingCall(callerId, callerName, callType);
+              }
             },
             onRemoteStream: (stream) => {
               console.log("Callback onRemoteStream: stream remoto recebido");
-              setRemoteStream(stream);
+              if (providerMounted.current) {
+                setRemoteStream(stream);
+              }
             },
             onCallEnded: (reason) => {
               console.log(`Callback onCallEnded: chamada encerrada (${reason})`);
-              endCall();
+              if (providerMounted.current) {
+                endCall();
+              }
             }
           });
           
@@ -78,33 +93,29 @@ const CallsProvider = ({ children }) => {
       }
     }
 
-    // Cleanup quando o componente desmontar
+    // Cleanup quando o componente desmontar - MUITO IMPORTANTE
     return () => {
       console.log("CallsProvider - Desmontando e limpando recursos");
-      endCall();
-      disconnectSocket();
-    };
-  }, [authUser?._id, socketInitialized]);
-
-  // Lidar com mudanças de visibilidade da página (quando o app vai para segundo plano)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log("Documento voltou a ficar visível, reconectando socket");
-        // Reiniciar socket quando o app volta a ficar visível
-        const socket = initializeSocket();
-        if (socket) {
-          callService.init(socket, authUser?._id);
-        }
+      providerMounted.current = false;
+      
+      // Não desconecte o socket aqui, apenas ao deslogar
+      // Isso é crucial para manter o socket vivo entre navegações
+      
+      // Apenas limpar recursos da chamada se estiver em andamento
+      if (callState !== 'idle') {
+        endCall();
       }
     };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [authUser?._id]);
+  }, [authUser?._id]); // Remova socketInitialized das dependências para evitar reexecuções
+
+  // Este efeito fará a limpeza completa apenas quando o usuário deslogar
+  useEffect(() => {
+    if (!authUser) {
+      console.log("Usuário deslogado, desconectando socket");
+      disconnectSocket();
+      setSocketInitialized(false);
+    }
+  }, [authUser]);
 
   // Debug log para verificar o estado atual da chamada
   useEffect(() => {

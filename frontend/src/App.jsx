@@ -65,9 +65,11 @@ const App = () => {
     location.pathname.startsWith("/reset-password/");
 
   // Wrapper de conteúdo com CallsProvider quando o usuário está autenticado
+  // A principal alteração é a adição da prop key="callsProvider"
+  // Isso garante que o React não recrie o componente quando a rota mudar
   const ContentWrapper = ({ children }) => {
     return authUser ? (
-      <CallsProvider>
+      <CallsProvider key="callsProvider">
         {children}
       </CallsProvider>
     ) : children;
