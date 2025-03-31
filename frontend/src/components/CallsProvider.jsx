@@ -5,7 +5,7 @@ import callService from '../services/callService';
 import { useAuthStore } from '../store/useAuthStore'; 
 import CallInterface from './CallInterface';
 import IncomingCallModal from './IncomingCallModal';
-import { initializeSocket, disconnectSocket, getSocket } from '../socket';
+import { initializeSocket, disconnectSocket, getSocket } from '../services/socket.js';
 import toast from 'react-hot-toast';
 
 const CallsProvider = ({ children }) => {
