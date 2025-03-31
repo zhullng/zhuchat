@@ -23,7 +23,8 @@ const ChatHeader = () => {
     }
     
     if (!isUserOnline) {
-      toast.info(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'}, mas o usuário está offline. Ele receberá uma notificação quando ficar online.`);
+      // Substituindo toast.info (que pode não existir) por toast.success ou toast
+      toast.success(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'}, mas o usuário está offline. Ele receberá uma notificação quando ficar online.`);
     }
     
     // Criar um nome de sala mais curto para esta conversa

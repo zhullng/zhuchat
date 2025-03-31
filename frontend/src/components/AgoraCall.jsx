@@ -93,7 +93,7 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
         
         if (usersInChannel.length === 0) {
           setWaitingForUsers(true);
-          toast.info("Aguardando outros participantes entrarem...");
+          toast.success("Aguardando outros participantes entrarem...");
         }
         
         console.log("Agora - Criando tracks de áudio e vídeo");
@@ -214,14 +214,14 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   // Manipular entrada de novo usuário
   const handleUserJoined = (user) => {
     console.log(`Agora - Usuário ${user.uid} entrou na chamada`);
-    toast.info(`Outro usuário entrou na chamada`);
+    toast.success(`Outro usuário entrou na chamada`);
     setWaitingForUsers(false);
   };
   
   // Manipular saída de usuário
   const handleUserLeft = (user) => {
     console.log(`Agora - Usuário ${user.uid} saiu da chamada`);
-    toast.info(`Outro usuário saiu da chamada`);
+    toast.success(`Outro usuário saiu da chamada`);
     setRemoteUsers(prevUsers => prevUsers.filter(u => u.uid !== user.uid));
     
     // Se não houver mais usuários remotos, mostrar mensagem de espera
