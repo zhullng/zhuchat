@@ -119,22 +119,22 @@ const BlockedUsersPage = () => {
               {filteredUsers.map(user => (
                 <div 
                   key={user._id} 
-                  className="flex items-center justify-between p-4 bg-base-300 rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-base-300 rounded-lg gap-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <img 
                       src={user.profilePic || "/avatar.png"} 
                       alt={user.fullName}
-                      className="size-10 rounded-full object-cover"
+                      className="size-10 rounded-full object-cover flex-shrink-0"
                     />
-                    <div>
-                      <p className="font-medium">{user.fullName}</p>
-                      <p className="text-sm text-base-content/70">{user.email}</p>
+                    <div className="min-w-0 overflow-hidden">
+                      <p className="font-medium truncate">{user.fullName}</p>
+                      <p className="text-sm text-base-content/70 truncate">{user.email}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => openUnblockModal(user)}
-                    className="btn btn-sm btn-outline gap-1"
+                    className="btn btn-sm btn-outline gap-1 self-end sm:self-center flex-shrink-0"
                   >
                     <UserCheck className="size-4" />
                     <span>Desbloquear</span>
@@ -149,7 +149,7 @@ const BlockedUsersPage = () => {
       {/* Modal de confirmação de desbloqueio */}
       {showUnblockModal && selectedUser && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={() => setShowUnblockModal(false)}
         >
           <div 
