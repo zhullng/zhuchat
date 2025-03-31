@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 const AgoraCall = ({ channelName, userName, onClose }) => {
   // Substitua pela sua App ID da Agora
-  const appId = 'SEU_APP_ID_AGORA';
+  const appId = '96d68e46467e4119814df82609085f82';
   
   const [localVideoTrack, setLocalVideoTrack] = useState(null);
   const [localAudioTrack, setLocalAudioTrack] = useState(null);
