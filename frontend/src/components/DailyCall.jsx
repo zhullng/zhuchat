@@ -37,7 +37,7 @@ const DailyCall = ({ roomName, userName, onClose }) => {
         // Gerar URL da sala no Daily.co baseado no roomName
         // Em produção: Você deve criar salas via API do Daily.co no seu backend
         // Para este exemplo, usaremos uma demo domain
-        const roomUrl = `https://yourdomain.daily.co/${roomName}`;
+        const roomUrl = `https://zhuchat.onrender.com/.daily.co/${roomName}`;
         
         // Configurações do iframe
         const callFrameOptions = {
