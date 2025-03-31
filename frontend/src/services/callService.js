@@ -1,6 +1,6 @@
 // src/services/callService.js
 import SimplePeer from 'simple-peer';
-import { getSocket } from '../socket.js';
+import { getSocket } from './socket.js';
 
 // Simplificando as constraints para máxima compatibilidade em dispositivos móveis
 const mediaConstraints = {
