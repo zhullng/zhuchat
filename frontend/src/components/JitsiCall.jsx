@@ -35,7 +35,8 @@ const JitsiCall = ({ roomName, userName, onClose }) => {
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: [
             'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'chat', 'settings', 'raisehand'
+            'fodeviceselection', 'hangup', 'chat', 'settings', 'raisehand',
+            'invite', 'security'
           ],
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
@@ -49,20 +50,47 @@ const JitsiCall = ({ roomName, userName, onClose }) => {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
           prejoinPageEnabled: false,
-          disableDeepLinking: true
+          disableDeepLinking: true,
+          startAsModerator: true,
+          enableWelcomePage: false,
+          enableClosePage: true
         }
       };
 
       try {
         apiRef.current = new window.JitsiMeetExternalAPI(domain, options);
         
+        // Definir o tema da conferência
+        apiRef.current.executeCommand('subject', 'ZhuChat Videochamada');
+        
+        // Iniciar a sessão automaticamente
+        setTimeout(() => {
+          const buttons = document.querySelectorAll('button');
+          for (const button of buttons) {
+            if (button.textContent.includes('Iniciar sessão') || 
+                button.hasAttribute('data-testid') && button.getAttribute('data-testid') === 'lobby.joinButton') {
+              button.click();
+              break;
+            }
+          }
+        }, 1500);
+        
         // Adicionar event listeners
+        apiRef.current.addListener('videoConferenceJoined', () => {
+          console.log('Entrou na conferência');
+          // Podemos adicionar ações adicionais quando o usuário entrar na conferência
+        });
+        
         apiRef.current.addListener('videoConferenceLeft', () => {
           if (onClose) onClose();
         });
         
         apiRef.current.addListener('readyToClose', () => {
           if (onClose) onClose();
+        });
+        
+        apiRef.current.addListener('participantJoined', (participant) => {
+          console.log('Participante entrou:', participant);
         });
       } catch (error) {
         console.error('Erro ao inicializar Jitsi:', error);

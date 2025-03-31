@@ -20,7 +20,7 @@ const ChatHeader = () => {
     if (isAI || !isUserOnline) return;
     
     // Criar um nome de sala único para esta conversa
-    const roomName = `zhuchat_${authUser._id}_${selectedUser._id}_${Date.now()}`;
+    const roomName = `zhuchat_${authUser._id}_${selectedUser._id}_${Date.now()}`.replace(/[^a-zA-Z0-9_]/g, '_');
     setCallRoom(roomName);
     setCallType(type);
     setShowCall(true);
@@ -31,6 +31,7 @@ const ChatHeader = () => {
   const closeCall = () => {
     setShowCall(false);
     setCallRoom(null);
+    setCallType(null);
   };
 
   return (
@@ -71,7 +72,7 @@ const ChatHeader = () => {
                   className="btn btn-ghost btn-sm btn-circle"
                   title="Chamada de voz"
                 >
-                  <Phone size={18} />
+                  <Phone size={18} className={!isUserOnline ? 'opacity-50' : ''} />
                 </button>
                 <button
                   onClick={() => startCall('video')}
@@ -79,7 +80,7 @@ const ChatHeader = () => {
                   className="btn btn-ghost btn-sm btn-circle"
                   title="Chamada de vídeo"
                 >
-                  <Video size={18} />
+                  <Video size={18} className={!isUserOnline ? 'opacity-50' : ''} />
                 </button>
               </>
             )}

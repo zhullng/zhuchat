@@ -22,7 +22,7 @@ const GroupChatHeader = () => {
 
   const startGroupCall = (type) => {
     // Criar um nome de sala único para este grupo
-    const roomName = `zhuchat_group_${selectedGroup._id}_${Date.now()}`;
+    const roomName = `zhuchat_group_${selectedGroup._id}_${Date.now()}`.replace(/[^a-zA-Z0-9_]/g, '_');
     setCallRoom(roomName);
     setCallType(type);
     setShowCall(true);
@@ -33,6 +33,7 @@ const GroupChatHeader = () => {
   const closeCall = () => {
     setShowCall(false);
     setCallRoom(null);
+    setCallType(null);
   };
 
   return (
