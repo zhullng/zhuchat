@@ -3,7 +3,7 @@ import { useState } from "react";
 import { X, Phone, Video } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
-import AgoraCall from "./AgoraCall"; // Novo componente Agora
+import AgoraCall from "./AgoraCall";
 import toast from "react-hot-toast";
 
 const ChatHeader = () => {
@@ -17,13 +17,24 @@ const ChatHeader = () => {
   const isUserOnline = onlineUsers.includes(selectedUser?._id);
 
   const startCall = (type) => {
-    if (isAI || !isUserOnline) {
-      toast.error(`Não é possível iniciar uma chamada ${type === 'voice' ? 'de voz' : 'de vídeo'} com ${isAI ? 'o assistente AI' : 'um usuário offline'}.`);
+    if (isAI) {
+      toast.error(`Não é possível iniciar uma chamada ${type === 'voice' ? 'de voz' : 'de vídeo'} com o assistente AI.`);
       return;
     }
     
-    // Criar um nome de sala único para esta conversa
-    const roomName = `zhuchat_${authUser._id}_${selectedUser._id}_${Date.now()}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    if (!isUserOnline) {
+      toast.info(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'}, mas o usuário está offline. Ele receberá uma notificação quando ficar online.`);
+    }
+    
+    // Criar um nome de sala mais curto para esta conversa
+    // Usar os últimos 6 caracteres de cada ID e um timestamp curto
+    const userId1 = authUser._id.slice(-6);
+    const userId2 = selectedUser._id.slice(-6);
+    const timeStamp = Date.now().toString().slice(-6);
+    
+    // Formato: zc_u1_u2_time (curto e com caracteres permitidos)
+    const roomName = `zc_${userId1}_${userId2}_${timeStamp}`;
+    
     setCallRoom(roomName);
     setCallType(type);
     setShowCall(true);
@@ -71,19 +82,17 @@ const ChatHeader = () => {
               <>
                 <button
                   onClick={() => startCall('voice')}
-                  disabled={!isUserOnline}
                   className="btn btn-ghost btn-sm btn-circle"
                   title="Chamada de voz"
                 >
-                  <Phone size={18} className={!isUserOnline ? 'opacity-50' : ''} />
+                  <Phone size={18} />
                 </button>
                 <button
                   onClick={() => startCall('video')}
-                  disabled={!isUserOnline}
                   className="btn btn-ghost btn-sm btn-circle"
                   title="Chamada de vídeo"
                 >
-                  <Video size={18} className={!isUserOnline ? 'opacity-50' : ''} />
+                  <Video size={18} />
                 </button>
               </>
             )}

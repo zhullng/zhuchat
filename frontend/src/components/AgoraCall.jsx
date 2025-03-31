@@ -4,16 +4,8 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { X, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import toast from "react-hot-toast";
 
-/*
-Antes de usar este componente, você precisa instalar a SDK do Agora:
-npm install agora-rtc-sdk-ng
-
-Você também precisa se cadastrar em https://www.agora.io para obter uma App ID gratuita.
-O plano gratuito oferece 10.000 minutos por mês, o que deve ser suficiente para testes.
-*/
-
 const AgoraCall = ({ channelName, userName, onClose }) => {
-  // Substitua por sua App ID da Agora
+  // Substitua pela sua App ID da Agora
   const appId = '96d68e46467e4119814df82609085f82';
   
   const [localVideoTrack, setLocalVideoTrack] = useState(null);
@@ -23,11 +15,32 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   const agoraEngineRef = useRef(null);
   const localPlayerContainerRef = useRef(null);
   
+  // Validar nome do canal antes de usar
+  const validateChannelName = (name) => {
+    // Verificar se o nome do canal tem menos de 64 bytes e caracteres válidos
+    if (!name || name.length > 64) {
+      return false;
+    }
+    
+    // Regex para caracteres permitidos: a-z, A-Z, 0-9, espaço e símbolos específicos
+    const validChars = /^[a-zA-Z0-9 !#$%&()+\-:;<=>?@[\]^_{|}~,.]+$/;
+    return validChars.test(name);
+  };
+  
   useEffect(() => {
+    // Verificar nome do canal
+    if (!validateChannelName(channelName)) {
+      setError("Nome do canal inválido. Deve ter menos de 64 caracteres e usar apenas caracteres permitidos.");
+      setIsLoading(false);
+      toast.error("Nome do canal inválido");
+      return;
+    }
+    
     // Criar cliente Agora
     agoraEngineRef.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     
@@ -41,6 +54,9 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
       agoraEngineRef.current.on("exception", handleException);
       
       try {
+        // Solicitar permissões de mídia primeiro
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        
         // Gerar um UID aleatório para o usuário
         const uid = Math.floor(Math.random() * 1000000);
         
@@ -67,30 +83,48 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
         setIsLoading(false);
       } catch (error) {
         console.error("Erro ao inicializar Agora:", error);
+        setError(error.message || "Erro ao iniciar chamada");
         toast.error(`Erro ao iniciar chamada: ${error.message}`);
         setIsLoading(false);
       }
     };
     
+    // Definir timeout para evitar chamadas presas em carregamento
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        setError("Tempo esgotado ao tentar conectar. Verifique sua conexão.");
+        setIsLoading(false);
+        toast.error("Tempo esgotado ao conectar");
+      }
+    }, 15000); // 15 segundos de timeout
+    
     initializeAgora();
     
     // Limpeza ao desmontar
     return () => {
+      clearTimeout(timeoutId);
       leaveCall();
     };
   }, [channelName]);
   
   // Função para encerrar a chamada
   const leaveCall = async () => {
-    if (localAudioTrack) {
-      localAudioTrack.close();
-    }
-    if (localVideoTrack) {
-      localVideoTrack.close();
+    try {
+      if (localAudioTrack) {
+        localAudioTrack.close();
+      }
+      if (localVideoTrack) {
+        localVideoTrack.close();
+      }
+      
+      // Deixar o canal
+      if (agoraEngineRef.current) {
+        await agoraEngineRef.current.leave();
+      }
+    } catch (error) {
+      console.error("Erro ao encerrar chamada:", error);
     }
     
-    // Deixar o canal
-    await agoraEngineRef.current?.leave();
     setIsJoined(false);
     setRemoteUsers([]);
     setLocalAudioTrack(null);
@@ -99,25 +133,29 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   
   // Manipular publicação de usuário remoto
   const handleUserPublished = async (user, mediaType) => {
-    // Inscrever-se no usuário
-    await agoraEngineRef.current.subscribe(user, mediaType);
-    
-    // Se for vídeo, atualizar UI
-    if (mediaType === "video") {
-      // Atualizar a lista de usuários remotos
-      setRemoteUsers(prevUsers => {
-        // Verificar se o usuário já existe
-        if (prevUsers.find(u => u.uid === user.uid)) {
-          return prevUsers.map(u => u.uid === user.uid ? { ...u, videoTrack: user.videoTrack } : u);
-        } else {
-          return [...prevUsers, user];
-        }
-      });
-    }
-    
-    // Se for áudio, atualizar UI
-    if (mediaType === "audio") {
-      user.audioTrack?.play();
+    try {
+      // Inscrever-se no usuário
+      await agoraEngineRef.current.subscribe(user, mediaType);
+      
+      // Se for vídeo, atualizar UI
+      if (mediaType === "video") {
+        // Atualizar a lista de usuários remotos
+        setRemoteUsers(prevUsers => {
+          // Verificar se o usuário já existe
+          if (prevUsers.find(u => u.uid === user.uid)) {
+            return prevUsers.map(u => u.uid === user.uid ? { ...u, videoTrack: user.videoTrack } : u);
+          } else {
+            return [...prevUsers, user];
+          }
+        });
+      }
+      
+      // Se for áudio, atualizar UI
+      if (mediaType === "audio") {
+        user.audioTrack?.play();
+      }
+    } catch (error) {
+      console.error("Erro ao receber mídia do usuário remoto:", error);
     }
   };
   
@@ -132,19 +170,23 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
   
   // Manipular entrada de novo usuário
   const handleUserJoined = (user) => {
-    toast.info(`${user.uid} entrou na chamada`);
+    toast.info(`Outro usuário entrou na chamada`);
   };
   
   // Manipular saída de usuário
   const handleUserLeft = (user) => {
-    toast.info(`${user.uid} saiu da chamada`);
+    toast.info(`Outro usuário saiu da chamada`);
     setRemoteUsers(prevUsers => prevUsers.filter(u => u.uid !== user.uid));
   };
   
   // Manipular exceções
   const handleException = (event) => {
     console.error("Exceção do Agora:", event);
-    toast.error(`Erro: ${event.msg}`);
+    if (event.code === 'OPERATION_ABORTED') {
+      // Erro comum, não mostrar toast
+      return;
+    }
+    toast.error(`Erro: ${event.msg || 'Erro desconhecido'}`);
   };
   
   // Alternar áudio
@@ -190,6 +232,39 @@ const AgoraCall = ({ channelName, userName, onClose }) => {
       />
     );
   };
+  
+  // Se houver erro, mostrar mensagem de erro
+  if (error) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div className="p-4 flex justify-between items-center bg-gray-900">
+          <h2 className="text-white font-medium">Erro na chamada</h2>
+          <button 
+            onClick={onClose}
+            className="p-2 rounded-full bg-red-500 text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="flex-1 flex items-center justify-center bg-gray-800">
+          <div className="text-center text-white p-4">
+            <div className="bg-red-500 p-4 rounded-lg mb-4">
+              <X size={48} className="mx-auto mb-2" />
+              <h3 className="text-xl font-bold mb-2">Não foi possível iniciar a chamada</h3>
+              <p>{error}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded"
+            >
+              Voltar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">

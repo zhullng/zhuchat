@@ -5,7 +5,7 @@ import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
-import AgoraCall from "./AgoraCall"; // Novo componente Agora
+import AgoraCall from "./AgoraCall";
 import toast from "react-hot-toast";
 
 const GroupChatHeader = () => {
@@ -21,8 +21,14 @@ const GroupChatHeader = () => {
   const memberCount = selectedGroup?.members?.length || 0;
 
   const startGroupCall = (type) => {
-    // Criar um nome de sala único para este grupo
-    const roomName = `zhuchat_group_${selectedGroup._id}_${Date.now()}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    // Criar um nome de sala mais curto para este grupo
+    // Usar os últimos 6 caracteres do ID do grupo e um timestamp curto
+    const groupId = selectedGroup._id.slice(-6);
+    const timeStamp = Date.now().toString().slice(-6);
+    
+    // Formato: zc_g_ID_time (curto e com caracteres permitidos)
+    const roomName = `zc_g_${groupId}_${timeStamp}`;
+    
     setCallRoom(roomName);
     setCallType(type);
     setShowCall(true);
