@@ -5,20 +5,34 @@ import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
+import JitsiCall from "./JitsiCall";
+import toast from "react-hot-toast";
 
 const GroupChatHeader = () => {
   const { selectedGroup, selectGroup } = useGroupStore();
   const { authUser } = useAuthStore();
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
-  const [showCallDisabledTooltip, setShowCallDisabledTooltip] = useState(false);
+  const [showCall, setShowCall] = useState(false);
+  const [callRoom, setCallRoom] = useState(null);
+  const [callType, setCallType] = useState(null);
 
   const isCreator = selectedGroup?.createdBy === authUser._id;
   const memberCount = selectedGroup?.members?.length || 0;
 
-  const handleGroupCallButton = () => {
-    setShowCallDisabledTooltip(true);
-    setTimeout(() => setShowCallDisabledTooltip(false), 3000);
+  const startGroupCall = (type) => {
+    // Criar um nome de sala único para este grupo
+    const roomName = `zhuchat_group_${selectedGroup._id}_${Date.now()}`;
+    setCallRoom(roomName);
+    setCallType(type);
+    setShowCall(true);
+    
+    toast.success(`Iniciando chamada em grupo ${type === 'video' ? 'com vídeo' : 'de voz'}...`);
+  };
+
+  const closeCall = () => {
+    setShowCall(false);
+    setCallRoom(null);
   };
 
   return (
@@ -52,26 +66,20 @@ const GroupChatHeader = () => {
 
           <div className="flex items-center gap-2 relative">
             <button 
-              onClick={handleGroupCallButton}
-              className="btn btn-ghost btn-sm btn-circle opacity-50"
-              title="Chamada de voz em grupo (em breve)"
+              onClick={() => startGroupCall('voice')}
+              className="btn btn-ghost btn-sm btn-circle"
+              title="Chamada de voz em grupo"
             >
               <Phone size={18} />
             </button>
             
             <button 
-              onClick={handleGroupCallButton}
-              className="btn btn-ghost btn-sm btn-circle opacity-50"
-              title="Videochamada em grupo (em breve)"
+              onClick={() => startGroupCall('video')}
+              className="btn btn-ghost btn-sm btn-circle"
+              title="Videochamada em grupo"
             >
               <Video size={18} />
             </button>
-            
-            {showCallDisabledTooltip && (
-              <div className="absolute top-full right-0 mt-2 bg-base-300 text-sm p-2 rounded-md z-10 w-60">
-                Chamadas em grupo estarão disponíveis em breve!
-              </div>
-            )}
             
             <button 
               onClick={() => setShowInfoModal(true)}
@@ -121,6 +129,15 @@ const GroupChatHeader = () => {
         <AddGroupMembersModal 
           isOpen={showAddMembersModal} 
           onClose={() => setShowAddMembersModal(false)} 
+        />
+      )}
+      
+      {/* Interface de Chamada Jitsi para Grupo */}
+      {showCall && callRoom && (
+        <JitsiCall
+          roomName={callRoom}
+          userName={authUser.fullName}
+          onClose={closeCall}
         />
       )}
     </>

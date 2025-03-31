@@ -14,7 +14,6 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DeleteAccountPage from "./pages/DeleteAccountPage";
 import BlockedUsersPage from "./pages/BlockedUsersPage";
-import CallsProvider from "./components/CallsProvider"; // Importar o componente de chamadas
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
@@ -24,29 +23,13 @@ import { useEffect } from "react";
 import { Loader } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; 
 
-// Função para verificar/configurar o arquivo de ringtone
-const setupRingtone = () => {
-  // Verificar se já existe um toque de chamada
-  fetch('/sounds/ringtone.mp3')
-    .then(response => {
-      if (!response.ok) {
-        console.warn('Arquivo de toque não encontrado. Os usuários não ouvirão um som para chamadas recebidas.');
-      }
-    })
-    .catch(error => {
-      console.warn('Erro ao verificar arquivo de toque:', error);
-    });
-};
-
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
   const location = useLocation();
 
   useEffect(() => {
-    checkAuth(); 
-    // Verificar o arquivo de ringtone
-    setupRingtone();
+    checkAuth();
   }, [checkAuth]);
 
   if (isCheckingAuth && !authUser) {
@@ -64,40 +47,27 @@ const App = () => {
     location.pathname === "/forgot-password" || 
     location.pathname.startsWith("/reset-password/");
 
-  // Wrapper de conteúdo com CallsProvider quando o usuário está autenticado
-  // A principal alteração é a adição da prop key="callsProvider"
-  // Isso garante que o React não recrie o componente quando a rota mudar
-  const ContentWrapper = ({ children }) => {
-    return authUser ? (
-      <CallsProvider key="callsProvider">
-        {children}
-      </CallsProvider>
-    ) : children;
-  };
-
   return (
     <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex flex-col" data-theme={theme}>
       {/* Renderiza a Navbar apenas se não for uma das páginas onde ela deve ser escondida */}
       {!hideNavbarPages && <Navbar />}
 
-      <ContentWrapper>
-        <Routes>
-          <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
-          <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
-          <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/profile" element={<SettingsProfilePage />} />
-          <Route path="/theme" element={<ThemePage />} />
-          <Route path="/security/password" element={<ChangePasswordPage />} />
-          <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/wallet" element={authUser ? <WalletPage /> : <Navigate to="/login" />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
-          <Route path="/privacy/blocked" element={authUser ? <BlockedUsersPage /> : <Navigate to="/login" />} />
-        </Routes>
-      </ContentWrapper>
+      <Routes>
+        <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
+        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
+        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/profile" element={<SettingsProfilePage />} />
+        <Route path="/theme" element={<ThemePage />} />
+        <Route path="/security/password" element={<ChangePasswordPage />} />
+        <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/wallet" element={authUser ? <WalletPage /> : <Navigate to="/login" />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
+        <Route path="/privacy/blocked" element={authUser ? <BlockedUsersPage /> : <Navigate to="/login" />} />
+      </Routes>
 
       <Toaster /> 
     </div>
