@@ -134,7 +134,64 @@ io.on("connection", (socket) => {
     delete activeCallsMap[callId];
   });
   
-  // Sinalização WebRTC
+  // ===== EVENTOS DE SINALIZAÇÃO WEBRTC =====
+  
+  // Processar oferta WebRTC (SDP Offer)
+  socket.on("webrtc:offer", (data) => {
+    const { from, to, offer } = data;
+    
+    console.log(`Recebida oferta WebRTC de ${from} para ${to}`);
+    
+    // Verificar se o destinatário está online
+    const targetSocketId = userSocketMap[to];
+    if (!targetSocketId) {
+      console.log(`Destinatário ${to} não está online`);
+      return;
+    }
+    
+    // Encaminhar a oferta para o destinatário
+    io.to(targetSocketId).emit("webrtc:offer", {
+      from,
+      offer
+    });
+  });
+  
+  // Processar resposta WebRTC (SDP Answer)
+  socket.on("webrtc:answer", (data) => {
+    const { from, to, answer } = data;
+    
+    console.log(`Recebida resposta WebRTC de ${from} para ${to}`);
+    
+    // Verificar se o destinatário está online
+    const targetSocketId = userSocketMap[to];
+    if (!targetSocketId) {
+      console.log(`Destinatário ${to} não está online`);
+      return;
+    }
+    
+    // Encaminhar a resposta para o destinatário
+    io.to(targetSocketId).emit("webrtc:answer", {
+      from,
+      answer
+    });
+  });
+  
+  // Processar candidatos ICE
+  socket.on("webrtc:ice-candidate", (data) => {
+    const { from, to, candidate } = data;
+    
+    // Verificar se o destinatário está online
+    const targetSocketId = userSocketMap[to];
+    if (!targetSocketId) return;
+    
+    // Encaminhar o candidato ICE para o destinatário
+    io.to(targetSocketId).emit("webrtc:ice-candidate", {
+      from,
+      candidate
+    });
+  });
+  
+  // Sinalização WebRTC (compatível com sua implementação anterior)
   socket.on("call:signal", (data) => {
     const { signal, targetUserId, callId } = data;
     

@@ -3,16 +3,17 @@ import { X, Mic, MicOff, Camera, CameraOff, PhoneOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { RTCConfig, getMediaConstraints, handleMediaError } from "../lib/webrtcConfig";
 import signalingService from "../services/signalingService";
+import { useAuthStore } from "../store/useAuthStore";
 
 /**
  * WebRTC Call Component
- * A direct implementation using browser's WebRTC API
+ * Implementação WebRTC para chamada P2P usando o serviço de sinalização adaptado
  */
 const WebRTCCall = ({ 
-  userId, // ID of user being called
-  userName, // Name of calling user
-  onClose, // Callback when call ends
-  isVideo = true, // Whether to use video
+  userId,      // ID do usuário que está sendo chamado
+  userName,    // Nome do usuário que está sendo chamado
+  onClose,     // Callback quando a chamada terminar
+  isVideo = true, // Se é uma chamada de vídeo ou não
 }) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -21,117 +22,220 @@ const WebRTCCall = ({
   
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [isCallCreator, setIsCallCreator] = useState(true); // Se é quem iniciou a chamada
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(!isVideo);
+  
+  const authUser = useAuthStore(state => state.authUser);
 
-  // Configure the WebRTC connection
+  // Configurar a conexão peer
+  const setupPeerConnection = async () => {
+    // Configurar a conexão peer
+    peerConnectionRef.current = new RTCPeerConnection(RTCConfig);
+    
+    // Adicionar as trilhas locais à conexão
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        peerConnectionRef.current.addTrack(track, localStreamRef.current);
+      });
+    }
+    
+    // Escutar por trilhas remotas
+    peerConnectionRef.current.ontrack = (event) => {
+      if (remoteVideoRef.current && event.streams[0]) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+        setIsConnected(true);
+        setIsConnecting(false);
+        toast.success("Chamada conectada!");
+      }
+    };
+    
+    // Gerenciar mudanças no estado da conexão ICE
+    peerConnectionRef.current.oniceconnectionstatechange = () => {
+      const state = peerConnectionRef.current.iceConnectionState;
+      console.log("ICE Connection State:", state);
+      
+      if (state === "connected" || state === "completed") {
+        setIsConnected(true);
+        setIsConnecting(false);
+      }
+      
+      if (state === "failed" || state === "disconnected" || state === "closed") {
+        toast.error("Conexão perdida");
+        setError("Conexão perdida. Tente novamente.");
+        setIsConnecting(false);
+        setIsConnected(false);
+      }
+    };
+    
+    // Enviar candidatos ICE para o peer remoto
+    peerConnectionRef.current.onicecandidate = (event) => {
+      if (event.candidate) {
+        signalingService.sendIceCandidate(userId, event.candidate);
+      }
+    };
+  };
+
+  // Gerenciar os eventos de sinalização
+  const handleSignalingEvents = () => {
+    // Quando receber uma oferta
+    signalingService.on('offer', async (data) => {
+      try {
+        if (data.from !== userId) return; // Ignorar ofertas de outros usuários
+        
+        console.log("Oferta recebida de:", data.from);
+        
+        // Configurar conexão se não existir
+        if (!peerConnectionRef.current) {
+          await setupPeerConnection();
+        }
+        
+        // Definir a descrição remota
+        const offerDescription = new RTCSessionDescription(data.offer);
+        await peerConnectionRef.current.setRemoteDescription(offerDescription);
+        
+        // Criar e enviar resposta
+        const answer = await peerConnectionRef.current.createAnswer();
+        await peerConnectionRef.current.setLocalDescription(answer);
+        
+        await signalingService.sendAnswer(data.from, answer);
+        
+        setIsCallCreator(false);
+      } catch (err) {
+        console.error("Erro ao processar oferta:", err);
+        setError("Erro ao processar oferta de chamada: " + err.message);
+      }
+    });
+    
+    // Quando receber uma resposta
+    signalingService.on('answer', async (data) => {
+      try {
+        if (data.from !== userId) return; // Ignorar respostas de outros usuários
+        
+        console.log("Resposta recebida de:", data.from);
+        
+        if (peerConnectionRef.current) {
+          const answerDescription = new RTCSessionDescription(data.answer);
+          await peerConnectionRef.current.setRemoteDescription(answerDescription);
+        }
+      } catch (err) {
+        console.error("Erro ao processar resposta:", err);
+      }
+    });
+    
+    // Quando receber um candidato ICE
+    signalingService.on('iceCandidate', async (data) => {
+      try {
+        if (data.from !== userId) return; // Ignorar candidatos de outros usuários
+        
+        console.log("Candidato ICE recebido de:", data.from);
+        
+        if (peerConnectionRef.current) {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+      } catch (err) {
+        console.error("Erro ao adicionar candidato ICE:", err);
+      }
+    });
+    
+    // Quando a chamada for encerrada pelo outro usuário
+    signalingService.on('callEnded', () => {
+      toast.info("O outro usuário encerrou a chamada");
+      onClose();
+    });
+  };
+
+  // Iniciar a chamada
+  const startCall = async () => {
+    try {
+      // Iniciar uma nova chamada
+      await signalingService.initiateCall(userId, isVideo);
+      
+      // Criar uma oferta WebRTC
+      const offer = await peerConnectionRef.current.createOffer();
+      await peerConnectionRef.current.setLocalDescription(offer);
+      
+      // Enviar a oferta para o peer remoto
+      await signalingService.sendOffer(userId, offer);
+      
+      toast.success(`Iniciando chamada ${isVideo ? 'com vídeo' : 'de voz'} com ${userName}...`);
+      setIsCallCreator(true);
+      
+      // Definir um timeout para a conexão
+      setTimeout(() => {
+        if (!isConnected && isConnecting) {
+          setError("Tempo de espera esgotado. O usuário não respondeu à chamada.");
+          setIsConnecting(false);
+        }
+      }, 30000); // 30 segundos
+    } catch (err) {
+      console.error("Erro ao iniciar chamada:", err);
+      setError("Erro ao iniciar chamada: " + err.message);
+      setIsConnecting(false);
+    }
+  };
+
+  // Configurar a chamada
   useEffect(() => {
+    let mounted = true;
+    
     const setupCall = async () => {
       try {
-        // Get local media stream (audio/video)
-        const mediaConstraints = getMediaConstraints(isVideo);
+        // Conectar ao serviço de sinalização
+        await signalingService.connect(authUser._id);
         
+        // Configurar os handlers para eventos de sinalização
+        handleSignalingEvents();
+        
+        // Obter mídia local
+        const mediaConstraints = getMediaConstraints(isVideo);
         localStreamRef.current = await navigator.mediaDevices.getUserMedia(mediaConstraints);
         
-        // Display local stream
+        // Exibir stream local
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = localStreamRef.current;
         }
         
-        // Create peer connection with our config
-        peerConnectionRef.current = new RTCPeerConnection(RTCConfig);
+        // Configurar conexão peer
+        await setupPeerConnection();
         
-        // Add local tracks to the connection
-        localStreamRef.current.getTracks().forEach(track => {
-          peerConnectionRef.current.addTrack(track, localStreamRef.current);
-        });
-        
-        // Listen for remote stream
-        peerConnectionRef.current.ontrack = (event) => {
-          if (remoteVideoRef.current && event.streams[0]) {
-            remoteVideoRef.current.srcObject = event.streams[0];
-            setIsConnected(true);
-            setIsConnecting(false);
-            toast.success("Chamada conectada!");
-          }
-        };
-        
-        // Handle connection state changes
-        peerConnectionRef.current.oniceconnectionstatechange = () => {
-          console.log("ICE Connection State:", peerConnectionRef.current.iceConnectionState);
-          
-          if (peerConnectionRef.current.iceConnectionState === "failed" ||
-              peerConnectionRef.current.iceConnectionState === "disconnected") {
-            toast.error("Conexão perdida");
-            setError("Conexão perdida. Tente novamente.");
-            setIsConnecting(false);
-          }
-        };
-        
-        // Handle ICE candidates
-        peerConnectionRef.current.onicecandidate = (event) => {
-          if (event.candidate) {
-            // Here you would send the ICE candidate to the remote peer through your signaling server
-            console.log("New ICE candidate:", event.candidate);
-            // signalingService.sendIceCandidate(userId, event.candidate);
-          }
-        };
-        
-        // Create and send offer (if initiating the call)
-        try {
-          const offer = await peerConnectionRef.current.createOffer();
-          await peerConnectionRef.current.setLocalDescription(offer);
-          
-          // In a real app, you'd connect to the signaling service and send the offer
-          // signalingService.connect().then(() => {
-          //   signalingService.sendOffer(userId, offer);
-          // });
-          
-          toast.success(`Iniciando chamada ${isVideo ? 'com vídeo' : 'de voz'} com ${userName}...`);
-          
-          // For this demo, we'll simulate the connection after a delay
-          setTimeout(() => {
-            if (Math.random() > 0.3) { // 70% success rate for demo
-              setIsConnected(true);
-              setIsConnecting(false);
-              toast.success("Chamada conectada!");
-            } else {
-              setError("Não foi possível conectar à chamada. Verifique sua conexão.");
-              setIsConnecting(false);
-            }
-          }, 3000);
-          
-        } catch (err) {
-          console.error("Error creating offer:", err);
-          setError("Erro ao iniciar chamada: " + err.message);
+        // Iniciar a chamada (enviar oferta)
+        if (mounted) {
+          await startCall();
+        }
+      } catch (err) {
+        console.error("Erro ao configurar chamada:", err);
+        const errorInfo = handleMediaError(err);
+        if (mounted) {
+          setError(errorInfo.message);
           setIsConnecting(false);
         }
-        
-      } catch (err) {
-        console.error("Error accessing media devices:", err);
-        const errorInfo = handleMediaError(err);
-        setError(errorInfo.message);
-        setIsConnecting(false);
       }
     };
     
     setupCall();
     
-    // Cleanup function
+    // Função de limpeza
     return () => {
-      // Close peer connection
+      mounted = false;
+      
+      // Encerrar a chamada no serviço de sinalização
+      signalingService.endCall();
+      
+      // Fechar conexão peer
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
       }
       
-      // Stop all tracks from local stream
+      // Parar todas as trilhas do stream local
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [userId, userName, isVideo]);
+  }, [userId, userName, isVideo, authUser._id]);
   
+  // Toggles para mudo e vídeo
   const toggleMute = () => {
     if (localStreamRef.current) {
       const audioTracks = localStreamRef.current.getAudioTracks();
@@ -154,13 +258,17 @@ const WebRTCCall = ({
     }
   };
   
+  // Encerrar a chamada
   const endCall = () => {
-    // Close peer connection
+    // Encerrar a chamada no serviço de sinalização
+    signalingService.endCall();
+    
+    // Fechar conexão peer
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
     }
     
-    // Stop all tracks from local stream
+    // Parar todas as trilhas do stream local
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -169,7 +277,7 @@ const WebRTCCall = ({
     onClose();
   };
   
-  // Error display
+  // Exibição de erro
   if (error) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -211,7 +319,7 @@ const WebRTCCall = ({
       </div>
 
       <div className="flex-1 relative bg-gray-800">
-        {/* Remote video (full screen) */}
+        {/* Vídeo remoto (tela cheia) */}
         <div className="absolute inset-0">
           {isVideo && (
             <video
@@ -236,7 +344,7 @@ const WebRTCCall = ({
           )}
         </div>
         
-        {/* Local video (small overlay) */}
+        {/* Vídeo local (pequeno overlay) */}
         {isVideo && (
           <div className="absolute bottom-4 right-4 w-1/4 h-1/4 max-w-xs max-h-xs rounded-lg overflow-hidden border-2 border-white shadow-lg">
             <video
@@ -249,7 +357,7 @@ const WebRTCCall = ({
           </div>
         )}
         
-        {/* Controls */}
+        {/* Controles */}
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
           <button 
             onClick={toggleMute}
@@ -275,11 +383,13 @@ const WebRTCCall = ({
           </button>
         </div>
         
-        {/* Loading overlay */}
+        {/* Overlay de carregamento */}
         {isConnecting && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-black bg-opacity-70">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div>
-            <p className="text-white ml-4">Conectando à chamada...</p>
+            <p className="text-white ml-4">
+              {isCallCreator ? 'Chamando...' : 'Recebendo chamada...'}
+            </p>
           </div>
         )}
       </div>
