@@ -27,7 +27,7 @@ class SignalingService {
       }
       
       if (!this.socket) {
-        return reject(new Error("Não foi possível conectar ao servidor"));
+        return reject(new Error("Não foi possível conectar ao servidor de sinalização"));
       }
       
       // Verificar se já está conectado
@@ -38,11 +38,14 @@ class SignalingService {
       }
       
       // Caso contrário, aguardar a conexão
-      this.socket.on("connect", () => {
+      const onConnect = () => {
         this._setupSocketEvents();
         this.isConnected = true;
+        this.socket.off("connect", onConnect);
         resolve({ userId });
-      });
+      };
+      
+      this.socket.on("connect", onConnect);
       
       this.socket.on("connect_error", (error) => {
         console.error("Erro ao conectar:", error);
@@ -58,8 +61,11 @@ class SignalingService {
     this.socket.off("webrtc:answer");
     this.socket.off("webrtc:ice-candidate");
     this.socket.off("call:ended");
+    this.socket.off("call:incoming");
+    this.socket.off("call:accepted");
+    this.socket.off("call:rejected");
     
-    // Configurar novos handlers
+    // Mapear eventos do socket para eventos internos
     this.socket.on("webrtc:offer", (data) => {
       console.log("Recebida oferta WebRTC de:", data.from);
       this._triggerEvent("offer", data);
@@ -75,12 +81,7 @@ class SignalingService {
       this._triggerEvent("iceCandidate", data);
     });
     
-    this.socket.on("call:ended", (data) => {
-      console.log("Chamada encerrada:", data.callId);
-      this._triggerEvent("callEnded", data);
-    });
-    
-    // Compatibilidade com eventos existentes
+    // Compatibilidade com eventos do seu sistema atual
     this.socket.on("call:incoming", (data) => {
       console.log("Chamada recebida de:", data.callerId);
       this._triggerEvent("incomingCall", data);
@@ -94,6 +95,11 @@ class SignalingService {
     this.socket.on("call:rejected", (data) => {
       console.log("Chamada rejeitada por:", data.calleeId);
       this._triggerEvent("callRejected", data);
+    });
+    
+    this.socket.on("call:ended", (data) => {
+      console.log("Chamada encerrada:", data.callId);
+      this._triggerEvent("callEnded", data);
     });
   }
 
@@ -126,10 +132,10 @@ class SignalingService {
         callType: isVideo ? "video" : "audio",
         callId: this.callId
       }, (response) => {
-        if (response.success) {
+        if (response && response.success) {
           resolve({ callId: this.callId });
         } else {
-          reject(new Error(response.message || "Falha ao iniciar chamada"));
+          reject(new Error((response && response.message) || "Falha ao iniciar chamada"));
         }
       });
     });
@@ -150,10 +156,10 @@ class SignalingService {
         calleeId: this.userId,
         callId
       }, (response) => {
-        if (response.success) {
+        if (response && response.success) {
           resolve();
         } else {
-          reject(new Error(response.message || "Falha ao aceitar chamada"));
+          reject(new Error((response && response.message) || "Falha ao aceitar chamada"));
         }
       });
     });
@@ -227,6 +233,20 @@ class SignalingService {
     });
   }
 
+  // Enviar sinal de compatibilidade com seu sistema atual
+  sendSignal(targetUserId, signal) {
+    if (!this.isConnected || !this.socket) {
+      console.error("Não conectado ao servidor");
+      return;
+    }
+    
+    this.socket.emit("call:signal", {
+      targetUserId,
+      signal,
+      callId: this.callId
+    });
+  }
+
   // Encerrar a chamada atual
   endCall() {
     if (!this.isConnected || !this.socket || !this.callId) {
@@ -248,18 +268,33 @@ class SignalingService {
       this.listeners[event] = [];
     }
     this.listeners[event].push(callback);
+    return this; // Para encadeamento de chamadas
   }
 
   // Remover um callback para um evento
   off(event, callback) {
-    if (!this.listeners[event]) return;
-    this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+    if (!this.listeners[event]) return this;
+    
+    if (callback) {
+      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+    } else {
+      // Se nenhum callback for especificado, remove todos os listeners para o evento
+      delete this.listeners[event];
+    }
+    
+    return this; // Para encadeamento de chamadas
   }
 
   // Disparar um evento para todos os callbacks registrados
   _triggerEvent(event, data) {
     if (!this.listeners[event]) return;
-    this.listeners[event].forEach(callback => callback(data));
+    this.listeners[event].forEach(callback => {
+      try {
+        callback(data);
+      } catch (err) {
+        console.error(`Erro ao executar listener para evento '${event}':`, err);
+      }
+    });
   }
 }
 
