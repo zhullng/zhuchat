@@ -5,7 +5,7 @@ import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
-import DailyCall from "./DailyCall";
+import WebRTCGroupCall from "./WebRTCGroupCall";
 import toast from "react-hot-toast";
 
 const GroupChatHeader = () => {
@@ -14,21 +14,12 @@ const GroupChatHeader = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [showCall, setShowCall] = useState(false);
-  const [callRoom, setCallRoom] = useState(null);
   const [callType, setCallType] = useState(null);
 
   const isCreator = selectedGroup?.createdBy === authUser._id;
   const memberCount = selectedGroup?.members?.length || 0;
 
   const startGroupCall = (type) => {
-    // Criar um nome de sala Daily para grupo
-    const groupId = selectedGroup._id.slice(-6);
-    const timeStamp = Date.now().toString().slice(-6);
-    
-    // Formato compatível com Daily.co
-    const roomName = `zc-g-${groupId}-${timeStamp}`;
-    
-    setCallRoom(roomName);
     setCallType(type);
     setShowCall(true);
     
@@ -37,7 +28,6 @@ const GroupChatHeader = () => {
 
   const closeCall = () => {
     setShowCall(false);
-    setCallRoom(null);
     setCallType(null);
   };
 
@@ -138,12 +128,15 @@ const GroupChatHeader = () => {
         />
       )}
       
-      {/* Interface de Chamada Daily para Grupo */}
-      {showCall && callRoom && (
-        <DailyCall
-          roomName={callRoom}
+      {/* Interface de Chamada WebRTC para Grupo */}
+      {showCall && (
+        <WebRTCGroupCall
+          groupId={selectedGroup._id}
+          groupName={selectedGroup.name}
           userName={authUser.fullName}
+          members={selectedGroup.members}
           onClose={closeCall}
+          isVideo={callType === 'video'}
         />
       )}
     </>

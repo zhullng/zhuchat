@@ -3,14 +3,13 @@ import { useState } from "react";
 import { X, Phone, Video } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
-import DailyCall from "./DailyCall";
+import WebRTCCall from "./WebRTCCall";
 import toast from "react-hot-toast";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
   const { authUser, onlineUsers } = useAuthStore();
   const [showCall, setShowCall] = useState(false);
-  const [callRoom, setCallRoom] = useState(null);
   const [callType, setCallType] = useState(null);
 
   const isAI = selectedUser?.isAI;
@@ -26,24 +25,12 @@ const ChatHeader = () => {
       toast.success(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'}, mas o usuário está offline. Ele receberá uma notificação quando ficar online.`);
     }
     
-    // Criar um nome de sala Daily
-    const userId1 = authUser._id.slice(-6);
-    const userId2 = selectedUser._id.slice(-6);
-    const timeStamp = Date.now().toString().slice(-6);
-    
-    // Formato compatível com Daily.co
-    const roomName = `zc-${userId1}-${userId2}-${timeStamp}`;
-    
-    setCallRoom(roomName);
     setCallType(type);
     setShowCall(true);
-    
-    toast.success(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'} com ${selectedUser.fullName}...`);
   };
 
   const closeCall = () => {
     setShowCall(false);
-    setCallRoom(null);
     setCallType(null);
   };
 
@@ -106,12 +93,13 @@ const ChatHeader = () => {
         </div>
       </div>
 
-      {/* Interface de Chamada Daily */}
-      {showCall && callRoom && (
-        <DailyCall
-          roomName={callRoom}
-          userName={authUser.fullName}
+      {/* Interface de Chamada WebRTC */}
+      {showCall && (
+        <WebRTCCall
+          userId={selectedUser._id}
+          userName={selectedUser.fullName}
           onClose={closeCall}
+          isVideo={callType === 'video'}
         />
       )}
     </>
