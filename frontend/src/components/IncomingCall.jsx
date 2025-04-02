@@ -1,36 +1,67 @@
+// src/components/IncomingCall.jsx
 import React, { useEffect } from "react";
 import { Phone, PhoneOff, Video } from "lucide-react";
-import useCallStore from "../store/useCallStore";
+import { emitSocketEvent } from "../services/socket";
+import toast from "react-hot-toast";
+import { useAuthStore } from "../store/useAuthStore";
 
-/**
- * Componente para mostrar chamada recebida e permitir atender/rejeitar
- */
-const IncomingCall = () => {
-  const { callState, callerId, callerName, callType, callId, acceptCall, rejectCall } = useCallStore();
-  
-  // Se não tiver uma chamada recebida, não renderiza nada
-  if (callState !== 'incoming') return null;
-  
-  // Configurar timeout para rejeitar automaticamente após 45 segundos
+const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
+  const authUser = useAuthStore(state => state.authUser);
+
   useEffect(() => {
+    console.log("📲 Exibindo chamada recebida:", { caller, callId, isVideo });
+    
+    // Auto-rejeitar após 45 segundos
     const timeoutId = setTimeout(() => {
-      console.log("Timeout de chamada recebida atingido, rejeitando automaticamente");
-      rejectCall();
-    }, 45000); // 45 segundos
+      console.log("⏱️ Timeout de chamada recebida, rejeitando automaticamente");
+      handleReject();
+    }, 45000);
     
     return () => clearTimeout(timeoutId);
-  }, [callId, rejectCall]);
-  
-  // Lidar com aceitação da chamada
+  }, [callId]);
+
   const handleAccept = async () => {
-    console.log("Aceitando chamada");
-    acceptCall();
+    console.log("✅ Aceitando chamada:", callId, "de:", caller.id);
+    
+    try {
+      // Enviar sinal de aceitação
+      emitSocketEvent("call:accept", {
+        callerId: caller.id,
+        calleeId: authUser._id,
+        callId: callId
+      });
+      
+      toast.success("Chamada aceita!");
+      
+      // Notificar componente pai
+      if (onAccept) {
+        onAccept(callId, caller.id, isVideo);
+      }
+    } catch (err) {
+      console.error("❌ Erro ao aceitar chamada:", err);
+      toast.error("Erro ao aceitar chamada");
+      
+      // Mesmo com erro, tente continuar
+      if (onAccept) {
+        onAccept(callId, caller.id, isVideo);
+      }
+    }
   };
-  
-  // Lidar com rejeição da chamada
+
   const handleReject = async () => {
-    console.log("Rejeitando chamada");
-    rejectCall();
+    console.log("❌ Rejeitando chamada:", callId, "de:", caller.id);
+    
+    // Enviar sinal de rejeição
+    emitSocketEvent("call:reject", {
+      callerId: caller.id,
+      calleeId: authUser._id,
+      callId: callId
+    });
+    
+    toast.success("Chamada rejeitada");
+    
+    // Notificar componente pai
+    if (onReject) onReject();
   };
 
   return (
@@ -40,7 +71,7 @@ const IncomingCall = () => {
           <div className="flex justify-center mb-4">
             <div className="avatar">
               <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center">
-                {callType === 'video' ? (
+                {isVideo ? (
                   <Video size={36} className="text-blue-600" />
                 ) : (
                   <Phone size={36} className="text-blue-600" />
@@ -48,9 +79,9 @@ const IncomingCall = () => {
               </div>
             </div>
           </div>
-          <h2 className="text-xl font-bold mb-1">{callerName || "Usuário"}</h2>
+          <h2 className="text-xl font-bold mb-1">{caller.name || "Usuário"}</h2>
           <p className="text-base-content/70">
-            Está chamando você ({callType === 'video' ? "Chamada de vídeo" : "Chamada de voz"})
+            Está chamando você ({isVideo ? "Chamada de vídeo" : "Chamada de voz"})
           </p>
         </div>
 
