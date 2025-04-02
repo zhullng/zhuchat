@@ -1,5 +1,5 @@
 // src/services/signalingService.js
-import { getSocket, initializeSocket } from "./socket";
+import { getSocket, initializeSocket } from "../socket";
 import { v4 as uuidv4 } from 'uuid'; // Para gerar IDs de chamada, instale com: npm install uuid
 
 /**
@@ -13,11 +13,17 @@ class SignalingService {
     this.isConnected = false;
     this.socket = null;
     this.callId = null;
+    this.peerUserId = null; // ID do peer da chamada atual
   }
 
   // Conectar ao serviço de sinalização
   connect(userId) {
     return new Promise((resolve, reject) => {
+      if (this.isConnected && this.userId === userId) {
+        console.log("Já conectado com mesmo userId:", userId);
+        return resolve({ userId });
+      }
+      
       this.userId = userId;
       
       // Usar o socket existente ou inicializar um novo
@@ -47,15 +53,20 @@ class SignalingService {
       
       this.socket.on("connect", onConnect);
       
-      this.socket.on("connect_error", (error) => {
+      const onConnectError = (error) => {
         console.error("Erro ao conectar:", error);
+        this.socket.off("connect_error", onConnectError);
         reject(error);
-      });
+      };
+      
+      this.socket.on("connect_error", onConnectError);
     });
   }
 
   // Configurar os eventos de sinalização WebRTC no socket
   _setupSocketEvents() {
+    console.log("Configurando eventos de sinalização WebRTC");
+    
     // Remover handlers existentes para evitar duplicação
     this.socket.off("webrtc:offer");
     this.socket.off("webrtc:answer");
@@ -65,7 +76,7 @@ class SignalingService {
     this.socket.off("call:accepted");
     this.socket.off("call:rejected");
     
-    // Mapear eventos do socket para eventos internos
+    // Configurar novos handlers
     this.socket.on("webrtc:offer", (data) => {
       console.log("Recebida oferta WebRTC de:", data.from);
       this._triggerEvent("offer", data);
@@ -79,6 +90,17 @@ class SignalingService {
     this.socket.on("webrtc:ice-candidate", (data) => {
       console.log("Recebido candidato ICE de:", data.from);
       this._triggerEvent("iceCandidate", data);
+    });
+    
+    this.socket.on("call:ended", (data) => {
+      console.log("Chamada encerrada:", data.callId);
+      this._triggerEvent("callEnded", data);
+      
+      // Limpar dados da chamada
+      if (this.callId === data.callId) {
+        this.callId = null;
+        this.peerUserId = null;
+      }
     });
     
     // Compatibilidade com eventos do seu sistema atual
@@ -95,11 +117,12 @@ class SignalingService {
     this.socket.on("call:rejected", (data) => {
       console.log("Chamada rejeitada por:", data.calleeId);
       this._triggerEvent("callRejected", data);
-    });
-    
-    this.socket.on("call:ended", (data) => {
-      console.log("Chamada encerrada:", data.callId);
-      this._triggerEvent("callEnded", data);
+      
+      // Limpar dados da chamada
+      if (this.callId === data.callId) {
+        this.callId = null;
+        this.peerUserId = null;
+      }
     });
   }
 
@@ -109,6 +132,9 @@ class SignalingService {
     
     this.isConnected = false;
     this.userId = null;
+    this.callId = null;
+    this.peerUserId = null;
+    
     this._triggerEvent("disconnected");
     
     // Não desconectamos o socket aqui, pois ele pode estar sendo usado
@@ -122,8 +148,16 @@ class SignalingService {
       return Promise.reject(new Error("Não conectado ao servidor"));
     }
     
+    if (this.callId) {
+      console.warn("Já existe uma chamada ativa:", this.callId);
+      return Promise.reject(new Error("Já existe uma chamada ativa"));
+    }
+    
     // Criar um ID de chamada único
     this.callId = uuidv4();
+    this.peerUserId = targetUserId;
+    
+    console.log(`Iniciando chamada ${isVideo ? 'com vídeo' : 'de voz'} para ${targetUserId}`);
     
     return new Promise((resolve, reject) => {
       this.socket.emit("call:initiate", {
@@ -135,6 +169,8 @@ class SignalingService {
         if (response && response.success) {
           resolve({ callId: this.callId });
         } else {
+          this.callId = null;
+          this.peerUserId = null;
           reject(new Error((response && response.message) || "Falha ao iniciar chamada"));
         }
       });
@@ -148,7 +184,10 @@ class SignalingService {
       return Promise.reject(new Error("Não conectado ao servidor"));
     }
     
+    console.log(`Aceitando chamada ${callId} de ${callerId}`);
+    
     this.callId = callId;
+    this.peerUserId = callerId;
     
     return new Promise((resolve, reject) => {
       this.socket.emit("call:accept", {
@@ -159,6 +198,8 @@ class SignalingService {
         if (response && response.success) {
           resolve();
         } else {
+          this.callId = null;
+          this.peerUserId = null;
           reject(new Error((response && response.message) || "Falha ao aceitar chamada"));
         }
       });
@@ -171,6 +212,8 @@ class SignalingService {
       console.error("Não conectado ao servidor");
       return;
     }
+    
+    console.log(`Rejeitando chamada ${callId} de ${callerId}`);
     
     this.socket.emit("call:reject", {
       callerId,
@@ -249,17 +292,26 @@ class SignalingService {
 
   // Encerrar a chamada atual
   endCall() {
-    if (!this.isConnected || !this.socket || !this.callId) {
-      console.error("Não há chamada ativa");
+    if (!this.isConnected || !this.socket) {
+      console.error("Não conectado ao servidor");
       return;
     }
+    
+    if (!this.callId) {
+      console.warn("Não há chamada ativa para encerrar");
+      return;
+    }
+    
+    console.log(`Encerrando chamada ${this.callId}`);
     
     this.socket.emit("call:end", {
       userId: this.userId,
       callId: this.callId
     });
     
+    // Limpar dados da chamada
     this.callId = null;
+    this.peerUserId = null;
   }
 
   // Registrar um callback para um evento
@@ -288,13 +340,28 @@ class SignalingService {
   // Disparar um evento para todos os callbacks registrados
   _triggerEvent(event, data) {
     if (!this.listeners[event]) return;
-    this.listeners[event].forEach(callback => {
-      try {
-        callback(data);
-      } catch (err) {
-        console.error(`Erro ao executar listener para evento '${event}':`, err);
-      }
-    });
+    
+    try {
+      this.listeners[event].forEach(callback => {
+        try {
+          callback(data);
+        } catch (err) {
+          console.error(`Erro ao executar listener para evento '${event}':`, err);
+        }
+      });
+    } catch (err) {
+      console.error(`Erro ao disparar evento '${event}':`, err);
+    }
+  }
+  
+  // Obter o ID da chamada atual
+  getCurrentCallId() {
+    return this.callId;
+  }
+  
+  // Verificar se há uma chamada ativa
+  hasActiveCall() {
+    return !!this.callId;
   }
 }
 

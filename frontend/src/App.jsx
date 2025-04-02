@@ -21,11 +21,12 @@ import WebRTCCall from "./components/WebRTCCall";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
 import { useThemeStore } from "./store/useThemeStore"; 
-import { getSocket, initializeSocket } from "./services/socket";
+import { getSocket, initializeSocket } from "./socket";
 import signalingService from "./services/signalingService";
 
 import { Loader } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; 
+import toast from "react-hot-toast";
 
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
@@ -40,64 +41,151 @@ const App = () => {
   useEffect(() => {
     if (!authUser) return;
     
-    // Inicializar socket se necessário
-    const socket = getSocket() || initializeSocket();
-    
-    if (!socket) return;
-    
-    // Conectar ao serviço de sinalização com o ID do usuário autenticado
-    signalingService.connect(authUser._id);
-    
-    // Configurar listener para chamadas recebidas
-    const handleIncomingCall = (data) => {
-      console.log("Chamada recebida:", data);
-      
-      // Mostrar interface de chamada recebida
-      setIncomingCall({
-        id: data.callId,
-        caller: {
-          id: data.callerId,
-          name: data.callerName || "Usuário"
-        },
-        isVideo: data.callType === "video"
-      });
+    const initSocketAndListeners = async () => {
+      try {
+        // Inicializar socket se necessário
+        const socket = getSocket() || initializeSocket();
+        
+        if (!socket) {
+          console.error("Não foi possível inicializar o socket");
+          return;
+        }
+        
+        // Conectar ao serviço de sinalização com o ID do usuário autenticado
+        await signalingService.connect(authUser._id);
+        console.log("Serviço de sinalização conectado com ID:", authUser._id);
+        
+        // Configurar listener para chamadas recebidas
+        const handleIncomingCall = (data) => {
+          console.log("Chamada recebida:", data);
+          
+          if (activeCall) {
+            console.log("Já existe uma chamada ativa. Rejeitando chamada recebida.");
+            signalingService.rejectCall(data.callerId, data.callId);
+            return;
+          }
+          
+          // Mostrar interface de chamada recebida
+          setIncomingCall({
+            id: data.callId,
+            caller: {
+              id: data.callerId,
+              name: data.callerName || "Usuário"
+            },
+            isVideo: data.callType === "video"
+          });
+          
+          // Tocar som de chamada (opcional)
+          // playRingtone();
+        };
+        
+        // Configurar listener para quando chamada for aceita
+        const handleCallAccepted = (data) => {
+          console.log("Chamada aceita:", data);
+          
+          // Se não houver chamada ativa, isso não deveria acontecer
+          if (!activeCall) {
+            console.warn("Recebido evento de chamada aceita, mas não há chamada ativa");
+            return;
+          }
+          
+          toast.success("Chamada aceita!");
+        };
+        
+        // Configurar listener para chamadas rejeitadas
+        const handleCallRejected = (data) => {
+          console.log("Chamada rejeitada:", data);
+          
+          toast.error("Chamada rejeitada pelo usuário");
+          setActiveCall(null);
+        };
+        
+        // Configurar listener para chamadas encerradas
+        const handleCallEnded = (data) => {
+          console.log("Chamada encerrada:", data);
+          
+          toast.success("Chamada encerrada");
+          setActiveCall(null);
+        };
+        
+        // Registrar event listeners
+        signalingService.off("incomingCall"); // Remove handlers anteriores
+        signalingService.off("callAccepted");
+        signalingService.off("callRejected");
+        signalingService.off("callEnded");
+        
+        signalingService.on("incomingCall", handleIncomingCall);
+        signalingService.on("callAccepted", handleCallAccepted);
+        signalingService.on("callRejected", handleCallRejected);
+        signalingService.on("callEnded", handleCallEnded);
+      } catch (error) {
+        console.error("Erro ao inicializar socket e listeners:", error);
+      }
     };
     
-    // Configurar listener para chamadas encerradas
-    const handleCallEnded = () => {
-      setActiveCall(null);
-    };
-    
-    // Registrar event listeners
-    signalingService.on("incomingCall", handleIncomingCall);
-    signalingService.on("callEnded", handleCallEnded);
+    initSocketAndListeners();
     
     // Limpar event listeners quando o componente for desmontado
     return () => {
-      signalingService.off("incomingCall", handleIncomingCall);
-      signalingService.off("callEnded", handleCallEnded);
+      signalingService.off("incomingCall");
+      signalingService.off("callAccepted");
+      signalingService.off("callRejected");
+      signalingService.off("callEnded");
     };
   }, [authUser]);
 
   // Lidar com aceitação de chamada
   const handleAcceptCall = (callId, callerId, isVideo) => {
+    console.log("Aceitando chamada:", { callId, callerId, isVideo });
+    
+    // Fechar interface de chamada recebida
     setIncomingCall(null);
     
-    // Iniciar chamada ativa
+    // Iniciar chamada ativa (importante incluir isIncoming: true)
     setActiveCall({
       userId: callerId,
-      isVideo
+      userName: "Usuário", // Idealmente buscar o nome real do usuário
+      isVideo,
+      isIncoming: true // Indica que é uma chamada recebida e já aceita
     });
   };
   
   // Lidar com rejeição de chamada
   const handleRejectCall = () => {
+    console.log("Rejeitando chamada de:", incomingCall?.caller.id);
+    
+    if (incomingCall) {
+      // Rejeitar chamada no serviço de sinalização
+      signalingService.rejectCall(incomingCall.caller.id, incomingCall.id);
+    }
+    
+    // Fechar interface de chamada recebida
     setIncomingCall(null);
   };
   
   // Encerrar chamada ativa
   const handleEndCall = () => {
+    console.log("Encerrando chamada ativa");
     setActiveCall(null);
+  };
+
+  // Iniciar uma chamada (para uso em outros componentes se necessário)
+  const initiateCall = (userId, userName, isVideo = false) => {
+    console.log("Iniciando chamada para:", userId);
+    
+    // Verificar se já há uma chamada ativa
+    if (activeCall || incomingCall) {
+      toast.error("Já existe uma chamada em andamento");
+      return;
+    }
+    
+    // Iniciar chamada ativa
+    setActiveCall({
+      userId,
+      userName,
+      isVideo,
+      isIncoming: false // Indica que é uma chamada iniciada pelo usuário
+    });
   };
 
   useEffect(() => {
@@ -156,8 +244,9 @@ const App = () => {
       {activeCall && (
         <WebRTCCall
           userId={activeCall.userId}
-          userName="Usuário" // Idealmente, buscar o nome do usuário
+          userName={activeCall.userName}
           isVideo={activeCall.isVideo}
+          isIncoming={activeCall.isIncoming}
           onClose={handleEndCall}
         />
       )}

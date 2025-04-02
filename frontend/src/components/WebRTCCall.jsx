@@ -8,12 +8,14 @@ import { useAuthStore } from "../store/useAuthStore";
 /**
  * WebRTC Call Component
  * Implementação WebRTC para chamada P2P usando o serviço de sinalização adaptado
+ * Melhorado para funcionar tanto para quem inicia quanto para quem recebe a chamada
  */
 const WebRTCCall = ({ 
-  userId,      // ID do usuário que está sendo chamado
-  userName,    // Nome do usuário que está sendo chamado
+  userId,      // ID do usuário que está sendo chamado/chamando
+  userName,    // Nome do usuário que está sendo chamado/chamando
   onClose,     // Callback quando a chamada terminar
   isVideo = true, // Se é uma chamada de vídeo ou não
+  isIncoming = false, // Se é uma chamada recebida (já aceita)
 }) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -22,7 +24,7 @@ const WebRTCCall = ({
   
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [isCallCreator, setIsCallCreator] = useState(true); // Se é quem iniciou a chamada
+  const [isCallCreator, setIsCallCreator] = useState(!isIncoming);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(!isVideo);
@@ -31,6 +33,8 @@ const WebRTCCall = ({
 
   // Configurar a conexão peer
   const setupPeerConnection = async () => {
+    console.log("Configurando conexão peer para:", isCallCreator ? "chamador" : "receptor");
+    
     // Configurar a conexão peer
     peerConnectionRef.current = new RTCPeerConnection(RTCConfig);
     
@@ -43,6 +47,8 @@ const WebRTCCall = ({
     
     // Escutar por trilhas remotas
     peerConnectionRef.current.ontrack = (event) => {
+      console.log("Stream remoto recebido!");
+      
       if (remoteVideoRef.current && event.streams[0]) {
         remoteVideoRef.current.srcObject = event.streams[0];
         setIsConnected(true);
@@ -72,6 +78,7 @@ const WebRTCCall = ({
     // Enviar candidatos ICE para o peer remoto
     peerConnectionRef.current.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log("Enviando candidato ICE para:", userId);
         signalingService.sendIceCandidate(userId, event.candidate);
       }
     };
@@ -80,7 +87,7 @@ const WebRTCCall = ({
   // Gerenciar os eventos de sinalização
   const handleSignalingEvents = () => {
     // Quando receber uma oferta
-    signalingService.on('offer', async (data) => {
+    const offerHandler = async (data) => {
       try {
         if (data.from !== userId) return; // Ignorar ofertas de outros usuários
         
@@ -106,10 +113,10 @@ const WebRTCCall = ({
         console.error("Erro ao processar oferta:", err);
         setError("Erro ao processar oferta de chamada: " + err.message);
       }
-    });
+    };
     
     // Quando receber uma resposta
-    signalingService.on('answer', async (data) => {
+    const answerHandler = async (data) => {
       try {
         if (data.from !== userId) return; // Ignorar respostas de outros usuários
         
@@ -122,10 +129,10 @@ const WebRTCCall = ({
       } catch (err) {
         console.error("Erro ao processar resposta:", err);
       }
-    });
+    };
     
     // Quando receber um candidato ICE
-    signalingService.on('iceCandidate', async (data) => {
+    const iceCandidateHandler = async (data) => {
       try {
         if (data.from !== userId) return; // Ignorar candidatos de outros usuários
         
@@ -137,18 +144,39 @@ const WebRTCCall = ({
       } catch (err) {
         console.error("Erro ao adicionar candidato ICE:", err);
       }
-    });
+    };
     
     // Quando a chamada for encerrada pelo outro usuário
-    signalingService.on('callEnded', () => {
-      toast.info("O outro usuário encerrou a chamada");
+    const callEndedHandler = () => {
+      toast.success("O outro usuário encerrou a chamada");
       onClose();
-    });
+    };
+    
+    // Registrar os handlers
+    signalingService.off('offer'); // Remove handlers anteriores
+    signalingService.off('answer');
+    signalingService.off('iceCandidate');
+    signalingService.off('callEnded');
+    
+    signalingService.on('offer', offerHandler);
+    signalingService.on('answer', answerHandler);
+    signalingService.on('iceCandidate', iceCandidateHandler);
+    signalingService.on('callEnded', callEndedHandler);
+    
+    // Retornar função para remover handlers
+    return () => {
+      signalingService.off('offer', offerHandler);
+      signalingService.off('answer', answerHandler);
+      signalingService.off('iceCandidate', iceCandidateHandler);
+      signalingService.off('callEnded', callEndedHandler);
+    };
   };
 
-  // Iniciar a chamada
+  // Iniciar a chamada (para quem está iniciando)
   const startCall = async () => {
     try {
+      console.log("Iniciando chamada para:", userId);
+      
       // Iniciar uma nova chamada
       await signalingService.initiateCall(userId, isVideo);
       
@@ -160,7 +188,6 @@ const WebRTCCall = ({
       await signalingService.sendOffer(userId, offer);
       
       toast.success(`Iniciando chamada ${isVideo ? 'com vídeo' : 'de voz'} com ${userName}...`);
-      setIsCallCreator(true);
       
       // Definir um timeout para a conexão
       setTimeout(() => {
@@ -176,17 +203,28 @@ const WebRTCCall = ({
     }
   };
 
+  // Unir-se a uma chamada (para quem está recebendo)
+  const joinCall = async () => {
+    console.log("Unindo-se à chamada de:", userId);
+    // Para quem recebe a chamada, não precisamos iniciar, apenas
+    // aguardamos a oferta que será processada pelo evento 'offer'
+    setIsCallCreator(false);
+  };
+
   // Configurar a chamada
   useEffect(() => {
     let mounted = true;
+    let signalHandlersCleanup = null;
     
     const setupCall = async () => {
       try {
+        console.log("Configurando chamada:", isIncoming ? "recebida" : "iniciada");
+        
         // Conectar ao serviço de sinalização
         await signalingService.connect(authUser._id);
         
         // Configurar os handlers para eventos de sinalização
-        handleSignalingEvents();
+        signalHandlersCleanup = handleSignalingEvents();
         
         // Obter mídia local
         const mediaConstraints = getMediaConstraints(isVideo);
@@ -200,9 +238,15 @@ const WebRTCCall = ({
         // Configurar conexão peer
         await setupPeerConnection();
         
-        // Iniciar a chamada (enviar oferta)
+        // Iniciar ou receber a chamada
         if (mounted) {
-          await startCall();
+          if (!isIncoming) {
+            // Quem inicia a chamada envia a oferta
+            await startCall();
+          } else {
+            // Quem recebe a chamada aguarda a oferta
+            await joinCall();
+          }
         }
       } catch (err) {
         console.error("Erro ao configurar chamada:", err);
@@ -220,6 +264,9 @@ const WebRTCCall = ({
     return () => {
       mounted = false;
       
+      // Remover handlers de eventos
+      if (signalHandlersCleanup) signalHandlersCleanup();
+      
       // Encerrar a chamada no serviço de sinalização
       signalingService.endCall();
       
@@ -233,7 +280,7 @@ const WebRTCCall = ({
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [userId, userName, isVideo, authUser._id]);
+  }, [userId, userName, isVideo, authUser._id, isIncoming]);
   
   // Toggles para mudo e vídeo
   const toggleMute = () => {
@@ -388,7 +435,7 @@ const WebRTCCall = ({
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-black bg-opacity-70">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div>
             <p className="text-white ml-4">
-              {isCallCreator ? 'Chamando...' : 'Recebendo chamada...'}
+              {isCallCreator ? 'Chamando...' : 'Conectando...'}
             </p>
           </div>
         )}

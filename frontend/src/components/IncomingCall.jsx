@@ -1,29 +1,55 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Phone, PhoneOff, Video } from "lucide-react";
 import signalingService from "../services/signalingService";
+import toast from "react-hot-toast";
 
 /**
  * Componente para mostrar chamada recebida e permitir atender/rejeitar
  */
 const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
-  const handleAccept = () => {
-    // Aceitar a chamada através do serviço de sinalização
-    signalingService.acceptCall(caller.id, callId)
-      .then(() => {
-        // Notificar o componente pai que a chamada foi aceita
-        if (onAccept) onAccept(callId, caller.id, isVideo);
-      })
-      .catch(err => {
-        console.error("Erro ao aceitar chamada:", err);
-      });
+  
+  // Usar useEffect para registro de depuração
+  useEffect(() => {
+    console.log("Chamada recebida exibida:", { caller, callId, isVideo });
+  }, [caller, callId, isVideo]);
+
+  const handleAccept = async () => {
+    console.log("Aceitando chamada:", callId, "de:", caller.id);
+    
+    try {
+      // Aceitar a chamada através do serviço de sinalização
+      await signalingService.acceptCall(caller.id, callId);
+      
+      toast.success("Chamada aceita!");
+      
+      // Notificar o componente pai que a chamada foi aceita
+      if (onAccept) {
+        onAccept(callId, caller.id, isVideo);
+      }
+    } catch (err) {
+      console.error("Erro ao aceitar chamada:", err);
+      toast.error("Erro ao aceitar chamada: " + (err.message || "Erro desconhecido"));
+    }
   };
 
-  const handleReject = () => {
-    // Rejeitar a chamada através do serviço de sinalização
-    signalingService.rejectCall(caller.id, callId);
+  const handleReject = async () => {
+    console.log("Rejeitando chamada:", callId, "de:", caller.id);
     
-    // Notificar o componente pai que a chamada foi rejeitada
-    if (onReject) onReject();
+    try {
+      // Rejeitar a chamada através do serviço de sinalização
+      signalingService.rejectCall(caller.id, callId);
+      
+      toast.success("Chamada rejeitada");
+      
+      // Notificar o componente pai que a chamada foi rejeitada
+      if (onReject) onReject();
+    } catch (err) {
+      console.error("Erro ao rejeitar chamada:", err);
+      toast.error("Erro ao rejeitar chamada");
+      
+      // Mesmo com erro, notificar o componente pai para fechar a interface
+      if (onReject) onReject();
+    }
   };
 
   return (
