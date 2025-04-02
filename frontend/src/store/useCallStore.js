@@ -168,8 +168,13 @@ const useCallStore = create((set, get) => ({
       console.log("Enviando sinal de aceitação da chamada");
       await callService.acceptCall(callerId, callId);
       
-      // Iniciar conexão WebRTC como receptor
-      await callService.startWebRTCConnection(false);
+      // IMPORTANTE: Adicionar timeout para iniciar conexão WebRTC,
+      // para dar tempo ao servidor processar a aceitação
+      setTimeout(async () => {
+        // Iniciar conexão WebRTC como receptor
+        console.log("Iniciando conexão WebRTC como receptor");
+        await callService.startWebRTCConnection(false);
+      }, 1000);
       
       console.log("Chamada aceita com sucesso");
     } catch (error) {

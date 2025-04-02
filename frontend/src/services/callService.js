@@ -90,6 +90,8 @@ class CallService {
       this.callId = callId;
       this.remoteUserId = callerId;
       
+      console.log(`Aceitando chamada ${callId} de ${callerId} (remoteUserId definido)`);
+      
       // Registrar handlers para eventos de chamada
       this._setupCallEventHandlers();
       
@@ -112,7 +114,7 @@ class CallService {
       throw error;
     }
   }
-  
+
   // Rejeitar uma chamada recebida
   rejectCall(callerId, callId) {
     emitSocketEvent('call:reject', {
@@ -175,33 +177,43 @@ class CallService {
   // Lidar com oferta recebida
   async _handleOffer(data) {
     try {
-      console.log('Oferta recebida:', data);
+      console.log('Oferta WebRTC recebida:', data);
       
       // Verificar se a oferta é para nós
       if (!this.remoteUserId || data.from !== this.remoteUserId) {
-        console.log('Ignorando oferta de usuário não relacionado:', data.from);
+        console.log('Ignorando oferta de usuário não relacionado:', data.from, 'Esperávamos:', this.remoteUserId);
         return;
       }
       
       // Criar peer connection se não existir
       if (!this.peerConnection) {
+        console.log('Criando nova peer connection para responder à oferta');
         this._createPeerConnection();
+      } else {
+        console.log('Usando peer connection existente');
       }
       
       // Definir descrição remota
+      console.log('Definindo descrição remota (oferta)...');
       const offerDesc = new RTCSessionDescription(data.offer);
       await this.peerConnection.setRemoteDescription(offerDesc);
+      console.log('Descrição remota definida com sucesso');
       
       // Criar e enviar resposta
+      console.log('Criando resposta...');
       const answer = await this.peerConnection.createAnswer();
+      console.log('Definindo descrição local (resposta)...');
       await this.peerConnection.setLocalDescription(answer);
+      console.log('Descrição local definida com sucesso');
       
       // Enviar resposta
+      console.log('Enviando resposta para:', data.from);
       emitSocketEvent('webrtc:answer', {
         from: getSocket()?.auth?.userId || getSocket()?.id,
         to: data.from,
         answer
       });
+      console.log('Resposta enviada com sucesso');
     } catch (error) {
       console.error('Erro ao processar oferta:', error);
     }
@@ -300,12 +312,25 @@ class CallService {
   
   // Lidar com trilha remota
   _handleRemoteTrack(event) {
-    if (event.streams && event.streams[0]) {
-      if (this.onRemoteStreamCallback) {
-        this.onRemoteStreamCallback(event.streams[0]);
-      }
+  console.log("Trilha remota recebida:", event.track.kind);
+  
+  if (event.streams && event.streams[0]) {
+    console.log("Stream remoto recebido e configurando callback");
+    
+    // Às vezes o callback pode não estar configurado ainda quando a trilha é recebida,
+    // então adicionamos um pequeno timeout se necessário
+    if (this.onRemoteStreamCallback) {
+      this.onRemoteStreamCallback(event.streams[0]);
+    } else {
+      setTimeout(() => {
+        if (this.onRemoteStreamCallback) {
+          console.log("Executando callback de stream remoto com atraso");
+          this.onRemoteStreamCallback(event.streams[0]);
+        }
+      }, 500);
     }
   }
+}
   
   // Lidar com mudança de estado da conexão ICE
   _handleIceConnectionStateChange() {

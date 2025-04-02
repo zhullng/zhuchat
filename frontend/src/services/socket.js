@@ -77,6 +77,7 @@ export const initializeSocket = () => {
           reconnectionAttempts: 3,
           reconnectionDelay: 1000,
           timeout: 5000,
+          auth: { userId: authUser._id }, // Adicionado campo de autenticação
           autoConnect: true
         });
         
