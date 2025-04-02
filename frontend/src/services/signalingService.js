@@ -1,5 +1,5 @@
 // src/services/signalingService.js
-import { getSocket, initializeSocket } from "../socket";
+import { getSocket, initializeSocket } from "./socket";
 import { v4 as uuidv4 } from 'uuid'; // Para gerar IDs de chamada, instale com: npm install uuid
 
 /**

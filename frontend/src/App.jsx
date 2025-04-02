@@ -21,7 +21,7 @@ import WebRTCCall from "./components/WebRTCCall";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
 import { useThemeStore } from "./store/useThemeStore"; 
-import { getSocket, initializeSocket } from "./socket";
+import { getSocket, initializeSocket } from "./services/socket";
 import signalingService from "./services/signalingService";
 
 import { Loader } from "lucide-react"; 
