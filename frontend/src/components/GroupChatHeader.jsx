@@ -1,40 +1,18 @@
 import { useState } from "react";
-import { X, Users, Info, Settings, UserPlus, Phone, Video } from "lucide-react";
+import { X, Users, Info, Settings, UserPlus } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
-import WebRTCGroupCall from "./WebRTCGroupCall";
-import toast from "react-hot-toast";
 
 const GroupChatHeader = () => {
   const { selectedGroup, selectGroup } = useGroupStore();
   const { authUser } = useAuthStore();
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
-  const [showCall, setShowCall] = useState(false);
-  const [callType, setCallType] = useState(null);
 
   const isCreator = selectedGroup?.createdBy === authUser._id;
   const memberCount = selectedGroup?.members?.length || 0;
-
-  const startGroupCall = (type) => {
-    // Verificar se há membros online
-    if (memberCount <= 1) {
-      toast.error("Não há outros membros no grupo para chamar.");
-      return;
-    }
-    
-    setCallType(type);
-    setShowCall(true);
-    
-    toast.success(`Iniciando chamada em grupo ${type === 'video' ? 'com vídeo' : 'de voz'}...`);
-  };
-
-  const closeCall = () => {
-    setShowCall(false);
-    setCallType(null);
-  };
 
   return (
     <>
@@ -66,22 +44,6 @@ const GroupChatHeader = () => {
           </div>
 
           <div className="flex items-center gap-2 relative">
-            <button 
-              onClick={() => startGroupCall('voice')}
-              className="btn btn-ghost btn-sm btn-circle"
-              title="Chamada de voz em grupo"
-            >
-              <Phone size={18} />
-            </button>
-            
-            <button 
-              onClick={() => startGroupCall('video')}
-              className="btn btn-ghost btn-sm btn-circle"
-              title="Videochamada em grupo"
-            >
-              <Video size={18} />
-            </button>
-            
             <button 
               onClick={() => setShowInfoModal(true)}
               className="btn btn-ghost btn-sm btn-circle"
@@ -130,18 +92,6 @@ const GroupChatHeader = () => {
         <AddGroupMembersModal 
           isOpen={showAddMembersModal} 
           onClose={() => setShowAddMembersModal(false)} 
-        />
-      )}
-      
-      {/* Interface de Chamada WebRTC para Grupo */}
-      {showCall && (
-        <WebRTCGroupCall
-          groupId={selectedGroup._id}
-          groupName={selectedGroup.name}
-          userName={authUser.fullName}
-          members={selectedGroup.members}
-          onClose={closeCall}
-          isVideo={callType === 'video'}
         />
       )}
     </>

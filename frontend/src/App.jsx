@@ -1,5 +1,4 @@
-// src/App.jsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage"; 
@@ -15,14 +14,11 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DeleteAccountPage from "./pages/DeleteAccountPage";
 import BlockedUsersPage from "./pages/BlockedUsersPage";
-import IncomingCall from "./components/IncomingCall";
-import WebRTCCall from "./components/WebRTCCall";
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
 import { useThemeStore } from "./store/useThemeStore"; 
 import { initializeSocket } from "./services/socket";
-import useCallStore from "./store/useCallStore";
 
 import { Loader } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; 
@@ -31,11 +27,8 @@ const App = () => {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
   const location = useLocation();
-  
-  // Use o novo callStore para gerenciar chamadas
-  const { callState, initialize: initializeCallHandlers } = useCallStore();
 
-  // Inicializar socket e ouvir eventos de chamada quando usuário estiver autenticado
+  // Inicializar socket quando usuário estiver autenticado
   useEffect(() => {
     if (!authUser) return;
     
@@ -44,17 +37,14 @@ const App = () => {
         // Inicializar socket
         await initializeSocket();
         
-        // Inicializar handlers de chamada no callStore
-        await initializeCallHandlers();
-        
-        console.log("Sistema de chamadas inicializado com sucesso");
+        console.log("Aplicação inicializada com sucesso");
       } catch (error) {
         console.error("Erro ao inicializar app:", error);
       }
     };
     
     initializeApp();
-  }, [authUser, initializeCallHandlers]);
+  }, [authUser]);
 
   useEffect(() => {
     checkAuth();
@@ -96,10 +86,6 @@ const App = () => {
         <Route path="/security/delete-account" element={authUser ? <DeleteAccountPage /> : <Navigate to="/login" />} />
         <Route path="/privacy/blocked" element={authUser ? <BlockedUsersPage /> : <Navigate to="/login" />} />
       </Routes>
-
-      {/* Componentes de chamada gerenciados pelo callStore */}
-      {callState === 'incoming' && <IncomingCall />}
-      {(callState === 'calling' || callState === 'ongoing') && <WebRTCCall />}
 
       <Toaster /> 
     </div>
