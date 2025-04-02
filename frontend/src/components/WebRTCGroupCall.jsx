@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { X, Mic, MicOff, Camera, CameraOff, PhoneOff, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { RTCConfig, getMediaConstraints, handleMediaError } from "../lib/webrtcConfig";
-import signalingService from "../services/signalingService";
+import callService from "../services/callService";
+import { emitSocketEvent, getSocket } from "../services/socket";
+import { useAuthStore } from "../store/useAuthStore";
 
 /**
  * WebRTC Group Call Component
@@ -27,6 +29,8 @@ const WebRTCGroupCall = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(!isVideo);
   const [participants, setParticipants] = useState([]);
+
+  const authUser = useAuthStore(state => state.authUser);
 
   // For demo purposes, create simulated participants
   useEffect(() => {
@@ -69,7 +73,18 @@ const WebRTCGroupCall = ({
         // Get local media stream (audio/video)
         const mediaConstraints = getMediaConstraints(isVideo);
         
-        localStreamRef.current = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        try {
+          localStreamRef.current = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        } catch (mediaError) {
+          // Try fallback to audio only if video fails
+          if (isVideo) {
+            const audioConstraints = getMediaConstraints(false);
+            localStreamRef.current = await navigator.mediaDevices.getUserMedia(audioConstraints);
+            setIsVideoOff(true);
+          } else {
+            throw mediaError;
+          }
+        }
         
         // Display local stream
         if (localVideoRef.current) {
@@ -77,9 +92,22 @@ const WebRTCGroupCall = ({
         }
         
         // In a real implementation, you would:
-        // 1. Connect to your signaling server
-        // 2. Create peer connections for each participant
-        // 3. Exchange ICE candidates and SDP offers/answers
+        // 1. Send a group call initiation event to the server
+        // 2. The server would notify all group members about the call
+        // 3. For each member who joins, create a peer connection
+
+        // Example of how to send a notification to the group (not functioning in demo)
+        const groupCallId = `group-${groupId}-${Date.now()}`;
+        
+        if (getSocket()) {
+          emitSocketEvent('group:call:start', {
+            groupId,
+            callerId: authUser._id,
+            callerName: userName,
+            callType: isVideo ? 'video' : 'voice',
+            callId: groupCallId
+          });
+        }
         
         toast.success(`Iniciando chamada em grupo ${isVideo ? 'com vídeo' : 'de voz'}...`);
         
@@ -105,7 +133,7 @@ const WebRTCGroupCall = ({
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [groupId, isVideo]);
+  }, [groupId, isVideo, userName, authUser._id]);
   
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -138,6 +166,14 @@ const WebRTCGroupCall = ({
     // Stop all tracks from local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    
+    // Notify server (in a real implementation)
+    if (getSocket()) {
+      emitSocketEvent('group:call:end', {
+        groupId,
+        userId: authUser._id,
+      });
     }
     
     toast.success("Chamada em grupo encerrada");
