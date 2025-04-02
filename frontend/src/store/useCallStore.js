@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import callService from '../services/callService';
 import toast from 'react-hot-toast';
+import { getSocket, initializeSocket } from '../services/socket';
 
 const useCallStore = create((set, get) => ({
   callState: 'idle', // idle, calling, incoming, ongoing, ending
@@ -10,12 +11,89 @@ const useCallStore = create((set, get) => ({
   callerName: null,
   calleeId: null,
   calleeName: null,
+  callId: null,
   
   localStream: null,
   remoteStream: null,
   
   isAudioMuted: false,
   isVideoOff: false,
+  
+  // Inicializar eventos de chamada
+  initialize: async () => {
+    try {
+      const socket = await initializeSocket();
+      if (!socket) return;
+      
+      console.log("Inicializando listeners de chamada no socket");
+      
+      // Remover listeners existentes
+      socket.off('call:incoming');
+      socket.off('call:accepted');
+      socket.off('call:rejected');
+      
+      // Configurar listener para chamadas recebidas
+      socket.on('call:incoming', (data) => {
+        const { callerId, callerName, callType, callId } = data;
+        console.log("Chamada recebida:", data);
+        
+        // Se já houver uma chamada ativa, rejeitar automaticamente
+        if (get().callState !== 'idle') {
+          console.log("Já existe uma chamada ativa, rejeitando automaticamente");
+          callService.rejectCall(callerId, callId);
+          return;
+        }
+        
+        // Notificar sobre chamada recebida
+        get().handleIncomingCall(callerId, callerName || "Usuário", callType, callId);
+        
+        // Reproduzir som de chamada se disponível
+        // const ringtone = new Audio("/sounds/ringtone.mp3");
+        // ringtone.loop = true;
+        // ringtone.play().catch(e => console.log("Não foi possível reproduzir o toque:", e));
+      });
+      
+      // Configurar listener para chamadas aceitas
+      socket.on('call:accepted', (data) => {
+        console.log("Chamada aceita:", data);
+        
+        // Iniciar conexão WebRTC como iniciador
+        if (get().callState === 'calling') {
+          callService.startWebRTCConnection(true);
+        }
+      });
+      
+      // Configurar listener para chamadas rejeitadas
+      socket.on('call:rejected', (data) => {
+        console.log("Chamada rejeitada:", data);
+        
+        if (get().callState === 'calling') {
+          toast.error(`${get().calleeName || 'Usuário'} rejeitou a chamada`, {
+            id: 'calling'
+          });
+          
+          get().endCall();
+        }
+      });
+      
+      // Configurar callbacks do serviço de chamada
+      callService.setOnRemoteStream((stream) => {
+        set({ remoteStream: stream, callState: 'ongoing' });
+        toast.dismiss('calling');
+        toast.dismiss('connecting');
+        toast.success("Chamada conectada!");
+      });
+      
+      callService.setOnCallEnded(() => {
+        if (get().callState !== 'idle') {
+          toast.success("Chamada encerrada pelo outro usuário");
+          get().endCall();
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao inicializar eventos de chamada:", error);
+    }
+  },
   
   startCall: async (userId, username, type = 'video') => {
     try {
@@ -48,30 +126,33 @@ const useCallStore = create((set, get) => ({
     }
   },
   
-  handleIncomingCall: (callerId, callerName, callType) => {
+  handleIncomingCall: (callerId, callerName, callType, callId) => {
     console.log(`Chamada recebida de ${callerName} (${callerId}), tipo: ${callType}`);
     
     // Mostrar um toast para garantir que o usuário veja a chamada mesmo se o modal não aparecer
-    toast('Chamada recebida', {
+    toast(`${callerName} está chamando você`, {
       icon: callType === 'video' ? '📹' : '📞',
-      duration: 10000, // 10 segundos
+      duration: 30000, // 30 segundos
+      id: 'incoming-call'
     });
     
     set({ 
       callState: 'incoming',
       callType,
       callerId,
-      callerName
+      callerName,
+      callId
     });
   },
   
   acceptCall: async () => {
     try {
       console.log("Aceitando chamada recebida");
-      const { callType, callerId, callerName } = get();
+      const { callType, callerId, callerName, callId } = get();
       
       // Mostrar toast para informar o usuário
       toast.loading(`Conectando...`, { id: 'connecting' });
+      toast.dismiss('incoming-call');
       
       // Obter o stream local ANTES de atualizar o estado
       console.log("Obtendo stream local para aceitar chamada");
@@ -85,7 +166,10 @@ const useCallStore = create((set, get) => ({
       
       // Emitir sinal de aceitação
       console.log("Enviando sinal de aceitação da chamada");
-      await callService.acceptCall(callerId);
+      await callService.acceptCall(callerId, callId);
+      
+      // Iniciar conexão WebRTC como receptor
+      await callService.startWebRTCConnection(false);
       
       console.log("Chamada aceita com sucesso");
     } catch (error) {
@@ -97,15 +181,16 @@ const useCallStore = create((set, get) => ({
   
   rejectCall: async () => {
     console.log("Rejeitando chamada recebida");
-    const { callerId } = get();
+    const { callerId, callId } = get();
     
-    await callService.rejectCall(callerId);
+    toast.dismiss('incoming-call');
+    callService.rejectCall(callerId, callId);
     toast.success('Chamada rejeitada');
     get().resetCallState();
   },
   
   endCall: async () => {
-    const { callState, localStream, calleeName, callerName } = get();
+    const { callState, localStream } = get();
     
     // Só encerra se houver uma chamada ativa
     if (callState !== 'idle') {
@@ -117,10 +202,7 @@ const useCallStore = create((set, get) => ({
       // Limpar toasts
       toast.dismiss('calling');
       toast.dismiss('connecting');
-      
-      // Mostrar notificação
-      const displayName = calleeName || callerName || 'Usuário';
-      toast.success(`Chamada com ${displayName} encerrada`);
+      toast.dismiss('incoming-call');
       
       // Parar streams
       if (localStream) {
@@ -140,18 +222,6 @@ const useCallStore = create((set, get) => ({
       // Resetar o estado
       get().resetCallState();
     }
-  },
-  
-  // Definir stream remoto quando a conexão for estabelecida
-  setRemoteStream: (stream) => {
-    console.log("Stream remoto recebido e configurado");
-    toast.dismiss('connecting');
-    toast.success('Chamada conectada');
-    
-    set({ 
-      remoteStream: stream, 
-      callState: 'ongoing' 
-    });
   },
   
   // Controles de mídia
@@ -201,6 +271,7 @@ const useCallStore = create((set, get) => ({
       callerName: null,
       calleeId: null,
       calleeName: null,
+      callId: null,
       localStream: null,
       remoteStream: null,
       isAudioMuted: false,

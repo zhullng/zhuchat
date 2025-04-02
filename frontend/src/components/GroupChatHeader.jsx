@@ -1,4 +1,3 @@
-// src/components/GroupChatHeader.jsx
 import { useState } from "react";
 import { X, Users, Info, Settings, UserPlus, Phone, Video } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
@@ -20,6 +19,12 @@ const GroupChatHeader = () => {
   const memberCount = selectedGroup?.members?.length || 0;
 
   const startGroupCall = (type) => {
+    // Verificar se há membros online
+    if (memberCount <= 1) {
+      toast.error("Não há outros membros no grupo para chamar.");
+      return;
+    }
+    
     setCallType(type);
     setShowCall(true);
     

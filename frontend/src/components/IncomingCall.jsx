@@ -1,79 +1,36 @@
 import React, { useEffect } from "react";
 import { Phone, PhoneOff, Video } from "lucide-react";
-import signalingService from "../services/signalingService";
-import toast from "react-hot-toast";
+import useCallStore from "../store/useCallStore";
 
 /**
  * Componente para mostrar chamada recebida e permitir atender/rejeitar
  */
-const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
+const IncomingCall = () => {
+  const { callState, callerId, callerName, callType, callId, acceptCall, rejectCall } = useCallStore();
   
-  // Usar useEffect para registro de depuração e configuração de timeout
+  // Se não tiver uma chamada recebida, não renderiza nada
+  if (callState !== 'incoming') return null;
+  
+  // Configurar timeout para rejeitar automaticamente após 45 segundos
   useEffect(() => {
-    console.log("Chamada recebida exibida:", { caller, callId, isVideo });
-    
-    // Configurar um timeout para rejeitar automaticamente após um longo período
     const timeoutId = setTimeout(() => {
       console.log("Timeout de chamada recebida atingido, rejeitando automaticamente");
-      handleReject();
+      rejectCall();
     }, 45000); // 45 segundos
     
-    // Reproduzir som de chamada (se tiver um áudio para isso)
-    // const ringtone = new Audio("/sounds/ringtone.mp3");
-    // ringtone.loop = true;
-    // ringtone.play().catch(e => console.log("Não foi possível reproduzir o toque:", e));
-    
-    return () => {
-      clearTimeout(timeoutId);
-      // if (ringtone) {
-      //   ringtone.pause();
-      //   ringtone.currentTime = 0;
-      // }
-    };
-  }, [callId]);
-
+    return () => clearTimeout(timeoutId);
+  }, [callId, rejectCall]);
+  
+  // Lidar com aceitação da chamada
   const handleAccept = async () => {
-    console.log("Aceitando chamada:", callId, "de:", caller.id);
-    
-    try {
-      // Aceitar a chamada através do serviço de sinalização
-      await signalingService.acceptCall(caller.id, callId);
-      
-      toast.success("Chamada aceita!");
-      
-      // Notificar o componente pai que a chamada foi aceita
-      if (onAccept) {
-        onAccept(callId, caller.id, isVideo);
-      }
-    } catch (err) {
-      console.error("Erro ao aceitar chamada:", err);
-      toast.error("Erro ao aceitar chamada: " + (err.message || "Erro desconhecido"));
-      
-      // Mesmo com erro, tente iniciar a chamada
-      if (onAccept) {
-        onAccept(callId, caller.id, isVideo);
-      }
-    }
+    console.log("Aceitando chamada");
+    acceptCall();
   };
-
+  
+  // Lidar com rejeição da chamada
   const handleReject = async () => {
-    console.log("Rejeitando chamada:", callId, "de:", caller.id);
-    
-    try {
-      // Rejeitar a chamada através do serviço de sinalização
-      signalingService.rejectCall(caller.id, callId);
-      
-      toast.success("Chamada rejeitada");
-      
-      // Notificar o componente pai que a chamada foi rejeitada
-      if (onReject) onReject();
-    } catch (err) {
-      console.error("Erro ao rejeitar chamada:", err);
-      toast.error("Erro ao rejeitar chamada");
-      
-      // Mesmo com erro, notificar o componente pai para fechar a interface
-      if (onReject) onReject();
-    }
+    console.log("Rejeitando chamada");
+    rejectCall();
   };
 
   return (
@@ -83,7 +40,7 @@ const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
           <div className="flex justify-center mb-4">
             <div className="avatar">
               <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center">
-                {isVideo ? (
+                {callType === 'video' ? (
                   <Video size={36} className="text-blue-600" />
                 ) : (
                   <Phone size={36} className="text-blue-600" />
@@ -91,9 +48,9 @@ const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
               </div>
             </div>
           </div>
-          <h2 className="text-xl font-bold mb-1">{caller.name || "Usuário"}</h2>
+          <h2 className="text-xl font-bold mb-1">{callerName || "Usuário"}</h2>
           <p className="text-base-content/70">
-            Está chamando você ({isVideo ? "Chamada de vídeo" : "Chamada de voz"})
+            Está chamando você ({callType === 'video' ? "Chamada de vídeo" : "Chamada de voz"})
           </p>
         </div>
 

@@ -1,37 +1,31 @@
-// src/components/ChatHeader.jsx
 import { useState } from "react";
 import { X, Phone, Video } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
-import WebRTCCall from "./WebRTCCall";
+import useCallStore from "../store/useCallStore";
 import toast from "react-hot-toast";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
   const { authUser, onlineUsers } = useAuthStore();
-  const [showCall, setShowCall] = useState(false);
-  const [callType, setCallType] = useState(null);
+  const { startCall } = useCallStore();
 
   const isAI = selectedUser?.isAI;
   const isUserOnline = onlineUsers.includes(selectedUser?._id);
 
-  const startCall = (type) => {
+  const handleStartCall = (type) => {
     if (isAI) {
       toast.error(`Não é possível iniciar uma chamada ${type === 'voice' ? 'de voz' : 'de vídeo'} com o assistente AI.`);
       return;
     }
     
     if (!isUserOnline) {
-      toast.success(`Iniciando chamada ${type === 'video' ? 'com vídeo' : 'de voz'}, mas o usuário está offline. Ele receberá uma notificação quando ficar online.`);
+      toast.error(`${selectedUser.fullName} está offline. Tente mais tarde.`);
+      return;
     }
     
-    setCallType(type);
-    setShowCall(true);
-  };
-
-  const closeCall = () => {
-    setShowCall(false);
-    setCallType(null);
+    // Iniciar chamada através do CallStore
+    startCall(selectedUser._id, selectedUser.fullName, type);
   };
 
   return (
@@ -67,14 +61,14 @@ const ChatHeader = () => {
             {!isAI && (
               <>
                 <button
-                  onClick={() => startCall('voice')}
+                  onClick={() => handleStartCall('voice')}
                   className="btn btn-ghost btn-sm btn-circle"
                   title="Chamada de voz"
                 >
                   <Phone size={18} />
                 </button>
                 <button
-                  onClick={() => startCall('video')}
+                  onClick={() => handleStartCall('video')}
                   className="btn btn-ghost btn-sm btn-circle"
                   title="Chamada de vídeo"
                 >
@@ -92,16 +86,6 @@ const ChatHeader = () => {
           </div>
         </div>
       </div>
-
-      {/* Interface de Chamada WebRTC */}
-      {showCall && (
-        <WebRTCCall
-          userId={selectedUser._id}
-          userName={selectedUser.fullName}
-          onClose={closeCall}
-          isVideo={callType === 'video'}
-        />
-      )}
     </>
   );
 };
