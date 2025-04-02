@@ -1,6 +1,6 @@
 // src/services/signalingService.js
 import { getSocket, initializeSocket } from "./socket";
-import { v4 as uuidv4 } from 'uuid'; // Para gerar IDs de chamada, instale com: npm install uuid
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Implementação de um serviço de sinalização WebRTC usando
@@ -14,53 +14,76 @@ class SignalingService {
     this.socket = null;
     this.callId = null;
     this.peerUserId = null; // ID do peer da chamada atual
+    this.connectionPromise = null; // Para evitar múltiplas conexões simultâneas
   }
 
   // Conectar ao serviço de sinalização
   connect(userId) {
-    return new Promise((resolve, reject) => {
+    // Se já temos uma conexão em andamento, retornamos a promise existente
+    if (this.connectionPromise) {
+      console.log("Conexão ao serviço de sinalização já em andamento, reusando promise");
+      return this.connectionPromise;
+    }
+
+    // Criar nova promise de conexão
+    this.connectionPromise = new Promise((resolve, reject) => {
+      // Verificar se já estamos conectados com o mesmo userId
       if (this.isConnected && this.userId === userId) {
         console.log("Já conectado com mesmo userId:", userId);
+        this.connectionPromise = null; // Limpar a promise para futuras conexões
         return resolve({ userId });
       }
       
+      console.log("Conectando ao serviço de sinalização com userId:", userId);
       this.userId = userId;
       
       // Usar o socket existente ou inicializar um novo
       this.socket = getSocket();
       if (!this.socket) {
+        console.log("Socket não encontrado, inicializando novo socket");
         this.socket = initializeSocket();
       }
       
       if (!this.socket) {
+        console.error("Não foi possível obter ou inicializar um socket");
+        this.connectionPromise = null;
         return reject(new Error("Não foi possível conectar ao servidor de sinalização"));
       }
       
-      // Verificar se já está conectado
+      // Verificar se o socket já está conectado
       if (this.socket.connected) {
+        console.log("Socket já conectado, configurando eventos");
         this._setupSocketEvents();
         this.isConnected = true;
+        this.connectionPromise = null;
         return resolve({ userId });
       }
       
-      // Caso contrário, aguardar a conexão
+      // Aguardar a conexão 
+      console.log("Aguardando conexão do socket...");
+      
       const onConnect = () => {
+        console.log("Socket conectado, configurando eventos de sinalização");
         this._setupSocketEvents();
         this.isConnected = true;
         this.socket.off("connect", onConnect);
+        this.connectionPromise = null;
         resolve({ userId });
       };
       
       this.socket.on("connect", onConnect);
       
       const onConnectError = (error) => {
-        console.error("Erro ao conectar:", error);
+        console.error("Erro ao conectar socket:", error);
         this.socket.off("connect_error", onConnectError);
+        this.connectionPromise = null;
         reject(error);
       };
       
       this.socket.on("connect_error", onConnectError);
     });
+
+    return this.connectionPromise;
   }
 
   // Configurar os eventos de sinalização WebRTC no socket
@@ -78,12 +101,12 @@ class SignalingService {
     
     // Configurar novos handlers
     this.socket.on("webrtc:offer", (data) => {
-      console.log("Recebida oferta WebRTC de:", data.from);
+      console.log("Recebida oferta WebRTC de:", data.from, data);
       this._triggerEvent("offer", data);
     });
     
     this.socket.on("webrtc:answer", (data) => {
-      console.log("Recebida resposta WebRTC de:", data.from);
+      console.log("Recebida resposta WebRTC de:", data.from, data);
       this._triggerEvent("answer", data);
     });
     
@@ -105,17 +128,17 @@ class SignalingService {
     
     // Compatibilidade com eventos do seu sistema atual
     this.socket.on("call:incoming", (data) => {
-      console.log("Chamada recebida de:", data.callerId);
+      console.log("Chamada recebida de:", data.callerId, data);
       this._triggerEvent("incomingCall", data);
     });
     
     this.socket.on("call:accepted", (data) => {
-      console.log("Chamada aceita por:", data.calleeId);
+      console.log("Chamada aceita por:", data.calleeId, data);
       this._triggerEvent("callAccepted", data);
     });
     
     this.socket.on("call:rejected", (data) => {
-      console.log("Chamada rejeitada por:", data.calleeId);
+      console.log("Chamada rejeitada por:", data.calleeId, data);
       this._triggerEvent("callRejected", data);
       
       // Limpar dados da chamada
@@ -134,6 +157,7 @@ class SignalingService {
     this.userId = null;
     this.callId = null;
     this.peerUserId = null;
+    this.connectionPromise = null;
     
     this._triggerEvent("disconnected");
     
@@ -144,8 +168,8 @@ class SignalingService {
   // Iniciar uma chamada
   initiateCall(targetUserId, isVideo = true) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
-      return Promise.reject(new Error("Não conectado ao servidor"));
+      console.error("Não conectado ao servidor de sinalização");
+      return Promise.reject(new Error("Não conectado ao servidor de sinalização"));
     }
     
     if (this.callId) {
@@ -157,7 +181,7 @@ class SignalingService {
     this.callId = uuidv4();
     this.peerUserId = targetUserId;
     
-    console.log(`Iniciando chamada ${isVideo ? 'com vídeo' : 'de voz'} para ${targetUserId}`);
+    console.log(`Iniciando chamada ${isVideo ? 'com vídeo' : 'de voz'} para ${targetUserId}`, this.callId);
     
     return new Promise((resolve, reject) => {
       this.socket.emit("call:initiate", {
@@ -167,8 +191,10 @@ class SignalingService {
         callId: this.callId
       }, (response) => {
         if (response && response.success) {
+          console.log("Chamada iniciada com sucesso:", this.callId);
           resolve({ callId: this.callId });
         } else {
+          console.error("Falha ao iniciar chamada:", response);
           this.callId = null;
           this.peerUserId = null;
           reject(new Error((response && response.message) || "Falha ao iniciar chamada"));
@@ -180,8 +206,8 @@ class SignalingService {
   // Aceitar uma chamada recebida
   acceptCall(callerId, callId) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
-      return Promise.reject(new Error("Não conectado ao servidor"));
+      console.error("Não conectado ao servidor de sinalização");
+      return Promise.reject(new Error("Não conectado ao servidor de sinalização"));
     }
     
     console.log(`Aceitando chamada ${callId} de ${callerId}`);
@@ -196,8 +222,10 @@ class SignalingService {
         callId
       }, (response) => {
         if (response && response.success) {
+          console.log("Chamada aceita com sucesso");
           resolve();
         } else {
+          console.error("Falha ao aceitar chamada:", response);
           this.callId = null;
           this.peerUserId = null;
           reject(new Error((response && response.message) || "Falha ao aceitar chamada"));
@@ -209,7 +237,7 @@ class SignalingService {
   // Rejeitar uma chamada recebida
   rejectCall(callerId, callId) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
+      console.error("Não conectado ao servidor de sinalização");
       return;
     }
     
@@ -225,11 +253,11 @@ class SignalingService {
   // Enviar uma oferta para um peer
   sendOffer(peerId, offer) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
-      return Promise.reject(new Error("Não conectado ao servidor"));
+      console.error("Não conectado ao servidor de sinalização");
+      return Promise.reject(new Error("Não conectado ao servidor de sinalização"));
     }
 
-    console.log(`Enviando oferta WebRTC para: ${peerId}`);
+    console.log(`Enviando oferta WebRTC para: ${peerId}`, offer);
     
     return new Promise((resolve) => {
       this.socket.emit("webrtc:offer", {
@@ -244,11 +272,11 @@ class SignalingService {
   // Enviar uma resposta para um peer
   sendAnswer(peerId, answer) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
-      return Promise.reject(new Error("Não conectado ao servidor"));
+      console.error("Não conectado ao servidor de sinalização");
+      return Promise.reject(new Error("Não conectado ao servidor de sinalização"));
     }
 
-    console.log(`Enviando resposta WebRTC para: ${peerId}`);
+    console.log(`Enviando resposta WebRTC para: ${peerId}`, answer);
     
     return new Promise((resolve) => {
       this.socket.emit("webrtc:answer", {
@@ -263,11 +291,11 @@ class SignalingService {
   // Enviar um candidato ICE para um peer
   sendIceCandidate(peerId, candidate) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
+      console.error("Não conectado ao servidor de sinalização");
       return;
     }
 
-    console.log(`Enviando candidato ICE para: ${peerId}`);
+    console.log(`Enviando candidato ICE para: ${peerId}`, candidate);
     
     this.socket.emit("webrtc:ice-candidate", {
       from: this.userId,
@@ -279,7 +307,7 @@ class SignalingService {
   // Enviar sinal de compatibilidade com seu sistema atual
   sendSignal(targetUserId, signal) {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
+      console.error("Não conectado ao servidor de sinalização");
       return;
     }
     
@@ -293,7 +321,7 @@ class SignalingService {
   // Encerrar a chamada atual
   endCall() {
     if (!this.isConnected || !this.socket) {
-      console.error("Não conectado ao servidor");
+      console.error("Não conectado ao servidor de sinalização");
       return;
     }
     

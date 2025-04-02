@@ -8,10 +8,29 @@ import toast from "react-hot-toast";
  */
 const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
   
-  // Usar useEffect para registro de depuração
+  // Usar useEffect para registro de depuração e configuração de timeout
   useEffect(() => {
     console.log("Chamada recebida exibida:", { caller, callId, isVideo });
-  }, [caller, callId, isVideo]);
+    
+    // Configurar um timeout para rejeitar automaticamente após um longo período
+    const timeoutId = setTimeout(() => {
+      console.log("Timeout de chamada recebida atingido, rejeitando automaticamente");
+      handleReject();
+    }, 45000); // 45 segundos
+    
+    // Reproduzir som de chamada (se tiver um áudio para isso)
+    // const ringtone = new Audio("/sounds/ringtone.mp3");
+    // ringtone.loop = true;
+    // ringtone.play().catch(e => console.log("Não foi possível reproduzir o toque:", e));
+    
+    return () => {
+      clearTimeout(timeoutId);
+      // if (ringtone) {
+      //   ringtone.pause();
+      //   ringtone.currentTime = 0;
+      // }
+    };
+  }, [callId]);
 
   const handleAccept = async () => {
     console.log("Aceitando chamada:", callId, "de:", caller.id);
@@ -29,6 +48,11 @@ const IncomingCall = ({ caller, callId, isVideo, onAccept, onReject }) => {
     } catch (err) {
       console.error("Erro ao aceitar chamada:", err);
       toast.error("Erro ao aceitar chamada: " + (err.message || "Erro desconhecido"));
+      
+      // Mesmo com erro, tente iniciar a chamada
+      if (onAccept) {
+        onAccept(callId, caller.id, isVideo);
+      }
     }
   };
 
