@@ -228,44 +228,70 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Função para obter as mensagens de um utilizador específico
-  getMessages: async (userId) => {
-    set({ isMessagesLoading: true });
-    try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
-      const messages = Array.isArray(res.data) ? res.data : [];
-      
-      // Obter o ID do usuário autenticado
-      const authUser = useAuthStore.getState().authUser;
-      
-      // Adiciona o usuário à lista de conversas visualizadas
-      set(state => {
-        const updatedViewedConversations = {
-          ...state.viewedConversations,
-          [userId]: true // Marcar como já visualizada
-        };
-        
-        // Persistir no localStorage se o usuário estiver autenticado
-        if (authUser?._id) {
-          saveViewedConversations(authUser._id, updatedViewedConversations);
-        }
-        
-        return {
-          messages,
-          viewedConversations: updatedViewedConversations
-        };
-      });
-      
-      // IMPORTANTE: Marcar como lidas imediatamente ao obter mensagens
-      // usando await para garantir que a operação seja concluída
-      await get().markConversationAsRead(userId);
-    } catch (error) {
-      console.error("Erro ao obter mensagens:", error);
-      set({ messages: [] });
-      toast.error(error.response?.data?.message || "Erro ao obter mensagens");
-    } finally {
-      set({ isMessagesLoading: false });
+sendMessage: async (messageData) => {
+  const { selectedUser, messages } = get();
+  try {
+    // Mostrar indicador de carregamento se houver um arquivo, imagem ou áudio
+    let toastId;
+    if (messageData.file || messageData.image || messageData.audio) {
+      toastId = toast.loading("Enviando...");
     }
-  },
+
+    const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+    const newMessage = res.data;
+    
+    // Remover o indicador de carregamento, se existir
+    if (toastId) {
+      toast.dismiss(toastId);
+    }
+    
+    // Adicionar mensagem à lista de mensagens
+    set({ messages: [...messages, newMessage] });
+    
+    // Atualizar conversas com nova mensagem imediatamente para melhor resposta da UI
+    set(state => {
+      const authUser = useAuthStore.getState().authUser;
+      const updatedConversations = [...state.conversations];
+      
+      // Encontrar conversa existente ou criar nova
+      const existingConvIndex = updatedConversations.findIndex(
+        c => c.participants && c.participants.includes(selectedUser._id)
+      );
+      
+      if (existingConvIndex >= 0) {
+        // Atualizar conversa existente
+        updatedConversations[existingConvIndex] = {
+          ...updatedConversations[existingConvIndex],
+          latestMessage: newMessage,
+        };
+        
+        // Mover para o topo da lista
+        const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+        updatedConversations.unshift(updatedConv);
+      } else {
+        // Criar nova conversa
+        updatedConversations.unshift({
+          participants: [authUser._id, selectedUser._id],
+          latestMessage: newMessage,
+          unreadCount: 0
+        });
+      }
+      
+      return { conversations: updatedConversations };
+    });
+    
+    // Ainda assim, sincronizar com o servidor depois
+    setTimeout(() => {
+      get().getConversations();
+    }, 300);
+    
+    return newMessage;
+  } catch (error) {
+    console.error("Erro ao enviar mensagem:", error);
+    toast.error("Falha ao enviar. Verifique sua conexão.");
+    throw error;
+  }
+},
 
   // Função para enviar uma nova mensagem
   sendMessage: async (messageData) => {

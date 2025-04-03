@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 
-import cloudinary, { uploadToCloudinary } from "../lib/cloudinary.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
 // Função para obter os users a mostrar na barra lateral
@@ -39,65 +39,117 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// Atualizar a função sendMessage no message.controller.js
-
+// Função atualizada para enviar mensagem com suporte a arquivos grandes e áudio
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, file } = req.body; // Texto, imagem e arquivo da mensagem
+    const { text, image, file, audio } = req.body; // Texto, imagem, arquivo e áudio da mensagem
     const { id: receiverId } = req.params; // ID do user destinatário
     const senderId = req.user._id; // ID do user remetente
 
     let imageUrl;
     let fileData = null;
+    let audioData = null;
 
     // Upload de imagem, se fornecida
     if (image && image.startsWith('data:')) {
       try {
-        // Configurar o upload para aceitar imagens maiores
-        const uploadResponse = await cloudinary.uploader.upload(image, {
-          resource_type: "auto", // Detecta automaticamente o tipo de recurso
-          chunk_size: 6000000, // 6MB de tamanho de chunk para upload maior
-          timeout: 120000 // 120 segundos de timeout para uploads maiores
+        // Usar a função uploadToCloudinary aprimorada
+        const uploadResult = await uploadToCloudinary(image, {
+          folder: "chat_images",
+          resourceType: "image",
+          eager: [{ width: 1200, crop: "limit" }],
+          eager_async: true
         });
-        imageUrl = uploadResponse.secure_url;
+        
+        imageUrl = uploadResult.url;
       } catch (uploadError) {
         console.error("Erro no upload de imagem:", uploadError);
-        return res.status(500).json({ error: "Falha no upload da imagem" });
+        return res.status(500).json({ error: "Falha no upload da imagem: " + uploadError.message });
       }
     }
 
     // Upload de arquivo, se fornecido
     if (file && file.data && file.data.startsWith('data:')) {
       try {
-        // Configurando o upload para qualquer tipo de arquivo
-        const uploadResponse = await cloudinary.uploader.upload(file.data, {
-          resource_type: "auto", // Permite qualquer tipo de arquivo
-          public_id: `chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
-          use_filename: true,
-          unique_filename: true,
-          overwrite: false,
-          chunk_size: 6000000, // 6MB de tamanho de chunk
-          timeout: 150000 // 150 segundos de timeout
+        // Determinar a pasta e tipo com base na extensão para melhor organização
+        let folder = "chat_files";
+        let resourceType = "auto";
+        
+        // Define tipo de recurso e pasta baseado no tipo de arquivo
+        if (file.type && file.type.startsWith('image/')) {
+          folder = "chat_images";
+          resourceType = "image";
+        } else if (file.type && file.type.startsWith('video/')) {
+          folder = "chat_videos";
+          resourceType = "video";
+        } else if (file.type && file.type.startsWith('audio/')) {
+          folder = "chat_audio";
+          resourceType = "video"; // Áudio usa tipo video no Cloudinary
+        } else if (file.type && (
+          file.type.includes('pdf') ||
+          file.type.includes('document') ||
+          file.type.includes('spreadsheet') ||
+          file.type.includes('presentation')
+        )) {
+          folder = "chat_documents";
+        }
+        
+        // Gerar nome de arquivo seguro
+        const safeFileName = file.name
+          ? file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_]/g, "_").substring(0, 40)
+          : `file_${Date.now()}`;
+        
+        // Upload do arquivo usando a função aprimorada
+        const uploadResult = await uploadToCloudinary(file.data, {
+          folder,
+          resourceType,
+          public_id: `${folder}/${Date.now()}_${safeFileName}`
         });
         
         fileData = {
-          url: uploadResponse.secure_url,
+          url: uploadResult.url,
           type: file.type || "application/octet-stream",
-          name: file.name || "arquivo"
+          name: file.name || "arquivo",
+          public_id: uploadResult.public_id,
+          resource_type: uploadResult.resource_type
         };
       } catch (uploadError) {
         console.error("Erro no upload de arquivo:", uploadError);
-        return res.status(500).json({ error: "Falha no upload do arquivo" });
+        return res.status(500).json({ 
+          error: "Falha no upload do arquivo: " + uploadError.message
+        });
       }
     }
 
-    // Cria um novo objeto de mensagem com suporte a arquivos
+    // Upload de áudio, se fornecido
+    if (audio && audio.data && audio.data.startsWith('data:')) {
+      try {
+        // Upload do áudio usando a função aprimorada
+        const uploadResult = await uploadToCloudinary(audio.data, {
+          folder: "chat_audio",
+          resourceType: "video", // Áudio usa o tipo 'video' no Cloudinary
+          format: "mp3" // Converter para mp3 para melhor compatibilidade
+        });
+        
+        audioData = {
+          url: uploadResult.url,
+          duration: audio.duration || 0,
+          public_id: uploadResult.public_id
+        };
+      } catch (uploadError) {
+        console.error("Erro no upload de áudio:", uploadError);
+        return res.status(500).json({ error: "Falha no upload da mensagem de voz: " + uploadError.message });
+      }
+    }
+
+    // Cria um novo objeto de mensagem com suporte a arquivos e áudio
     const newMessage = new Message({
       senderId,
       receiverId,
       text,
       image: imageUrl,
-      file: fileData
+      file: fileData,
+      audio: audioData
     });
 
     // Guarda a nova mensagem na base de dados
@@ -113,7 +165,7 @@ export const sendMessage = async (req, res) => {
     res.status(201).json(newMessage);
   } catch (error) {
     console.log("Erro no controlador de sendMessage: ", error.message);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    res.status(500).json({ error: "Erro interno do servidor: " + error.message });
   }
 };
 
@@ -174,7 +226,7 @@ export const getConversations = async (req, res) => {
   }
 };
 
-// Função para excluir uma mensagem
+// Função aprimorada para excluir uma mensagem com limpeza de arquivos no Cloudinary
 export const deleteMessage = async (req, res) => {
   try {
     const { id: messageId } = req.params; // ID da mensagem a ser excluída
@@ -193,6 +245,37 @@ export const deleteMessage = async (req, res) => {
       return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
     }
     
+    // Excluir arquivos do Cloudinary se existirem
+    const deletePromises = [];
+    
+    // Excluir imagem
+    if (message.image) {
+      deletePromises.push(deleteFromCloudinary(message.image, "image"));
+    }
+    
+    // Excluir arquivo
+    if (message.file && message.file.url) {
+      const resourceType = message.file.resource_type || 
+        (message.file.type && message.file.type.startsWith('image/') ? 'image' : 
+         message.file.type && message.file.type.startsWith('video/') ? 'video' : 'raw');
+      
+      deletePromises.push(deleteFromCloudinary(
+        message.file.public_id || message.file.url, 
+        resourceType
+      ));
+    }
+    
+    // Excluir áudio
+    if (message.audio && message.audio.url) {
+      deletePromises.push(deleteFromCloudinary(
+        message.audio.public_id || message.audio.url, 
+        "video" // Áudio usa o tipo 'video' no Cloudinary
+      ));
+    }
+    
+    // Aguardar que todas as exclusões de arquivos sejam concluídas
+    await Promise.allSettled(deletePromises);
+    
     // Excluir a mensagem
     await Message.findByIdAndDelete(messageId);
     
@@ -205,7 +288,7 @@ export const deleteMessage = async (req, res) => {
     res.status(200).json({ success: true, message: "Mensagem excluída com sucesso" });
   } catch (error) {
     console.error("Erro em deleteMessage:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    res.status(500).json({ error: "Erro interno do servidor: " + error.message });
   }
 };
 

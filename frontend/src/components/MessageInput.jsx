@@ -1,7 +1,14 @@
 import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X, Plus, FileText, FilePlus, Mic, StopCircle, Trash } from "lucide-react";
+import { useAuthStore } from "../store/useAuthStore";
+import { Image, Send, X, Plus, FileText, FilePlus, Mic, StopCircle, Trash, Upload, File } from "lucide-react";
 import toast from "react-hot-toast";
+import { 
+  processFileWithProgress, 
+  sendFileWithProgress, 
+  optimizeImage, 
+  needsOptimization 
+} from '../lib/uploadHelpers';
 
 const MessageInput = () => {
   const [text, setText] = useState("");
@@ -20,6 +27,10 @@ const MessageInput = () => {
   const [audioURL, setAudioURL] = useState(null);
   const timerRef = useRef(null);
   
+  // Estado para rastrear o upload do arquivo
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isFileProcessing, setIsFileProcessing] = useState(false);
+  
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
@@ -27,8 +38,9 @@ const MessageInput = () => {
   const audioRef = useRef(null);
   
   const { sendMessage, selectedUser } = useChatStore();
+  const { socket } = useAuthStore();
 
-  // Função para formatar o tempo de gravação (mm:ss)
+  // Formatar tempo de gravação (mm:ss)
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -144,7 +156,8 @@ const MessageInput = () => {
     }
   };
 
-  const handleImageChange = (e) => {
+  // Função aprimorada para upload de imagem
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
@@ -153,54 +166,136 @@ const MessageInput = () => {
       return;
     }
 
-    // Verificar tamanho do arquivo (limite de 15MB)
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 15MB");
+    // Aumento do limite para 25MB
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 25MB");
       return;
     }
 
     // Cancelar qualquer gravação de áudio em andamento
     cancelAudio();
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImagePreview(reader.result);
-      setImageData(reader.result);
+    
+    // Mostrar indicador de processamento
+    setIsFileProcessing(true);
+    
+    try {
+      // Verificar se precisa otimizar a imagem
+      let processedFile = file;
+      if (needsOptimization(file)) {
+        processedFile = await optimizeImage(file);
+      }
+      
+      // Processar arquivo com barra de progresso
+      const result = await processFileWithProgress(processedFile, (progress) => {
+        setUploadProgress(progress);
+        
+        // Notificar progresso via socket
+        if (socket && selectedUser?._id) {
+          socket.emit("uploadProgress", {
+            receiverId: selectedUser._id,
+            fileName: file.name,
+            progress
+          });
+        }
+      });
+      
+      setImagePreview(result);
+      setImageData(result);
       // Limpar qualquer arquivo previamente selecionado
       setFileInfo(null);
       setShowOptions(false);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Erro ao processar imagem:", error);
+      toast.error("Erro ao processar a imagem. Tente novamente.");
+    } finally {
+      setIsFileProcessing(false);
+    }
   };
 
-  const handleFileChange = (e) => {
+  // Função melhorada para upload de arquivo com progresso e mais formatos
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Verificar tamanho do arquivo (limite de 25MB)
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error("O arquivo deve ter no máximo 25MB");
+    // Aumento do limite para 100MB
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      toast.error(`O arquivo deve ter no máximo ${formatFileSize(maxSize)}`);
       return;
     }
 
     // Cancelar qualquer gravação de áudio em andamento
     cancelAudio();
+    
+    // Mostrar indicador de processamento
+    setIsFileProcessing(true);
+    setUploadProgress(0);
+    
+    const toastId = toast.loading(`Processando ${file.name}...`);
 
-    const reader = new FileReader();
-    reader.onload = () => {
+    try {
+      // Processar arquivo com barra de progresso
+      const fileData = await processFileWithProgress(file, (progress) => {
+        setUploadProgress(progress);
+        toast.loading(`Processando ${file.name}... ${progress}%`, { id: toastId });
+        
+        // Notificar progresso via socket
+        if (socket && selectedUser?._id) {
+          socket.emit("uploadProgress", {
+            receiverId: selectedUser._id,
+            fileName: file.name,
+            progress
+          });
+        }
+      });
+      
+      // Determinar ícone e tipo baseado na extensão
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      let fileType = file.type;
+      
+      if (!fileType || fileType === 'application/octet-stream') {
+        // Tentar determinar tipo pelos padrões comuns de extensão
+        if (['doc', 'docx'].includes(fileExtension)) {
+          fileType = 'application/msword';
+        } else if (['xls', 'xlsx'].includes(fileExtension)) {
+          fileType = 'application/vnd.ms-excel';
+        } else if (['ppt', 'pptx'].includes(fileExtension)) {
+          fileType = 'application/vnd.ms-powerpoint';
+        } else if (fileExtension === 'pdf') {
+          fileType = 'application/pdf';
+        } else if (['zip', 'rar', '7z'].includes(fileExtension)) {
+          fileType = 'application/zip';
+        } else if (['mp3', 'wav', 'ogg'].includes(fileExtension)) {
+          fileType = 'audio/' + fileExtension;
+        } else if (['mp4', 'avi', 'mov', 'wmv'].includes(fileExtension)) {
+          fileType = 'video/' + fileExtension;
+        }
+      }
+      
       // Guardar informações do arquivo
       setFileInfo({
         name: file.name,
-        type: file.type,
+        type: fileType,
         size: formatFileSize(file.size),
-        data: reader.result
+        data: fileData,
+        extension: fileExtension
       });
+      
       // Limpar qualquer imagem previamente selecionada
       setImagePreview(null);
       setImageData(null);
       setShowOptions(false);
-    };
-    reader.readAsDataURL(file);
+      
+      // Remover toast de processamento
+      toast.dismiss(toastId);
+      toast.success(`Arquivo ${file.name} pronto para envio`);
+    } catch (error) {
+      console.error("Erro ao processar arquivo:", error);
+      toast.dismiss(toastId);
+      toast.error(`Erro ao processar o arquivo ${file.name}`);
+    } finally {
+      setIsFileProcessing(false);
+    }
   };
 
   const removeImage = () => {
@@ -224,6 +319,8 @@ const MessageInput = () => {
     setLineCount(1);
     setIsUploading(false);
     cancelAudio();
+    setIsFileProcessing(false);
+    setUploadProgress(0);
     
     if (textareaRef.current) {
       textareaRef.current.style.height = "40px";
@@ -242,21 +339,11 @@ const MessageInput = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imageData && !fileInfo && !audioData) return;
-    if (isUploading) return;
+    if (isUploading || isFileProcessing) return;
 
     try {
       setIsUploading(true);
       
-      // Mostrar toast de carregamento dependendo do tipo de conteúdo
-      let toastId;
-      if (fileInfo) {
-        toastId = toast.loading(`Enviando arquivo ${fileInfo.name}...`);
-      } else if (imageData) {
-        toastId = toast.loading("Enviando imagem...");
-      } else if (audioData) {
-        toastId = toast.loading("Enviando mensagem de voz...");
-      }
-
       // Preparar dados para envio
       const messageData = {
         text: text
@@ -272,7 +359,8 @@ const MessageInput = () => {
         messageData.file = {
           data: fileInfo.data,
           type: fileInfo.type,
-          name: fileInfo.name
+          name: fileInfo.name,
+          extension: fileInfo.extension
         };
       }
       
@@ -284,18 +372,11 @@ const MessageInput = () => {
         };
       }
 
-      await sendMessage(messageData);
-
-      // Remover toast de carregamento se existir
-      if (toastId) {
-        toast.dismiss(toastId);
-        toast.success(
-          fileInfo 
-            ? "Arquivo enviado com sucesso!" 
-            : imageData
-              ? "Imagem enviada com sucesso!"
-              : "Mensagem de voz enviada com sucesso!"
-        );
+      // Usar função de envio com progresso se houver socket e for arquivo/imagem/áudio
+      if (socket && selectedUser?._id && (imageData || fileInfo || audioData)) {
+        await sendFileWithProgress(messageData, sendMessage, socket, selectedUser._id);
+      } else {
+        await sendMessage(messageData);
       }
 
       // Limpar formulário
@@ -378,16 +459,31 @@ const MessageInput = () => {
     }
   };
 
-  // Determinar o ícone do arquivo com base no tipo MIME
-  const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText size={24} />;
+  // Determinar o ícone do arquivo com base no tipo MIME ou extensão
+  const getFileIcon = (fileType, extension) => {
+    if (!fileType) {
+      // Verificar por extensão comum
+      if (extension) {
+        const ext = extension.toLowerCase();
+        if (['pdf'].includes(ext)) return <FileText size={24} />;
+        if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return <FileText size={24} />;
+        if (['xls', 'xlsx', 'csv'].includes(ext)) return <Image size={24} className="text-green-600" />;
+        if (['ppt', 'pptx'].includes(ext)) return <Image size={24} className="text-orange-600" />;
+        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return <FilePlus size={24} />;
+        if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return <FilePlus size={24} className="text-purple-600" />;
+        if (['mp4', 'avi', 'mov', 'wmv', 'mkv'].includes(ext)) return <FilePlus size={24} className="text-red-600" />;
+      }
+      return <FileText size={24} />;
+    }
     
     if (fileType.startsWith('image/')) return <Image size={24} />;
-    if (fileType.startsWith('video/')) return <FilePlus size={24} />;
-    if (fileType.startsWith('audio/')) return <FilePlus size={24} />;
-    if (fileType.includes('pdf')) return <FileText size={24} />;
-    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} />;
-    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={24} />;
+    if (fileType.startsWith('video/')) return <FilePlus size={24} className="text-red-600" />;
+    if (fileType.startsWith('audio/')) return <FilePlus size={24} className="text-purple-600" />;
+    if (fileType.includes('pdf')) return <FileText size={24} className="text-red-600" />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} className="text-blue-600" />;
+    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={24} className="text-green-600" />;
+    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return <FileText size={24} className="text-orange-600" />;
+    if (fileType.includes('zip') || fileType.includes('compressed')) return <FilePlus size={24} />;
     
     return <FileText size={24} />;
   };
@@ -412,7 +508,7 @@ const MessageInput = () => {
               // Preview de arquivo
               <div className="flex items-center">
                 <div className="p-2 bg-base-100 rounded-lg">
-                  {getFileIcon(fileInfo.type)}
+                  {getFileIcon(fileInfo.type, fileInfo.extension)}
                 </div>
                 <div className="ml-2">
                   <p className="text-sm font-medium truncate max-w-[150px]">{fileInfo.name}</p>
@@ -441,7 +537,7 @@ const MessageInput = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-base-100 rounded-lg">
-                  <FilePlus size={24} />
+                  <FilePlus size={24} className="text-purple-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Mensagem de voz</p>
@@ -515,13 +611,37 @@ const MessageInput = () => {
         </div>
       )}
 
+      {/* Área de processamento de arquivo */}
+      {isFileProcessing && (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative p-2 bg-base-200 rounded-lg border border-base-300 w-full">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin">
+                  <Upload className="text-primary size-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Processando arquivo...</p>
+                  <div className="w-48 h-2 bg-base-300 rounded-full mt-1">
+                    <div 
+                      className="h-full bg-primary rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="relative">
           <button
             type="button"
             className="btn btn-circle btn-md hover:bg-base-300 attach-button"
             onClick={() => setShowOptions(!showOptions)}
-            disabled={isUploading || isRecording}
+            disabled={isUploading || isRecording || isFileProcessing}
           >
             <Plus size={22} />
           </button>
@@ -540,7 +660,7 @@ const MessageInput = () => {
                   }
                   setShowOptions(false);
                 }}
-                disabled={isUploading || isRecording}
+                disabled={isUploading || isRecording || isFileProcessing}
               >
                 <Image size={20} className="text-base-content opacity-70" />
                 <span>Enviar imagem</span>
@@ -555,7 +675,7 @@ const MessageInput = () => {
                   }
                   setShowOptions(false);
                 }}
-                disabled={isUploading || isRecording}
+                disabled={isUploading || isRecording || isFileProcessing}
               >
                 <FileText size={20} className="text-base-content opacity-70" />
                 <span>Enviar arquivo</span>
@@ -568,7 +688,7 @@ const MessageInput = () => {
                   startRecording();
                   setShowOptions(false);
                 }}
-                disabled={isUploading || isRecording}
+                disabled={isUploading || isRecording || isFileProcessing}
               >
                 <Mic size={20} className="text-base-content opacity-70" />
                 <span>Mensagem de voz</span>
@@ -581,7 +701,13 @@ const MessageInput = () => {
           <textarea
             ref={textareaRef}
             className={`w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words ${lineCount > 2 ? 'overflow-y-auto max-h-20' : 'overflow-hidden'}`}
-            placeholder={isRecording ? "Gravando mensagem de voz..." : "Digite uma mensagem..."}
+            placeholder={
+              isRecording 
+                ? "Gravando mensagem de voz..." 
+                : isFileProcessing
+                  ? "Processando arquivo..."
+                  : "Digite uma mensagem..."
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -594,12 +720,12 @@ const MessageInput = () => {
               overflowWrap: "break-word",
               whiteSpace: "pre-wrap"
             }}
-            disabled={isUploading || isRecording}
+            disabled={isUploading || isRecording || isFileProcessing}
           />
         </div>
         
         {/* Botão de gravar áudio (quando não estiver gravando ou com texto/imagem/arquivo) */}
-        {!isRecording && !text.trim() && !imageData && !fileInfo && !audioData ? (
+        {!isRecording && !isFileProcessing && !text.trim() && !imageData && !fileInfo && !audioData ? (
           <button
             type="button"
             className="btn btn-sm btn-circle hover:bg-base-300"
@@ -612,7 +738,7 @@ const MessageInput = () => {
           <button
             type="submit"
             className="btn btn-sm btn-circle hover:bg-base-300"
-            disabled={((!text.trim() && !imageData && !fileInfo && !audioData) || isUploading) || isRecording}
+            disabled={((!text.trim() && !imageData && !fileInfo && !audioData) || isUploading) || isRecording || isFileProcessing}
           >
             <Send size={22} />
           </button>
@@ -625,16 +751,16 @@ const MessageInput = () => {
           className="hidden"
           ref={imageInputRef}
           onChange={handleImageChange}
-          disabled={isUploading || isRecording}
+          disabled={isUploading || isRecording || isFileProcessing}
         />
         
-        {/* Input para upload de arquivo (hidden) */}
+        {/* Input para upload de arquivo (hidden) - ampliado para aceitar todos os tipos */}
         <input
           type="file"
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileChange}
-          disabled={isUploading || isRecording}
+          disabled={isUploading || isRecording || isFileProcessing}
         />
       </form>
     </div>

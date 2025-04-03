@@ -51,24 +51,45 @@ body {
     opacity: 1;
   }
 }
+/* Adicione estes estilos ao seu arquivo CSS global ou em um arquivo separado */
 
-/* Adicione estes estilos ao seu arquivo CSS global ou ao componente */
-
-@keyframes progress {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+/* Estilos para o componente de áudio no chat */
+.audio-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--base-200, #f3f4f6);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 300px;
 }
 
-.animate-progress {
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.audio-progress {
   position: relative;
+  height: 4px;
+  background-color: var(--base-300, #e5e7eb);
+  border-radius: 2px;
   overflow: hidden;
+  flex: 1;
 }
 
-.animate-progress::after {
+.audio-progress-bar {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  background-color: var(--primary, #3b82f6);
+  transition: width 0.1s linear;
+}
+
+.audio-progress-bar.playing::after {
   content: '';
   position: absolute;
   top: 0;
@@ -81,5 +102,62 @@ body {
     rgba(255, 255, 255, 0.2) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  animation: progress 2s linear infinite;
+  animation: audioProgress 2s linear infinite;
+}
+
+.audio-time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Estilos para a área de gravação */
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--base-200, #f3f4f6);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  width: 100%;
+}
+
+.recording-pulse {
+  position: relative;
+}
+
+.recording-pulse::before {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.2);
+  transform: translate(-25%, -25%);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-25%, -25%) scale(0.5);
+    opacity: 0.6;
+  }
+  70% {
+    transform: translate(-25%, -25%) scale(1);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-25%, -25%) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes audioProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
