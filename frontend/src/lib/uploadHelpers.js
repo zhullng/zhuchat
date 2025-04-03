@@ -1,6 +1,3 @@
-// lib/uploadHelpers.js
-// Funções auxiliares para upload de arquivos no cliente
-
 /**
  * Processa um arquivo para fazer upload com notificação de progresso
  * @param {File} file - O arquivo a ser processado
@@ -20,71 +17,18 @@ export const processFileWithProgress = (file, onProgress = () => {}) => {
       };
       
       // Configurar manipuladores de eventos
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('Erro ao ler o arquivo'));
+      reader.onload = () => {
+        onProgress(100);
+        resolve(reader.result);
+      };
+      reader.onerror = () => {
+        onProgress(0);
+        reject(new Error('Erro ao ler o arquivo'));
+      };
       
       // Iniciar leitura do arquivo
       reader.readAsDataURL(file);
     });
-  };
-  
-  /**
-   * Envia uma mensagem com arquivo e notificação de progresso
-   * @param {Object} messageData - Dados da mensagem
-   * @param {Function} sendMessage - Função para enviar mensagem
-   * @param {Object} socket - Socket.IO para notificações de progresso
-   * @param {String} receiverId - ID do destinatário
-   * @returns {Promise<Object>} - Promise que resolve para a mensagem enviada
-   */
-  export const sendFileWithProgress = async (messageData, sendMessage, socket, receiverId) => {
-    try {
-      // Notificar início do upload
-      if (socket && receiverId) {
-        socket.emit("uploadProgress", {
-          receiverId,
-          fileName: messageData.file?.name || "arquivo",
-          progress: 0
-        });
-      }
-      
-      // Atualizar progresso a cada 10%
-      for (let i = 10; i <= 90; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        if (socket && receiverId) {
-          socket.emit("uploadProgress", {
-            receiverId,
-            fileName: messageData.file?.name || "arquivo",
-            progress: i
-          });
-        }
-      }
-      
-      // Enviar a mensagem
-      const result = await sendMessage(messageData);
-      
-      // Notificar conclusão
-      if (socket && receiverId) {
-        socket.emit("uploadProgress", {
-          receiverId,
-          fileName: messageData.file?.name || "arquivo",
-          progress: 100
-        });
-      }
-      
-      return result;
-    } catch (error) {
-      // Notificar erro
-      if (socket && receiverId) {
-        socket.emit("uploadProgress", {
-          receiverId,
-          fileName: messageData.file?.name || "arquivo",
-          progress: 0,
-          error: true
-        });
-      }
-      throw error;
-    }
   };
   
   /**
@@ -94,13 +38,13 @@ export const processFileWithProgress = (file, onProgress = () => {}) => {
    * @returns {Promise<Blob>} - Promise que resolve para Blob otimizado
    */
   export const optimizeImage = (imageFile, options = {}) => {
-    const { maxWidth = 1920, maxHeight = 1080, quality = 0.8 } = options;
-    
+    const { maxWidth = 1920, maxHeight = 1080, quality = 0.8} = options;
+  
     return new Promise((resolve, reject) => {
       // Criamos um elemento de imagem para carregar o arquivo
       const img = new Image();
       img.onload = () => {
-        // Calcular as dimensões mantendo a proporção
+        // Calcular as dimensões mantendo a proporção   
         let width = img.width;
         let height = img.height;
         
@@ -156,4 +100,71 @@ export const processFileWithProgress = (file, onProgress = () => {}) => {
     }
     
     return true;
+  };
+  
+  /**
+   * Envia uma mensagem com arquivo e notificação de progresso
+   * @param {Object} messageData - Dados da mensagem
+   * @param {Function} sendMessage - Função para enviar mensagem
+   * @param {Object} socket - Socket.IO para notificações de progresso
+   * @param {String} receiverId - ID do destinatário
+   * @returns {Promise<Object>} - Promise que resolve para a mensagem enviada
+   */
+  export const sendFileWithProgress = async (messageData, sendMessage, socket, receiverId) => {
+    try {
+      // Notificar início do upload
+      if (socket && receiverId) {
+        socket.emit("uploadProgress", {
+          receiverId,
+          fileName: messageData.file?.name || messageData.audio?.duration + 's audio' || "arquivo",
+          progress: 0
+        });
+      }
+      
+      // Simular progresso
+      const simulateProgress = async () => {
+        for (let i = 10; i <= 90; i += 10) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          if (socket && receiverId) {
+            socket.emit("uploadProgress", {
+              receiverId,
+              fileName: messageData.file?.name || messageData.audio?.duration + 's audio' || "arquivo",
+              progress: i
+            });
+          }
+        }
+      };
+  
+      // Iniciar simulação de progresso em background
+      const progressPromise = simulateProgress();
+      
+      // Enviar a mensagem
+      const result = await sendMessage(messageData);
+      
+      // Aguardar a simulação de progresso
+      await progressPromise;
+      
+      // Notificar conclusão
+      if (socket && receiverId) {
+        socket.emit("uploadProgress", {
+          receiverId,
+          fileName: messageData.file?.name || messageData.audio?.duration + 's audio' || "arquivo",
+          progress: 100
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      // Notificar erro
+      if (socket && receiverId) {
+        socket.emit("uploadProgress", {
+          receiverId,
+          fileName: messageData.file?.name || messageData.audio?.duration + 's audio' || "arquivo",
+          progress: 0,
+          error: true
+        });
+      }
+      throw error;
+    }
   };
