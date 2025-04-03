@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Trash2, MoreVertical, FileText, Download } from "lucide-react";
+import { Trash2, MoreVertical, FileText, Download, Pause, Play } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
@@ -24,6 +24,8 @@ const ChatContainer = () => {
   const chatContainerRef = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const audioRefs = useRef({});
 
   // Efeito para carregar mensagens e configurar a subscrição de mensagens
   useEffect(() => {
@@ -33,6 +35,9 @@ const ChatContainer = () => {
     // Resetar estado de scroll inicial quando mudar de conversa
     setInitialScrollDone(false);
     setActiveMessageMenu(null);
+    
+    // Parar qualquer áudio em reprodução ao mudar de conversa
+    pauseAllAudio();
     
     return () => unsubscribeFromMessages();
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
@@ -94,6 +99,48 @@ const ChatContainer = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+  
+  // Função para pausar todos os áudios
+  const pauseAllAudio = () => {
+    Object.keys(audioRefs.current).forEach(id => {
+      if (audioRefs.current[id]) {
+        audioRefs.current[id].pause();
+      }
+    });
+    setPlayingAudio(null);
+  };
+  
+  // Função para tocar/pausar áudio
+  const toggleAudio = (messageId) => {
+    // Se já estiver tocando esse áudio, pause
+    if (playingAudio === messageId) {
+      audioRefs.current[messageId].pause();
+      setPlayingAudio(null);
+      return;
+    }
+    
+    // Pause qualquer áudio que esteja tocando
+    pauseAllAudio();
+    
+    // Toque o novo áudio
+    if (audioRefs.current[messageId]) {
+      audioRefs.current[messageId].play();
+      setPlayingAudio(messageId);
+      
+      // Adicionar evento para resetar quando terminar de tocar
+      audioRefs.current[messageId].onended = () => {
+        setPlayingAudio(null);
+      };
+    }
+  };
+  
+  // Formatar tempo de áudio
+  const formatAudioTime = (seconds) => {
+    if (!seconds && seconds !== 0) return "00:00";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
@@ -206,6 +253,48 @@ const ChatContainer = () => {
                   >
                     <Download size={16} />
                   </button>
+                </div>
+              )}
+              
+              {/* Componente de mensagem de áudio */}
+              {message.audio && (
+                <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2 w-full">
+                  <button
+                    onClick={() => toggleAudio(message._id)}
+                    className={`btn btn-sm btn-circle ${playingAudio === message._id ? 'btn-primary' : 'btn-ghost'}`}
+                  >
+                    {playingAudio === message._id ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="w-full bg-base-300 h-1 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full bg-primary ${playingAudio === message._id ? 'animate-progress' : ''}`}
+                        style={{
+                          width: playingAudio === message._id 
+                            ? `${(audioRefs.current[message._id]?.currentTime / audioRefs.current[message._id]?.duration) * 100}%` 
+                            : '0%'
+                        }}
+                      ></div>
+                    </div>
+                    <audio 
+                      ref={el => audioRefs.current[message._id] = el} 
+                      src={message.audio.data} 
+                      className="hidden"
+                      onTimeUpdate={() => {
+                        if (playingAudio === message._id) {
+                          // Forçar atualização do componente
+                          setPlayingAudio(prev => prev);
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  <span className="text-xs opacity-70">
+                    {playingAudio === message._id && audioRefs.current[message._id]
+                      ? formatAudioTime(audioRefs.current[message._id].currentTime)
+                      : formatAudioTime(message.audio.duration)}
+                  </span>
                 </div>
               )}
               
