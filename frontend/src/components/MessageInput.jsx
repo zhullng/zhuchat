@@ -1,4 +1,3 @@
-// components/MessageInput.jsx
 import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
@@ -16,7 +15,7 @@ const MessageInput = () => {
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
   const textareaRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, selectedUser } = useChatStore();
 
   // Função para converter tamanho de arquivo para formato legível
   const formatFileSize = (bytes) => {
@@ -42,7 +41,7 @@ const MessageInput = () => {
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onload = () => {
       setImagePreview(reader.result);
       setImageData(reader.result);
       // Limpar qualquer arquivo previamente selecionado
@@ -63,7 +62,7 @@ const MessageInput = () => {
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onload = () => {
       // Guardar informações do arquivo
       setFileInfo({
         name: file.name,
@@ -89,6 +88,21 @@ const MessageInput = () => {
     setFileInfo(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // Reset todos estados quando mudar de chat
+  useEffect(() => {
+    setText("");
+    setImagePreview(null);
+    setImageData(null);
+    setFileInfo(null);
+    setShowOptions(false);
+    setLineCount(1);
+    setIsUploading(false);
+    
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
+    }
+  }, [selectedUser?._id]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -198,7 +212,8 @@ const MessageInput = () => {
   // Fechar menu de opções quando clicar fora dele
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (optionsRef.current && !optionsRef.current.contains(event.target)) {
+      if (optionsRef.current && !optionsRef.current.contains(event.target) && 
+          !event.target.closest('.attach-button')) {
         setShowOptions(false);
       }
     };
@@ -277,7 +292,7 @@ const MessageInput = () => {
         <div className="relative">
           <button
             type="button"
-            className="btn btn-circle btn-md hover:bg-base-300"
+            className="btn btn-circle btn-md hover:bg-base-300 attach-button"
             onClick={() => setShowOptions(!showOptions)}
             disabled={isUploading}
           >
@@ -293,8 +308,9 @@ const MessageInput = () => {
                 type="button"
                 className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
                 onClick={() => {
-                  imageInputRef.current?.click();
-                  setShowOptions(false);
+                  if (imageInputRef.current) {
+                    imageInputRef.current.click();
+                  }
                 }}
                 disabled={isUploading}
               >
@@ -306,8 +322,9 @@ const MessageInput = () => {
                 type="button"
                 className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
                 onClick={() => {
-                  fileInputRef.current?.click();
-                  setShowOptions(false);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.click();
+                  }
                 }}
                 disabled={isUploading}
               >

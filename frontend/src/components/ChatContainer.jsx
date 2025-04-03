@@ -1,4 +1,3 @@
-// components/ChatContainer.jsx
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState } from "react";
 
@@ -7,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Trash2, MoreVertical } from "lucide-react";
+import { Trash2, MoreVertical, FileText, Download } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
@@ -87,6 +86,16 @@ const ChatContainer = () => {
     }
   };
 
+  // Função para baixar um arquivo
+  const downloadFile = (fileData, fileName) => {
+    const link = document.createElement('a');
+    link.href = fileData;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
   const selectedUserDisplayName = selectedUser.note || selectedUser.fullName || 'Nome Desconhecido';
 
@@ -101,7 +110,7 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex-1 flex flex-col overflow-auto pb-5">
+    <div className="h-screen supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh] flex-1 flex flex-col overflow-hidden">
       <ChatHeader />
       <div 
         ref={chatContainerRef}
@@ -178,9 +187,28 @@ const ChatContainer = () => {
                 <img
                   src={message.image}
                   alt="Attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2"
+                  className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
                 />
               )}
+              
+              {message.file && (
+                <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
+                  <div className="p-2 bg-base-100 rounded-md">
+                    <FileText size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{message.file.name}</p>
+                    <p className="text-xs opacity-70">{message.file.size || ''}</p>
+                  </div>
+                  <button
+                    onClick={() => downloadFile(message.file.data, message.file.name)}
+                    className="btn btn-sm btn-circle"
+                  >
+                    <Download size={16} />
+                  </button>
+                </div>
+              )}
+              
               {message.text && (
                 <p className="break-words whitespace-pre-wrap">{message.text}</p>
               )}

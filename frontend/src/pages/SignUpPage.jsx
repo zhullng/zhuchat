@@ -14,7 +14,7 @@ const SignUpPage = () => {
     email: "",
     password: "",
     gender: "",
-    profilePic: null // Adicionando campo para a foto de perfil
+    profilePic: null
   });
 
   // Estados para o gerenciamento da imagem de perfil
@@ -201,7 +201,7 @@ const SignUpPage = () => {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      <div className="flex flex-col justify-center items-center p-6 sm:p-12">
+      <div className="flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
@@ -359,82 +359,80 @@ const SignUpPage = () => {
       />
 
       {/* Modal de Corte de Imagem */}
-      // Update the Modal section of your code with these changes
-{/* Modal de Corte de Imagem */}
-    {isCropModalOpen && (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-base-100 rounded-lg p-6 max-w-3xl w-full mx-4 my-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Recortar Imagem</h3>
-            <button
-              onClick={cancelCrop}
-              className="btn btn-ghost btn-sm btn-circle"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="max-h-[50vh] overflow-auto">
-              <ReactCrop
-                crop={crop}
-                onChange={(_, percentageCrop) => setCrop(percentageCrop)}
-                onComplete={(c) => setCompletedCrop(c)}
-                circularCrop
-                keepSelection
-                aspect={1}
-                minWidth={100}
-                minHeight={100}
+      {isCropModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-base-100 rounded-lg p-6 max-w-3xl w-full mx-4 my-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Recortar Imagem</h3>
+              <button
+                onClick={cancelCrop}
+                className="btn btn-ghost btn-sm btn-circle"
               >
-                <img 
-                  src={srcImg} 
-                  ref={imgRef} 
-                  style={{ maxWidth: '100%' }} 
-                  alt="Imagem para recortar"
-                  onLoad={(e) => {
-                    imgRef.current = e.currentTarget;
-                  }}
-                />
-              </ReactCrop>
+                ✕
+              </button>
             </div>
             
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-sm mb-3 text-base-content/70">Pré-visualização</p>
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-base-300 bg-base-200">
-                {completedCrop && (
-                  <canvas
-                    ref={previewCanvasRef}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="max-h-[50vh] overflow-auto">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentageCrop) => setCrop(percentageCrop)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  circularCrop
+                  keepSelection
+                  aspect={1}
+                  minWidth={100}
+                  minHeight={100}
+                >
+                  <img 
+                    src={srcImg} 
+                    ref={imgRef} 
+                    style={{ maxWidth: '100%' }} 
+                    alt="Imagem para recortar"
+                    onLoad={(e) => {
+                      imgRef.current = e.currentTarget;
                     }}
                   />
-                )}
+                </ReactCrop>
+              </div>
+              
+              <div className="flex flex-col items-center justify-center">
+                <p className="text-sm mb-3 text-base-content/70">Pré-visualização</p>
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-base-300 bg-base-200">
+                  {completedCrop && (
+                    <canvas
+                      ref={previewCanvasRef}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex justify-end gap-2 mt-6">
-            <button
-              onClick={cancelCrop}
-              className="btn btn-ghost gap-2"
-            >
-              <X className="size-4" />
-              Cancelar
-            </button>
-            <button
-              onClick={handleCropComplete}
-              className="btn btn-primary gap-2"
-              disabled={!completedCrop?.width || !completedCrop?.height}
-            >
-              <Check className="size-4" />
-              Aplicar
-            </button>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={cancelCrop}
+                className="btn btn-ghost gap-2"
+              >
+                <X className="size-4" />
+                Cancelar
+              </button>
+              <button
+                onClick={handleCropComplete}
+                className="btn btn-primary gap-2"
+                disabled={!completedCrop?.width || !completedCrop?.height}
+              >
+                <Check className="size-4" />
+                Aplicar
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 };
