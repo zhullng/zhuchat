@@ -359,80 +359,82 @@ const SignUpPage = () => {
       />
 
       {/* Modal de Corte de Imagem */}
-      {isCropModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-base-100 rounded-lg p-6 max-w-3xl w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Recortar Imagem</h3>
-              <button
-                onClick={cancelCrop}
-                className="btn btn-ghost btn-sm btn-circle"
+      // Update the Modal section of your code with these changes
+{/* Modal de Corte de Imagem */}
+    {isCropModalOpen && (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-y-auto">
+        <div className="bg-base-100 rounded-lg p-6 max-w-3xl w-full mx-4 my-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Recortar Imagem</h3>
+            <button
+              onClick={cancelCrop}
+              className="btn btn-ghost btn-sm btn-circle"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="max-h-[50vh] overflow-auto">
+              <ReactCrop
+                crop={crop}
+                onChange={(_, percentageCrop) => setCrop(percentageCrop)}
+                onComplete={(c) => setCompletedCrop(c)}
+                circularCrop
+                keepSelection
+                aspect={1}
+                minWidth={100}
+                minHeight={100}
               >
-                ✕
-              </button>
+                <img 
+                  src={srcImg} 
+                  ref={imgRef} 
+                  style={{ maxWidth: '100%' }} 
+                  alt="Imagem para recortar"
+                  onLoad={(e) => {
+                    imgRef.current = e.currentTarget;
+                  }}
+                />
+              </ReactCrop>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="overflow-auto max-h-[60vh]">
-                <ReactCrop
-                  crop={crop}
-                  onChange={(_, percentageCrop) => setCrop(percentageCrop)}
-                  onComplete={(c) => setCompletedCrop(c)}
-                  circularCrop
-                  keepSelection
-                  aspect={1}
-                  minWidth={100}
-                  minHeight={100}
-                >
-                  <img 
-                    src={srcImg} 
-                    ref={imgRef} 
-                    style={{ maxWidth: '100%' }} 
-                    alt="Imagem para recortar"
-                    onLoad={(e) => {
-                      imgRef.current = e.currentTarget;
+            <div className="flex flex-col items-center justify-center">
+              <p className="text-sm mb-3 text-base-content/70">Pré-visualização</p>
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-base-300 bg-base-200">
+                {completedCrop && (
+                  <canvas
+                    ref={previewCanvasRef}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
                     }}
                   />
-                </ReactCrop>
+                )}
               </div>
-              
-              <div className="flex flex-col items-center justify-center">
-                <p className="text-sm mb-3 text-base-content/70">Pré-visualização</p>
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-base-300 bg-base-200">
-                  {completedCrop && (
-                    <canvas
-                      ref={previewCanvasRef}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                onClick={cancelCrop}
-                className="btn btn-ghost gap-2"
-              >
-                <X className="size-4" />
-                Cancelar
-              </button>
-              <button
-                onClick={handleCropComplete}
-                className="btn btn-primary gap-2"
-                disabled={!completedCrop?.width || !completedCrop?.height}
-              >
-                <Check className="size-4" />
-                Aplicar
-              </button>
             </div>
           </div>
+          
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              onClick={cancelCrop}
+              className="btn btn-ghost gap-2"
+            >
+              <X className="size-4" />
+              Cancelar
+            </button>
+            <button
+              onClick={handleCropComplete}
+              className="btn btn-primary gap-2"
+              disabled={!completedCrop?.width || !completedCrop?.height}
+            >
+              <Check className="size-4" />
+              Aplicar
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 };
