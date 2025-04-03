@@ -47,67 +47,68 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Função para obter a lista de utilizadores
-  getUsers: async () => {
-    set({ isUsersLoading: true });
+ // Função getUsers atualizada para filtrar usuários bloqueados
+ getUsers: async () => {
+  set({ isUsersLoading: true });
+  try {
+    // Primeiro, buscar a lista de usuários bloqueados para filtrá-los depois
+    let blockedUserIds = [];
     try {
-      // Primeiro, buscar a lista de usuários bloqueados para filtrá-los depois
-      let blockedUserIds = [];
-      try {
-        const blockedRes = await axiosInstance.get("/contacts/blocked");
-        blockedUserIds = Array.isArray(blockedRes.data) 
-          ? blockedRes.data.map(user => user._id)
-          : [];
-        
-        console.log("Usuários bloqueados obtidos:", blockedUserIds);
-      } catch (blockedError) {
-        console.warn("Erro ao obter usuários bloqueados:", blockedError);
-      }
-
-      // Verificar se a API de contactos existe, senão cair para a API de utilizadores
-      try {
-        console.log("Tentando obter contactos...");
-        const contactsRes = await axiosInstance.get("/contacts");
-        console.log("Contactos obtidos:", contactsRes.data);
-        
-        // Garantir que a resposta é um array
-        const contactsData = Array.isArray(contactsRes.data) ? contactsRes.data : [];
-        
-        // Transformar os contactos no formato esperado pela UI e filtrar usuários bloqueados
-        const contactUsers = contactsData
-          .map(contact => ({
-            _id: contact.user?._id,
-            fullName: contact.user?.fullName || "Utilizador desconhecido",
-            email: contact.user?.email || "",
-            profilePic: contact.user?.profilePic || "",
-            note: contact.note || "",
-            contactId: contact._id // Guardar o ID do contato para facilitar a remoção
-          }))
-          .filter(user => !blockedUserIds.includes(user._id)); // Filtrar usuários bloqueados
-        
-        set({ users: contactUsers });
-      } catch (contactError) {
-        console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
-        // Fallback: buscar todos os utilizadores se a API de contactos falhar
-        const usersRes = await axiosInstance.get("/messages/users");
-        const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
-        
-        // Filtrar usuários bloqueados aqui também
-        const filteredUsers = usersData.filter(user => !blockedUserIds.includes(user._id));
-        set({ users: filteredUsers });
-      }
+      const blockedRes = await axiosInstance.get("/contacts/blocked");
+      blockedUserIds = Array.isArray(blockedRes.data) 
+        ? blockedRes.data.map(user => user._id)
+        : [];
       
-      // Após carregar utilizadores, buscar conversas para ordenação
-      get().getConversations();
-    } catch (error) {
-      console.error("Erro completo:", error);
-      set({ users: [] }); // Definir um array vazio em caso de erro
-      toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
-    } finally {
-      set({ isUsersLoading: false });
+      console.log("Usuários bloqueados obtidos:", blockedUserIds);
+    } catch (blockedError) {
+      console.warn("Erro ao obter usuários bloqueados:", blockedError);
     }
-  },
 
-  // Função para obter as conversas e ordená-las por recentes
+    // Verificar se a API de contactos existe, senão cair para a API de utilizadores
+    try {
+      console.log("Tentando obter contactos...");
+      const contactsRes = await axiosInstance.get("/contacts");
+      console.log("Contactos obtidos:", contactsRes.data);
+      
+      // Garantir que a resposta é um array
+      const contactsData = Array.isArray(contactsRes.data) ? contactsRes.data : [];
+      
+      // Transformar os contactos no formato esperado pela UI e filtrar usuários bloqueados
+      const contactUsers = contactsData
+        .map(contact => ({
+          _id: contact.user?._id,
+          fullName: contact.user?.fullName || "Utilizador desconhecido",
+          email: contact.user?.email || "",
+          profilePic: contact.user?.profilePic || "",
+          note: contact.note || "",
+          contactId: contact._id // Guardar o ID do contato para facilitar a remoção
+        }))
+        .filter(user => !blockedUserIds.includes(user._id)); // Filtrar usuários bloqueados
+      
+      set({ users: contactUsers });
+    } catch (contactError) {
+      console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
+      // Fallback: buscar todos os utilizadores se a API de contactos falhar
+      const usersRes = await axiosInstance.get("/messages/users");
+      const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
+      
+      // Filtrar usuários bloqueados aqui também
+      const filteredUsers = usersData.filter(user => !blockedUserIds.includes(user._id));
+      set({ users: filteredUsers });
+    }
+    
+    // Após carregar utilizadores, buscar conversas para ordenação
+    get().getConversations();
+  } catch (error) {
+    console.error("Erro completo:", error);
+    set({ users: [] }); // Definir um array vazio em caso de erro
+    toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
+  } finally {
+    set({ isUsersLoading: false });
+  }
+},
+
+  // Função para obter as conversas e ordená-las por recentes (versão corrigida)
   getConversations: async () => {
     try {
       const res = await axiosInstance.get("/messages/conversations");
@@ -121,6 +122,7 @@ export const useChatStore = create((set, get) => ({
       }
       
       // Resetar unreadCounts completamente com base nos dados do servidor
+      // em vez de preservar contadores antigos
       const unreadCounts = {};
       const authUser = useAuthStore.getState().authUser;
       const viewedConversations = get().viewedConversations; // Obter conversas já visualizadas
@@ -166,46 +168,6 @@ export const useChatStore = create((set, get) => ({
       console.error("Erro ao obter conversas:", error);
       // Definir valores vazios em caso de erro
       set({ conversations: [], unreadCounts: {} });
-    }
-  },
-
-  // Função para obter as mensagens de um utilizador específico
-  getMessages: async (userId) => {
-    set({ isMessagesLoading: true });
-    try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
-      const messages = Array.isArray(res.data) ? res.data : [];
-      
-      // Obter o ID do usuário autenticado
-      const authUser = useAuthStore.getState().authUser;
-      
-      // Adiciona o usuário à lista de conversas visualizadas
-      set(state => {
-        const updatedViewedConversations = {
-          ...state.viewedConversations,
-          [userId]: true // Marcar como já visualizada
-        };
-        
-        // Persistir no localStorage se o usuário estiver autenticado
-        if (authUser?._id) {
-          saveViewedConversations(authUser._id, updatedViewedConversations);
-        }
-        
-        return {
-          messages,
-          viewedConversations: updatedViewedConversations
-        };
-      });
-      
-      // IMPORTANTE: Marcar como lidas imediatamente ao obter mensagens
-      // usando await para garantir que a operação seja concluída
-      await get().markConversationAsRead(userId);
-    } catch (error) {
-      console.error("Erro ao obter mensagens:", error);
-      set({ messages: [] });
-      toast.error(error.response?.data?.message || "Erro ao obter mensagens");
-    } finally {
-      set({ isMessagesLoading: false });
     }
   },
 
@@ -265,16 +227,56 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Função para obter as mensagens de um utilizador específico
+  getMessages: async (userId) => {
+    set({ isMessagesLoading: true });
+    try {
+      const res = await axiosInstance.get(`/messages/${userId}`);
+      const messages = Array.isArray(res.data) ? res.data : [];
+      
+      // Obter o ID do usuário autenticado
+      const authUser = useAuthStore.getState().authUser;
+      
+      // Adiciona o usuário à lista de conversas visualizadas
+      set(state => {
+        const updatedViewedConversations = {
+          ...state.viewedConversations,
+          [userId]: true // Marcar como já visualizada
+        };
+        
+        // Persistir no localStorage se o usuário estiver autenticado
+        if (authUser?._id) {
+          saveViewedConversations(authUser._id, updatedViewedConversations);
+        }
+        
+        return {
+          messages,
+          viewedConversations: updatedViewedConversations
+        };
+      });
+      
+      // IMPORTANTE: Marcar como lidas imediatamente ao obter mensagens
+      // usando await para garantir que a operação seja concluída
+      await get().markConversationAsRead(userId);
+    } catch (error) {
+      console.error("Erro ao obter mensagens:", error);
+      set({ messages: [] });
+      toast.error(error.response?.data?.message || "Erro ao obter mensagens");
+    } finally {
+      set({ isMessagesLoading: false });
+    }
+  },
+
   // Função para enviar uma nova mensagem
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
-      // Mostrar indicador de carregamento se houver um arquivo, imagem ou áudio
+      // Mostrar indicador de carregamento se houver um arquivo ou imagem
       let toastId;
-      if (messageData.file || messageData.image || messageData.audio) {
+      if (messageData.file || messageData.image) {
         toastId = toast.loading("Enviando...");
       }
-
+  
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
       const newMessage = res.data;
       
@@ -784,30 +786,30 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-// Nova função para resetar o estado do chat (para usar no logout)
-resetChatState: () => {
-  const authUser = useAuthStore.getState().authUser;
-  
-  // Limpar localStorage ao fazer logout
-  if (authUser?._id) {
-    try {
-      localStorage.removeItem(`viewed_conversations_${authUser._id}`);
-    } catch (error) {
-      console.error("Erro ao limpar conversas visualizadas:", error);
+  // Nova função para resetar o estado do chat (para usar no logout)
+  resetChatState: () => {
+    const authUser = useAuthStore.getState().authUser;
+    
+    // Limpar localStorage ao fazer logout
+    if (authUser?._id) {
+      try {
+        localStorage.removeItem(`viewed_conversations_${authUser._id}`);
+      } catch (error) {
+        console.error("Erro ao limpar conversas visualizadas:", error);
+      }
     }
+    
+    set({
+      messages: [],
+      users: [],
+      selectedUser: null,
+      isUsersLoading: false,
+      isMessagesLoading: false,
+      transfers: [],
+      isTransfersLoading: false,
+      conversations: [],
+      unreadCounts: {},
+      viewedConversations: {} // Limpar conversas visualizadas
+    });
   }
-  
-  set({
-    messages: [],
-    users: [],
-    selectedUser: null,
-    isUsersLoading: false,
-    isMessagesLoading: false,
-    transfers: [],
-    isTransfersLoading: false,
-    conversations: [],
-    unreadCounts: {},
-    viewedConversations: {} // Limpar conversas visualizadas
-  });
-}
 }));

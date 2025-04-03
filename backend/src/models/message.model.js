@@ -29,14 +29,6 @@ const messageSchema = new mongoose.Schema(
         type: String
       }
     },
-    audio: {
-      url: {
-        type: String
-      },
-      duration: {
-        type: Number
-      }
-    },
     read: {
       type: Boolean,
       default: false
