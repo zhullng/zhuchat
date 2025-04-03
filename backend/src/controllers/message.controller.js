@@ -7,11 +7,10 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 // Função para obter os users a mostrar na barra lateral
 export const getUsersForSidebar = async (req, res) => {
   try {
-    const loggedInUserId = req.user._id; // Recebe o ID do user com login
-    // Filtra todos, exceto o user com login -> $ne 'não seja igual'
+    const loggedInUserId = req.user._id;
     const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
 
-    res.status(200).json(filteredUsers); // Retorna os users filtrados
+    res.status(200).json(filteredUsers);
   } catch (error) {
     console.error("Erro em getUsersForSidebar: ", error.message);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -21,39 +20,62 @@ export const getUsersForSidebar = async (req, res) => {
 // Função para obter as mensagens entre o user com login e outro user
 export const getMessages = async (req, res) => {
   try {
-    const { id: userToChatId } = req.params; // ID do user com quem se quer conversar
-    const myId = req.user._id; // ID do user
+    const { id: userToChatId } = req.params;
+    const myId = req.user._id;
 
-    // Obtém as mensagens
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    }).sort({ createdAt: 1 }); // Ordenar por data de criação ascendente
+    }).sort({ createdAt: 1 });
 
     res.status(200).json(messages); 
   } catch (error) {
-    console.log("Erro no controlador de getMessages: ", error.message);
+    console.error("Erro no controlador de getMessages: ", error.message);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
+};
+
+// Função para validar e limitar o tamanho dos dados base64
+const validateBase64 = (base64String, maxSizeInBytes = 50 * 1024 * 1024) => {
+  if (!base64String || !base64String.startsWith('data:')) return false;
+  
+  // Verificar tamanho do arquivo
+  const base64Length = base64String.length;
+  const sizeInBytes = Math.ceil(base64Length * 3 / 4);
+  
+  if (sizeInBytes > maxSizeInBytes) {
+    console.warn(`Arquivo muito grande: ${sizeInBytes} bytes (limite: ${maxSizeInBytes} bytes)`);
+    return false;
+  }
+  
+  return true;
 };
 
 // Função atualizada para enviar mensagem com suporte a arquivos grandes e áudio
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, file, audio } = req.body; // Texto, imagem, arquivo e áudio da mensagem
-    const { id: receiverId } = req.params; // ID do user destinatário
-    const senderId = req.user._id; // ID do user remetente
+    const { text, image, file, audio } = req.body;
+    const { id: receiverId } = req.params;
+    const senderId = req.user._id;
 
-    let imageUrl;
-    let fileData = null;
-    let audioData = null;
+    console.log("Iniciando envio de mensagem", {
+      text: text ? text.substring(0, 50) + '...' : null,
+      imageSize: image ? `${image.length} caracteres` : null,
+      fileInfo: file ? JSON.stringify({
+        name: file.name,
+        type: file.type,
+        dataLength: file.data ? file.data.length : null
+      }) : null,
+      audioSize: audio ? `${audio.duration} segundos` : null
+    });
 
-    // Upload de imagem, se fornecida
-    if (image && image.startsWith('data:')) {
+    let imageUrl, fileData, audioData;
+
+    // Upload de imagem
+    if (image && validateBase64(image)) {
       try {
-        // Usar a função uploadToCloudinary aprimorada
         const uploadResult = await uploadToCloudinary(image, {
           folder: "chat_images",
           resourceType: "image",
@@ -62,36 +84,37 @@ export const sendMessage = async (req, res) => {
         });
         
         imageUrl = uploadResult.url;
+        console.log("Upload de imagem concluído:", { url: imageUrl });
       } catch (uploadError) {
-        console.error("Erro no upload de imagem:", uploadError);
-        return res.status(500).json({ error: "Falha no upload da imagem: " + uploadError.message });
+        console.error("Erro no upload de imagem:", {
+          message: uploadError.message,
+          stack: uploadError.stack,
+          details: uploadError
+        });
+        return res.status(500).json({ 
+          error: "Falha no upload da imagem", 
+          details: uploadError.message 
+        });
       }
     }
 
-    // Upload de arquivo, se fornecido
-    if (file && file.data && file.data.startsWith('data:')) {
+    // Upload de arquivo
+    if (file && file.data && validateBase64(file.data)) {
       try {
-        // Determinar a pasta e tipo com base na extensão para melhor organização
         let folder = "chat_files";
         let resourceType = "auto";
         
-        // Define tipo de recurso e pasta baseado no tipo de arquivo
-        if (file.type && file.type.startsWith('image/')) {
-          folder = "chat_images";
-          resourceType = "image";
-        } else if (file.type && file.type.startsWith('video/')) {
-          folder = "chat_videos";
-          resourceType = "video";
-        } else if (file.type && file.type.startsWith('audio/')) {
-          folder = "chat_audio";
-          resourceType = "video"; // Áudio usa tipo video no Cloudinary
-        } else if (file.type && (
-          file.type.includes('pdf') ||
-          file.type.includes('document') ||
-          file.type.includes('spreadsheet') ||
-          file.type.includes('presentation')
-        )) {
+        // Determinar pasta e tipo de recurso
+        const fileExtension = file.name ? file.name.split('.').pop().toLowerCase() : '';
+        if (['doc', 'docx'].includes(fileExtension)) {
           folder = "chat_documents";
+          resourceType = "raw";
+        } else if (['xls', 'xlsx'].includes(fileExtension)) {
+          folder = "chat_spreadsheets";
+          resourceType = "raw";
+        } else if (fileExtension === 'pdf') {
+          folder = "chat_pdfs";
+          resourceType = "raw";
         }
         
         // Gerar nome de arquivo seguro
@@ -99,7 +122,6 @@ export const sendMessage = async (req, res) => {
           ? file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_]/g, "_").substring(0, 40)
           : `file_${Date.now()}`;
         
-        // Upload do arquivo usando a função aprimorada
         const uploadResult = await uploadToCloudinary(file.data, {
           folder,
           resourceType,
@@ -113,18 +135,27 @@ export const sendMessage = async (req, res) => {
           public_id: uploadResult.public_id,
           resource_type: uploadResult.resource_type
         };
+        
+        console.log("Upload de arquivo concluído:", { 
+          url: fileData.url, 
+          name: fileData.name 
+        });
       } catch (uploadError) {
-        console.error("Erro no upload de arquivo:", uploadError);
+        console.error("Erro no upload de arquivo:", {
+          message: uploadError.message,
+          stack: uploadError.stack,
+          details: uploadError
+        });
         return res.status(500).json({ 
-          error: "Falha no upload do arquivo: " + uploadError.message
+          error: "Falha no upload do arquivo", 
+          details: uploadError.message 
         });
       }
     }
 
-    // Upload de áudio, se fornecido
-    if (audio && audio.data && audio.data.startsWith('data:')) {
+    // Upload de áudio
+    if (audio && audio.data && validateBase64(audio.data)) {
       try {
-        // Upload do áudio usando a função aprimorada
         const uploadResult = await uploadToCloudinary(audio.data, {
           folder: "chat_audio",
           resourceType: "video", // Áudio usa o tipo 'video' no Cloudinary
@@ -136,13 +167,25 @@ export const sendMessage = async (req, res) => {
           duration: audio.duration || 0,
           public_id: uploadResult.public_id
         };
+        
+        console.log("Upload de áudio concluído:", { 
+          url: audioData.url, 
+          duration: audioData.duration 
+        });
       } catch (uploadError) {
-        console.error("Erro no upload de áudio:", uploadError);
-        return res.status(500).json({ error: "Falha no upload da mensagem de voz: " + uploadError.message });
+        console.error("Erro no upload de áudio:", {
+          message: uploadError.message,
+          stack: uploadError.stack,
+          details: uploadError
+        });
+        return res.status(500).json({ 
+          error: "Falha no upload da mensagem de voz", 
+          details: uploadError.message 
+        });
       }
     }
 
-    // Cria um novo objeto de mensagem com suporte a arquivos e áudio
+    // Cria um novo objeto de mensagem
     const newMessage = new Message({
       senderId,
       receiverId,
@@ -162,10 +205,26 @@ export const sendMessage = async (req, res) => {
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
+    console.log("Mensagem enviada com sucesso:", {
+      messageId: newMessage._id,
+      hasText: !!text,
+      hasImage: !!imageUrl,
+      hasFile: !!fileData,
+      hasAudio: !!audioData
+    });
+
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Erro no controlador de sendMessage: ", error.message);
-    res.status(500).json({ error: "Erro interno do servidor: " + error.message });
+    console.error("Erro COMPLETO no controlador de sendMessage: ", {
+      message: error.message,
+      stack: error.stack,
+      details: error
+    });
+    
+    res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      details: error.message 
+    });
   }
 };
 
@@ -229,8 +288,8 @@ export const getConversations = async (req, res) => {
 // Função aprimorada para excluir uma mensagem com limpeza de arquivos no Cloudinary
 export const deleteMessage = async (req, res) => {
   try {
-    const { id: messageId } = req.params; // ID da mensagem a ser excluída
-    const userId = req.user._id; // ID do usuário que está fazendo a solicitação
+    const { id: messageId } = req.params;
+    const userId = req.user._id;
     
     // Buscar a mensagem para verificar se o usuário tem permissão para excluí-la
     const message = await Message.findById(messageId);
