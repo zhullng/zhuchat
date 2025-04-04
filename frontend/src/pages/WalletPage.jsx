@@ -104,12 +104,18 @@ const WalletPage = () => {
                   {activeTab === 1 && <WithdrawTab refreshData={fetchWalletData} balance={balance} />}
                   {activeTab === 2 && <TransferTab refreshData={fetchWalletData} balance={balance} />}
                   {activeTab === 3 && (
-                    <TransactionsTab 
-                      transactions={transactions} 
-                      transfers={transfers} 
-                      userId={authUser?._id} 
-                      isLoading={isLoading} 
-                    />
+                    authUser ? (
+                      <TransactionsTab 
+                        transactions={transactions} 
+                        transfers={transfers} 
+                        userId={authUser._id} 
+                        isLoading={isLoading} 
+                      />
+                    ) : (
+                      <div className="text-center py-8">
+                        <p>Por favor, faça login para visualizar o histórico de transações</p>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
