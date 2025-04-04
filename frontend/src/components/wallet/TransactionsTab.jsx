@@ -68,24 +68,40 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
   // Filtrar transferências baseado no termo de pesquisa
   const filteredTransfers = useMemo(() => {
     if (!transfers || !Array.isArray(transfers)) return [];
+    if (!userId) return [];
     
     if (!searchTerm.trim()) return transfers;
 
     const normalizedSearch = searchTerm.toLowerCase().trim();
     
     return transfers.filter(transfer => {
-      const isSender = transfer.sender._id === userId;
+      // Verificar se sender e receiver existem e têm _id
+      if (!transfer.sender || !transfer.receiver) {
+        return false;
+      }
+      
+      const isSender = transfer.sender && transfer.sender._id === userId;
+      
       const personName = isSender 
-        ? (transfer.receiver.fullName || transfer.receiver.username || '').toLowerCase()
-        : (transfer.sender.fullName || transfer.sender.username || '').toLowerCase();
+        ? (transfer.receiver && (transfer.receiver.fullName || transfer.receiver.username || '')).toLowerCase()
+        : (transfer.sender && (transfer.sender.fullName || transfer.sender.username || '')).toLowerCase();
         
       return personName.includes(normalizedSearch);
     });
   }, [transfers, searchTerm, userId]);
 
-  const   renderTransfers = () => {
+  const renderTransfers = () => {
     if (isLoading) {
       return renderSkeletons(3);
+    }
+
+    if (!transfers || transfers.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8">
+          <ArrowLeftRight className="size-16 text-gray-300 mb-2" />
+          <p className="text-gray-500">Sem transferências para mostrar</p>
+        </div>
+      );
     }
 
     if (filteredTransfers.length === 0) {
@@ -107,6 +123,11 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
     }
 
     return filteredTransfers.map((transfer) => {
+      // Se não existir sender ou receiver, pular este item
+      if (!transfer || !transfer.sender || !transfer.receiver || !transfer._id) {
+        return null;
+      }
+      
       const isSender = transfer.sender._id === userId;
       
       return (
@@ -118,12 +139,12 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
           </div>
           
           <div className="ml-4 flex-1">
-  
-          <p className="font-medium">
-          
+            <p className="font-medium">
               {isSender ? 'Para ' : 'De '}
               <strong>
-                {isSender ? transfer.receiver.fullName || transfer.receiver.username : transfer.sender.fullName || transfer.sender.username}
+                {isSender 
+                  ? (transfer.receiver && (transfer.receiver.fullName || transfer.receiver.username || 'Usuário'))
+                  : (transfer.sender && (transfer.sender.fullName || transfer.sender.username || 'Usuário'))}
               </strong>
             </p>
             <p className="text-sm text-gray-500">{formatDate(transfer.createdAt)}</p>
