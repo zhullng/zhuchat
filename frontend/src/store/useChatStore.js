@@ -259,24 +259,37 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      // Validações de entrada
+      console.log("ENVIANDO MENSAGEM COMPLETA:", JSON.stringify({
+        text: messageData.text,
+        hasImage: !!messageData.image,
+        hasFile: !!messageData.file,
+        fileDetails: messageData.file ? {
+          name: messageData.file.name,
+          type: messageData.file.type,
+          size: messageData.file.size,
+          dataLength: messageData.file.data ? messageData.file.data.length : 'N/A',
+          dataPrefix: messageData.file.data ? messageData.file.data.substring(0, 50) : 'N/A'
+        } : null
+      }, null, 2));
+   
+      // Validações adicionais
       if (!messageData.text && !messageData.image && !messageData.file) {
         toast.error("Por favor, adicione conteúdo à mensagem");
         return null;
       }
-  
+   
       // Validação de arquivo
       if (messageData.file) {
         const isBase64 = messageData.file.data.startsWith('data:');
         const dataLength = isBase64 ? messageData.file.data.length : 0;
         const fileSize = parseInt(messageData.file.size || '0');
-  
+   
         const isEmptyOrInvalid = 
           !isBase64 || 
           dataLength <= 0 || 
           fileSize === 0 || 
           (messageData.file.type === 'text/plain' && (!messageData.file.data || messageData.file.data.trim() === ''));
-  
+   
         if (isEmptyOrInvalid) {
           console.warn("Tentativa de enviar arquivo inválido ou vazio", {
             isBase64,
@@ -288,7 +301,7 @@ export const useChatStore = create((set, get) => ({
           return null;
         }
       }
-  
+   
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
       
@@ -310,13 +323,82 @@ export const useChatStore = create((set, get) => ({
       const newMessage = res.data;
       console.log("Mensagem enviada com sucesso:", newMessage);
       
-      // Resto do código permanece igual
-      // ...
+      // Adicionar mensagem à lista de mensagens
+      set(state => ({ messages: [...state.messages, newMessage] }));
+      
+      // Atualizar conversas com nova mensagem imediatamente
+      set(state => {
+        const authUser = useAuthStore.getState().authUser;
+        const updatedConversations = [...state.conversations];
+        
+        const existingConvIndex = updatedConversations.findIndex(
+          c => c.participants && c.participants.includes(selectedUser._id)
+        );
+        
+        if (existingConvIndex >= 0) {
+          // Atualizar conversa existente
+          updatedConversations[existingConvIndex] = {
+            ...updatedConversations[existingConvIndex],
+            latestMessage: newMessage,
+          };
+          
+          // Mover para o topo da lista
+          const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+          updatedConversations.unshift(updatedConv);
+        } else {
+          // Criar nova conversa
+          updatedConversations.unshift({
+            participants: [authUser._id, selectedUser._id],
+            latestMessage: newMessage,
+            unreadCount: 0
+          });
+        }
+        
+        return { conversations: updatedConversations };
+      });
+      
+      // Sincronizar com o servidor depois
+      setTimeout(() => {
+        get().getConversations();
+      }, 300);
+      
+      return newMessage;
     } catch (error) {
-      // Tratamento de erro
-      // ...
+      console.error("ERRO COMPLETO AO ENVIAR MENSAGEM:", {
+        name: error.name,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      
+      // Melhor tratamento de erros específicos
+      if (error.name === 'AbortError') {
+        toast.error("Envio cancelado por timeout. Tente com um ficheiro menor.");
+      } else if (error.response) {
+        switch (error.response.status) {
+          case 413:
+            toast.error("Ficheiro muito grande para ser enviado.");
+            break;
+          case 500:
+            if (error.response.data?.error?.includes("Cloudinary")) {
+              toast.error("Erro no servidor de armazenamento. Tente novamente mais tarde.");
+            } else {
+              toast.error("Erro interno do servidor. Tente novamente.");
+            }
+            break;
+          default:
+            toast.error(error.response.data?.error || "Falha ao enviar mensagem.");
+        }
+      } else if (error.request) {
+        toast.error("Sem resposta do servidor. Verifique sua conexão.");
+      } else {
+        toast.error("Erro ao preparar mensagem. Tente novamente.");
+      }
+      
+      throw error;
     }
-  },
+   },
 
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {

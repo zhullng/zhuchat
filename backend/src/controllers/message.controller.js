@@ -46,7 +46,8 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    console.log("Recebendo mensagem:", JSON.stringify({
+    // Log detalhado de entrada
+    console.log("DETALHES COMPLETOS DA REQUISIÇÃO:", {
       senderId,
       receiverId,
       hasText: !!text,
@@ -56,19 +57,24 @@ export const sendMessage = async (req, res) => {
         name: file.name,
         type: file.type,
         size: file.size,
-        dataLength: file.data ? file.data.length : 'N/A'
+        dataLength: file.data ? file.data.length : 'N/A',
+        dataPrefix: file.data ? file.data.substring(0, 50) : 'N/A'
       } : null
-    }, null, 2));
+    });
+
+    // Validações rigorosas de entrada
+    if (!text && !image && !file) {
+      console.error("ERRO: Conteúdo da mensagem é obrigatório");
+      return res.status(400).json({ 
+        error: "Conteúdo da mensagem é obrigatório",
+        details: "Sem texto, imagem ou arquivo" 
+      });
+    }
 
     let imageUrl = null;
     let fileData = null;
 
-    // Validações de entrada
-    if (!text && !image && !file) {
-      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
-    }
-
-    // Upload de imagem, se fornecida
+    // Upload de imagem
     if (image && image.startsWith('data:')) {
       try {
         console.log("Iniciando upload de imagem...");
@@ -76,7 +82,7 @@ export const sendMessage = async (req, res) => {
         imageUrl = uploadResult.url;
         console.log("Upload de imagem concluído:", imageUrl);
       } catch (uploadError) {
-        console.error("Erro no upload de imagem:", uploadError);
+        console.error("ERRO FATAL no upload de imagem:", uploadError);
         return res.status(500).json({ 
           error: "Falha no upload da imagem", 
           details: uploadError.message 
@@ -85,40 +91,57 @@ export const sendMessage = async (req, res) => {
     }
 
     // Upload de arquivo
-    if (file && file.data && file.data.startsWith('data:')) {
+    if (file && file.data) {
       try {
-        console.log(`Iniciando upload de ficheiro: ${file.name || 'Sem nome'}`);
-        
-        // Verificações adicionais para arquivo
-        const isBase64 = file.data.startsWith('data:');
-        const dataLength = isBase64 ? file.data.length : 0;
-        const fileSize = parseInt(file.size || '0');
-
-        // Verifica se o arquivo está vazio ou inválido
-        const isEmptyOrInvalid = 
-          !isBase64 || 
-          dataLength <= 0 || 
-          fileSize === 0 || 
-          (file.type === 'text/plain' && (!file.data || file.data.trim() === ''));
-
-        if (isEmptyOrInvalid) {
-          console.warn("Tentativa de enviar arquivo inválido ou vazio", {
-            isBase64,
-            dataLength,
-            fileSize,
-            fileType: file.type
-          });
+        // Validações adicionais de segurança
+        if (!file.data.startsWith('data:')) {
+          console.error("ERRO: Formato de dados do arquivo inválido");
           return res.status(400).json({ 
-            error: "Arquivo inválido ou vazio",
-            details: {
-              isBase64,
-              dataLength,
-              fileSize,
-              fileType: file.type
-            }
+            error: "Formato de dados do arquivo inválido",
+            details: "Dados do arquivo não começam com 'data:'" 
           });
         }
 
+        // Verificação de tamanho e conteúdo
+        const dataLength = file.data.length;
+        const fileSize = parseInt(file.size || '0');
+
+        console.log("DETALHES DO ARQUIVO:", {
+          name: file.name,
+          type: file.type,
+          dataLength,
+          fileSize
+        });
+
+        // Verificações de segurança
+        if (dataLength <= 0 || fileSize === 0) {
+          console.error("ERRO: Arquivo vazio ou inválido");
+          return res.status(400).json({ 
+            error: "Arquivo inválido ou vazio",
+            details: { dataLength, fileSize }
+          });
+        }
+
+        // Verificação de tipo de arquivo
+        const allowedTypes = [
+          'text/plain', 
+          'application/pdf', 
+          'application/msword', 
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'image/jpeg', 
+          'image/png', 
+          'image/gif'
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+          console.error("ERRO: Tipo de arquivo não permitido");
+          return res.status(400).json({ 
+            error: "Tipo de arquivo não permitido",
+            details: { fileType: file.type }
+          });
+        }
+
+        console.log("Iniciando upload de ficheiro...");
         const uploadResult = await uploadToCloudinary(file.data, "chat_files");
         
         fileData = {
@@ -130,7 +153,7 @@ export const sendMessage = async (req, res) => {
         };
         console.log("Upload de ficheiro concluído:", fileData.url);
       } catch (uploadError) {
-        console.error("Erro no upload de ficheiro:", uploadError);
+        console.error("ERRO FATAL no upload de ficheiro:", uploadError);
         return res.status(500).json({ 
           error: "Falha no upload do ficheiro", 
           details: uploadError.message 
@@ -158,14 +181,16 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.error("Erro final no envio de mensagem:", {
+    console.error("ERRO CRÍTICO no envio de mensagem:", {
       message: error.message,
       stack: error.stack,
       body: req.body
     });
+
     res.status(500).json({ 
       error: "Erro interno do servidor", 
-      details: error.message 
+      details: error.message,
+      stack: error.stack 
     });
   }
 };

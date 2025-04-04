@@ -120,7 +120,13 @@ const MessageInput = () => {
   // Função de upload de arquivo com validações
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    console.log("Arquivo selecionado:", file);
+    console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified,
+      fullFile: file
+    });
   
     if (!file) return;
   
