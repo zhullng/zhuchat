@@ -75,6 +75,12 @@ export const initializeSocket = (authUser) => {
       }
     });
 
+    // Adicionar listener global para eventos de wallet
+    socket.on("wallet_updated", (data) => {
+      console.log("Evento de atualização de carteira recebido:", data);
+      // Este evento será processado no useWalletStore
+    });
+
     return socket;
   } catch (error) {
     console.error("Erro ao inicializar socket:", error);

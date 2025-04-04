@@ -76,7 +76,7 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
     
     return transfers.filter(transfer => {
       // Verificar se sender e receiver existem e têm _id
-      if (!transfer.sender || !transfer.receiver) {
+      if (!transfer || !transfer.sender || !transfer.receiver) {
         return false;
       }
       

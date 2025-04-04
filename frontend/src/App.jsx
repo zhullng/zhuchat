@@ -17,7 +17,8 @@ import BlockedUsersPage from "./pages/BlockedUsersPage";
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"; 
 import { useAuthStore } from "./store/useAuthStore"; 
-import { useThemeStore } from "./store/useThemeStore"; 
+import { useThemeStore } from "./store/useThemeStore";
+import { useWalletStore } from "./store/useWalletStore";
 import { initializeSocket } from "./services/socket";
 
 import { Loader } from "lucide-react"; 
@@ -26,6 +27,7 @@ import { Toaster } from "react-hot-toast";
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
+  const { setupWalletListeners } = useWalletStore();
   const location = useLocation();
 
   // Inicializar socket quando usuário estiver autenticado
@@ -35,7 +37,12 @@ const App = () => {
     const initializeApp = async () => {
       try {
         // Inicializar socket
-        await initializeSocket();
+        const socketInstance = await initializeSocket(authUser);
+        
+        if (socketInstance) {
+          // Configurar ouvintes para atualizações de carteira
+          setupWalletListeners();
+        }
         
         console.log("Aplicação inicializada com sucesso");
       } catch (error) {
@@ -44,7 +51,7 @@ const App = () => {
     };
     
     initializeApp();
-  }, [authUser]);
+  }, [authUser, setupWalletListeners]);
 
   useEffect(() => {
     checkAuth();

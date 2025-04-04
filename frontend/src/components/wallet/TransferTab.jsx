@@ -40,47 +40,52 @@ const TransferTab = ({ refreshData, balance }) => {
       
       loadQRCode();
     }
-  }, [activeSubTab, generateQRCode, myQRCode]);
+    
+    // Parar o scanner se mudarmos para outra tab
+    if (activeSubTab !== 1 && isScanning) {
+      stopScannerAndCleanup();
+    }
+  }, [activeSubTab, generateQRCode, myQRCode, isScanning]);
 
   // Limpar o scanner quando o componente for desmontado
   useEffect(() => {
     return () => {
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().catch(error => {
-          console.error("Erro ao parar o scanner:", error);
-        });
-      }
+      stopScannerAndCleanup();
     };
   }, []);
 
   // Efeito para iniciar o scanner quando isScanning for true
   useEffect(() => {
     if (isScanning && qrScannerContainerRef.current) {
-      if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
-      }
-
-      html5QrCodeRef.current.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: 250
-        },
-        (decodedText) => {
-          // Sucesso no scan
-          console.log("QR Code detectado:", decodedText);
-          setScanResult(decodedText);
-          setQrData(decodedText);
-          stopScanner();
-        },
-        (errorMessage) => {
-          // Ignorar erros de scan (acontecem quando nenhum QR code é detectado)
-          console.log("Procurando QR code...");
+      try {
+        if (html5QrCodeRef.current === null) {
+          html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
         }
-      ).catch((err) => {
-        console.error("Erro ao iniciar scanner:", err);
+
+        html5QrCodeRef.current.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          (decodedText) => {
+            // Sucesso no scan
+            console.log("QR Code detectado:", decodedText);
+            setScanResult(decodedText);
+            setQrData(decodedText);
+            stopScanner();
+          },
+          (errorMessage) => {
+            // Ignorar erros de scan (acontecem quando nenhum QR code é detectado)
+          }
+        ).catch((err) => {
+          console.error("Erro ao iniciar scanner:", err);
+          setIsScanning(false);
+        });
+      } catch (error) {
+        console.error("Erro ao configurar scanner:", error);
         setIsScanning(false);
-      });
+      }
     }
   }, [isScanning]);
 
@@ -90,13 +95,34 @@ const TransferTab = ({ refreshData, balance }) => {
   };
 
   const stopScanner = () => {
-    if (html5QrCodeRef.current) {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
       html5QrCodeRef.current.stop().then(() => {
         setIsScanning(false);
       }).catch(error => {
         console.error("Erro ao parar o scanner:", error);
         setIsScanning(false);
       });
+    } else {
+      setIsScanning(false);
+    }
+  };
+
+  // Função completa para limpar o scanner e a referência
+  const stopScannerAndCleanup = () => {
+    if (html5QrCodeRef.current) {
+      if (html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().then(() => {
+          html5QrCodeRef.current = null;
+          setIsScanning(false);
+        }).catch(error => {
+          console.error("Erro ao parar o scanner:", error);
+          html5QrCodeRef.current = null;
+          setIsScanning(false);
+        });
+      } else {
+        html5QrCodeRef.current = null;
+        setIsScanning(false);
+      }
     }
   };
 
@@ -173,6 +199,9 @@ const TransferTab = ({ refreshData, balance }) => {
     }
     
     try {
+      // Parar o scanner antes da transferência
+      stopScannerAndCleanup();
+      
       await transferByQR(qrData, parseFloat(amount));
       resetForm();
       if (refreshData) refreshData();
@@ -190,6 +219,14 @@ const TransferTab = ({ refreshData, balance }) => {
     setScanResult('');
   };
 
+  // Função para mudar de tab com limpeza adequada
+  const handleTabChange = (tabIndex) => {
+    if (isScanning) {
+      stopScannerAndCleanup();
+    }
+    setActiveSubTab(tabIndex);
+  };
+
   return (
     <div className="space-y-4">
       <div className="alert alert-info">
@@ -202,21 +239,24 @@ const TransferTab = ({ refreshData, balance }) => {
       <div className="tabs tabs-boxed">
         <button 
           className={`tab flex-1 gap-2 ${activeSubTab === 0 ? 'tab-active' : ''}`}
-          onClick={() => setActiveSubTab(0)}
+          onClick={() => handleTabChange(0)}
+          type="button"
         >
           <Mail className="size-4" />
           <span className="hidden md:inline">Por Email</span>
         </button>
         <button 
           className={`tab flex-1 gap-2 ${activeSubTab === 1 ? 'tab-active' : ''}`}
-          onClick={() => setActiveSubTab(1)}
+          onClick={() => handleTabChange(1)}
+          type="button"
         >
           <Scan className="size-4" />
           <span className="hidden md:inline">Por QR Code</span>
         </button>
         <button 
           className={`tab flex-1 gap-2 ${activeSubTab === 2 ? 'tab-active' : ''}`}
-          onClick={() => setActiveSubTab(2)}
+          onClick={() => handleTabChange(2)}
+          type="button"
         >
           <QrCode className="size-4" />
           <span className="hidden md:inline">Meu QR Code</span>
@@ -280,7 +320,7 @@ const TransferTab = ({ refreshData, balance }) => {
                 <button 
                   type="button" 
                   className="btn btn-circle btn-sm btn-ghost" 
-                  onClick={stopScanner}
+                  onClick={stopScannerAndCleanup}
                 >
                   <X className="size-5" />
                 </button>

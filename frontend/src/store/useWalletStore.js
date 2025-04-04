@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { getSocket } from '../services/socket';
 
 export const useWalletStore = create((set, get) => ({
   // Estado
@@ -44,6 +45,7 @@ export const useWalletStore = create((set, get) => ({
       
       console.log('Transactions loaded:', transactionsData.length);
       console.log('Transfers loaded:', transfersData.length);
+      console.log('Rendering BalanceCard with balance:', userBalance);
     } catch (error) {
       console.error('Erro ao carregar dados da carteira:', error);
       set({ 
@@ -121,6 +123,17 @@ export const useWalletStore = create((set, get) => ({
       // Recarregar dados da carteira
       await get().fetchWalletData();
       
+      // Notificar o destinatário sobre a transferência via socket
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        socket.emit('wallet_transfer', {
+          receiverEmail,
+          amount,
+          transferId: response.data.transferId || null,
+          type: 'email'
+        });
+      }
+      
       toast.success(response.data.message || 'Transferência realizada com sucesso');
       return response.data;
     } catch (error) {
@@ -142,6 +155,17 @@ export const useWalletStore = create((set, get) => ({
       
       // Recarregar dados da carteira
       await get().fetchWalletData();
+      
+      // Notificar o destinatário sobre a transferência via socket
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        socket.emit('wallet_transfer', {
+          qrData,
+          amount,
+          transferId: response.data.transferId || null,
+          type: 'qr'
+        });
+      }
       
       toast.success(response.data.message || 'Transferência por QR realizada com sucesso');
       return response.data;
@@ -179,6 +203,33 @@ export const useWalletStore = create((set, get) => ({
       });
       toast.error('Não foi possível gerar o QR code');
       throw error;
+    }
+  },
+  
+  // Método para configurar os ouvintes de socket para atualizações de carteira
+  setupWalletListeners: () => {
+    const socket = getSocket();
+    if (socket) {
+      // Remover qualquer ouvinte existente para evitar duplicações
+      socket.off('wallet_updated');
+      
+      // Configurar novo ouvinte para atualizações de carteira
+      socket.on('wallet_updated', async (data) => {
+        console.log('Evento de atualização de carteira recebido:', data);
+        
+        // Se recebemos uma transferência, mostrar notificação
+        if (data.type === 'transfer_received') {
+          const amountFormatted = new Intl.NumberFormat('pt-PT', {
+            style: 'currency',
+            currency: 'EUR'
+          }).format(data.amount);
+          
+          toast.success(`Você recebeu ${amountFormatted} de ${data.senderName || 'outro usuário'}`);
+        }
+        
+        // Recarregar dados da carteira para refletir o novo saldo
+        await get().fetchWalletData();
+      });
     }
   },
   

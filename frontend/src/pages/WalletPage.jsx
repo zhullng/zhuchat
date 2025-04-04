@@ -16,9 +16,11 @@ const WalletPage = () => {
     transactions, 
     transfers, 
     isLoading, 
-    fetchWalletData 
+    fetchWalletData,
+    setupWalletListeners 
   } = useWalletStore();
 
+  // Carregar dados da carteira quando o componente montar
   useEffect(() => {
     const loadWalletData = async () => {
       try {
@@ -30,7 +32,18 @@ const WalletPage = () => {
     };
     
     loadWalletData();
-  }, [fetchWalletData]);
+    
+    // Configurar listeners para atualizações de carteira
+    setupWalletListeners();
+    
+    // Recarregar dados da carteira a cada 30 segundos para manter atualizado
+    const intervalId = setInterval(() => {
+      fetchWalletData();
+    }, 30000);
+    
+    // Limpar intervalo quando o componente for desmontado
+    return () => clearInterval(intervalId);
+  }, [fetchWalletData, setupWalletListeners]);
 
   const tabs = [
     { 
@@ -58,6 +71,15 @@ const WalletPage = () => {
       tooltip: 'Histórico'
     },
   ];
+
+  // Tratar a mudança de tab
+  const handleTabChange = (tabId) => {
+    // Se estiver indo para a tab de transações, recarregar os dados
+    if (tabId === 3) {
+      fetchWalletData();
+    }
+    setActiveTab(tabId);
+  };
 
   return (
     <div className="flex min-h-screen pt-16 pl-20 sm:pl-24 sm:pt-0 overflow-x-hidden">
@@ -89,7 +111,7 @@ const WalletPage = () => {
                       >
                         <button
                           className={`tab w-full flex-1 gap-2 ${activeTab === tab.id ? 'tab-active' : ''}`}
-                          onClick={() => setActiveTab(tab.id)}
+                          onClick={() => handleTabChange(tab.id)}
                         >
                           {tab.icon}
                           <span className="hidden md:inline">{tab.label}</span>
