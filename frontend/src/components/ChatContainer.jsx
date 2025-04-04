@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Trash2, MoreVertical, FileText, Download, Image, FileVideo, FileAudio, FileBadge } from "lucide-react";
+import { Trash2, MoreVertical, FileText, Download, Image, FileVideo, FileAudio, FileBadge, File } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
@@ -25,6 +25,13 @@ const ChatContainer = () => {
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState({});
+
+  // Depuração - mostra mensagens no console
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      console.log("Mensagens carregadas:", messages);
+    }
+  }, [messages]);
 
   // Efeito para carregar mensagens e configurar a subscrição de mensagens
   useEffect(() => {
@@ -95,13 +102,15 @@ const ChatContainer = () => {
         return;
       }
 
-      // Marcar ficheiro como sendo baixado
+      // Marcamos este ficheiro como sendo baixado
       setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
 
       // Mostrar toast de progresso
       const toastId = toast.loading("A iniciar download...");
 
       try {
+        console.log("Iniciando download do ficheiro:", fileUrl);
+
         // Fetch do ficheiro a partir da URL
         const response = await fetch(fileUrl, {
           method: 'GET',
@@ -178,10 +187,10 @@ const ChatContainer = () => {
         console.error("Erro ao fazer download:", error);
         toast.error(`Erro ao baixar ficheiro: ${error.message}`, { id: toastId });
       } finally {
-        // Marcar ficheiro como não sendo mais baixado
+        // Marcamos este ficheiro como não sendo mais baixado
         setDownloadingFiles(prev => {
           const newState = { ...prev };
-          delete newState[message._id];
+          delete newState[messageId];
           return newState;
         });
       }
@@ -193,7 +202,7 @@ const ChatContainer = () => {
 
   // Função para determinar ícone apropriado para o tipo de ficheiro
   const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText size={22} />;
+    if (!fileType) return <File size={22} />;
     
     if (fileType.startsWith('image/')) return <Image size={22} />;
     if (fileType.startsWith('video/')) return <FileVideo size={22} />;

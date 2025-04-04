@@ -35,13 +35,12 @@ const MessageInput = () => {
       return;
     }
 
-    // Sem limite de tamanho para imagens
-    const reader = new FileReader();
-    
     // Mostrar feedback durante o carregamento para ficheiros grandes
     if (file.size > 5 * 1024 * 1024) { // 5MB
       toast.loading("Preparando imagem grande...", { id: "image-loading" });
     }
+    
+    const reader = new FileReader();
     
     reader.onload = () => {
       if (toast.isActive("image-loading")) {
@@ -70,13 +69,12 @@ const MessageInput = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Sem limite de tamanho para arquivos
-    const reader = new FileReader();
-    
     // Mostrar feedback durante o carregamento para ficheiros grandes
     if (file.size > 10 * 1024 * 1024) { // 10MB
       toast.loading("Preparando ficheiro grande...", { id: "file-loading" });
     }
+    
+    const reader = new FileReader();
     
     reader.onload = () => {
       if (toast.isActive("file-loading")) {
@@ -90,6 +88,7 @@ const MessageInput = () => {
         size: formatFileSize(file.size),
         data: reader.result
       });
+      
       // Limpar qualquer imagem previamente selecionada
       setImagePreview(null);
       setImageData(null);
@@ -109,12 +108,16 @@ const MessageInput = () => {
   const removeImage = () => {
     setImagePreview(null);
     setImageData(null);
-    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
   };
 
   const removeFile = () => {
     setFileInfo(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   // Reset todos estados quando mudar de chat
@@ -135,15 +138,14 @@ const MessageInput = () => {
   // Envio de mensagem com suporte a ficheiros de qualquer tamanho
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imageData && !fileInfo) return;
-    if (isUploading) return;
-
+    if ((!text.trim() && !imageData && !fileInfo) || isUploading) return;
+    
     try {
       setIsUploading(true);
       
       // Preparar dados para envio
       const messageData = {
-        text: text.trim()
+        text: text.trim() || ""
       };
 
       // Mostrar toast de carregamento
@@ -166,23 +168,18 @@ const MessageInput = () => {
         };
       }
 
-      // Timeout mais longo para ficheiros grandes (10 minutos)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600000);
-      
-      // Enviar mensagem com sinal para abortar se demorar muito
+      // Enviar mensagem
       await sendMessage(messageData);
       
-      // Limpar timeout
-      clearTimeout(timeoutId);
-
       // Remover toast de carregamento se existir
       if (toastId) {
         toast.dismiss(toastId);
         toast.success(
           fileInfo 
             ? "Ficheiro enviado com sucesso!" 
-            : "Imagem enviada com sucesso!"
+            : imageData 
+              ? "Imagem enviada com sucesso!" 
+              : "Mensagem enviada com sucesso!"
         );
       }
 
@@ -203,11 +200,13 @@ const MessageInput = () => {
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       
-      // Mensagem de erro mais detalhada
+      // Mensagens de erro mais específicas
       if (error.name === 'AbortError') {
         toast.error("O envio demorou muito tempo e foi cancelado. Tente com um ficheiro menor.");
       } else if (error.response && error.response.status === 413) {
         toast.error("O ficheiro é muito grande para ser enviado.");
+      } else if (error.response && error.response.status === 500 && error.response.data?.error?.includes("Cloudinary")) {
+        toast.error("Erro no servidor de armazenamento. Tente novamente mais tarde.");
       } else {
         toast.error("Erro ao enviar mensagem. Verifique sua conexão e tente novamente.");
       }
@@ -219,27 +218,19 @@ const MessageInput = () => {
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
     if (textareaRef.current) {
-      // Reset height to base height
       textareaRef.current.style.height = "40px";
-      
-      // Set the height to scrollHeight to fit all content
       const scrollHeight = textareaRef.current.scrollHeight;
-      
-      // Estimar o número de linhas com base na altura
       const lineHeight = 20; // Altura estimada de uma linha em pixels
       const currentLines = Math.ceil(scrollHeight / lineHeight);
       setLineCount(currentLines);
       
-      // Se o texto for vazio ou tiver apenas uma linha, mantenha a altura mínima
       if (text.trim() === "" || scrollHeight <= 40) {
         textareaRef.current.style.height = "40px";
         setLineCount(1);
       } else if (currentLines <= 2) {
-        // Para uma ou duas linhas, ajustar a altura exatamente
         textareaRef.current.style.height = `${scrollHeight}px`;
       } else {
-        // Para mais de duas linhas, limitar a altura e ativar o scroll
-        const newHeight = Math.min(scrollHeight, 80); // Altura para 2 linhas + um pouco mais
+        const newHeight = Math.min(scrollHeight, 80);
         textareaRef.current.style.height = `${newHeight}px`;
       }
     }
