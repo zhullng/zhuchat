@@ -25,6 +25,7 @@ const MessageInput = () => {
     else return (bytes / 1073741824).toFixed(1) + ' GB';
   };
 
+  // Tratamento de imagens - sem restrição de tamanho
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -34,35 +35,54 @@ const MessageInput = () => {
       return;
     }
 
-    // Verificar tamanho do arquivo (limite de 15MB)
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 15MB");
-      return;
-    }
-
+    // Sem limite de tamanho para imagens
     const reader = new FileReader();
+    
+    // Mostrar feedback durante o carregamento para ficheiros grandes
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.loading("Preparando imagem grande...", { id: "image-loading" });
+    }
+    
     reader.onload = () => {
+      if (toast.isActive("image-loading")) {
+        toast.dismiss("image-loading");
+      }
+      
       setImagePreview(reader.result);
       setImageData(reader.result);
       // Limpar qualquer arquivo previamente selecionado
       setFileInfo(null);
       setShowOptions(false);
     };
+    
+    reader.onerror = () => {
+      if (toast.isActive("image-loading")) {
+        toast.dismiss("image-loading");
+      }
+      toast.error("Erro ao ler a imagem");
+    };
+    
     reader.readAsDataURL(file);
   };
 
+  // Tratamento de ficheiros - sem restrição de tipo ou tamanho
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Verificar tamanho do arquivo (limite de 25MB)
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error("O arquivo deve ter no máximo 25MB");
-      return;
-    }
-
+    // Sem limite de tamanho para arquivos
     const reader = new FileReader();
+    
+    // Mostrar feedback durante o carregamento para ficheiros grandes
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+      toast.loading("Preparando ficheiro grande...", { id: "file-loading" });
+    }
+    
     reader.onload = () => {
+      if (toast.isActive("file-loading")) {
+        toast.dismiss("file-loading");
+      }
+      
       // Guardar informações do arquivo
       setFileInfo({
         name: file.name,
@@ -75,6 +95,14 @@ const MessageInput = () => {
       setImageData(null);
       setShowOptions(false);
     };
+    
+    reader.onerror = () => {
+      if (toast.isActive("file-loading")) {
+        toast.dismiss("file-loading");
+      }
+      toast.error("Erro ao ler o ficheiro");
+    };
+    
     reader.readAsDataURL(file);
   };
 
@@ -104,6 +132,7 @@ const MessageInput = () => {
     }
   }, [selectedUser?._id]);
 
+  // Envio de mensagem com suporte a ficheiros de qualquer tamanho
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imageData && !fileInfo) return;
@@ -112,43 +141,47 @@ const MessageInput = () => {
     try {
       setIsUploading(true);
       
-      // Mostrar toast de carregamento se houver imagem ou arquivo
-      let toastId;
-      if (fileInfo || imageData) {
-        toastId = toast.loading(
-          fileInfo 
-            ? `Enviando arquivo ${fileInfo.name}...` 
-            : "Enviando imagem..."
-        );
-      }
-
       // Preparar dados para envio
       const messageData = {
-        text: text
+        text: text.trim()
       };
 
+      // Mostrar toast de carregamento
+      let toastId;
+      
       // Se houver uma imagem, adicionar aos dados
       if (imageData) {
+        toastId = toast.loading("Enviando imagem... Este processo pode demorar para imagens grandes.");
         messageData.image = imageData;
       }
 
       // Se houver um arquivo, adicionar aos dados
       if (fileInfo) {
+        toastId = toast.loading(`Enviando ${fileInfo.name}... Este processo pode demorar para ficheiros grandes.`);
         messageData.file = {
           data: fileInfo.data,
           type: fileInfo.type,
-          name: fileInfo.name
+          name: fileInfo.name,
+          size: fileInfo.size
         };
       }
 
+      // Timeout mais longo para ficheiros grandes (10 minutos)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000);
+      
+      // Enviar mensagem com sinal para abortar se demorar muito
       await sendMessage(messageData);
+      
+      // Limpar timeout
+      clearTimeout(timeoutId);
 
       // Remover toast de carregamento se existir
       if (toastId) {
         toast.dismiss(toastId);
         toast.success(
           fileInfo 
-            ? "Arquivo enviado com sucesso!" 
+            ? "Ficheiro enviado com sucesso!" 
             : "Imagem enviada com sucesso!"
         );
       }
@@ -169,7 +202,15 @@ const MessageInput = () => {
       }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
-      toast.error("Erro ao enviar mensagem. Tente novamente.");
+      
+      // Mensagem de erro mais detalhada
+      if (error.name === 'AbortError') {
+        toast.error("O envio demorou muito tempo e foi cancelado. Tente com um ficheiro menor.");
+      } else if (error.response && error.response.status === 413) {
+        toast.error("O ficheiro é muito grande para ser enviado.");
+      } else {
+        toast.error("Erro ao enviar mensagem. Verifique sua conexão e tente novamente.");
+      }
     } finally {
       setIsUploading(false);
     }
@@ -329,7 +370,7 @@ const MessageInput = () => {
                 disabled={isUploading}
               >
                 <FileText size={20} className="text-base-content opacity-70" />
-                <span>Enviar arquivo</span>
+                <span>Enviar qualquer ficheiro</span>
               </button>
             </div>
           )}
@@ -358,13 +399,17 @@ const MessageInput = () => {
         
         <button
           type="submit"
-          className="btn btn-sm btn-circle hover:bg-base-300"
+          className={`btn btn-sm btn-circle hover:bg-base-300`}
           disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
         >
-          <Send size={22} />
+          {isUploading ? (
+            <span className="loading loading-spinner loading-xs"></span>
+          ) : (
+            <Send size={22} />
+          )}
         </button>
         
-        {/* Input para upload de imagem (hidden) */}
+        {/* Input para upload de imagem (hidden) - sem restrição de tamanho */}
         <input
           type="file"
           accept="image/*"
@@ -374,7 +419,7 @@ const MessageInput = () => {
           disabled={isUploading}
         />
         
-        {/* Input para upload de arquivo (hidden) */}
+        {/* Input para upload de arquivo (hidden) - sem restrição de tipo ou tamanho */}
         <input
           type="file"
           className="hidden"

@@ -2,8 +2,6 @@ import { Server } from "socket.io";
 import http from "http";
 import express from "express";
 import Group from "../models/group.model.js";
-// Importe seu modelo de usuário se necessário para buscar dados
-// import User from "../models/user.model.js";
 
 // Cria a aplicação Express
 const app = express();
@@ -11,11 +9,30 @@ const app = express();
 // Cria o servidor HTTP a partir da aplicação Express
 const server = http.createServer(app);
 
-// Cria uma instância do Server do Socket.IO, associada ao servidor HTTP
+// Cria uma instância do Server do Socket.IO, associada ao servidor HTTP com configurações otimizadas
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: process.env.CLIENT_URL || ["http://localhost:5173"],
+    credentials: true
   },
+  // Aumentar o tamanho máximo do pacote para suportar ficheiros grandes
+  maxHttpBufferSize: 100 * 1024 * 1024, // 100MB
+  // Aumentar o timeout para evitar desconexões durante uploads grandes
+  pingTimeout: 300000, // 5 minutos
+  // Priorizar WebSocket para melhor desempenho
+  transports: ["websocket", "polling"],
+  // Configurações adicionais para otimização
+  perMessageDeflate: {
+    threshold: 1024, // Comprimir mensagens maiores que 1KB
+    zlibDeflateOptions: {
+      level: 6, // Nível de compressão (0-9, onde 9 é máxima compressão)
+      memLevel: 8 // Nível de memória (1-9, onde 9 usa mais memória)
+    }
+  },
+  // Retry connection
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
 });
 
 // Função que retorna o Socket ID do recetor dado o userId
@@ -100,21 +117,55 @@ io.on("connection", (socket) => {
 
   // ====== FIM: EVENTOS RELACIONADOS À CARTEIRA ======
 
+  // Evento específico para confirmação de recebimento de mensagem
+  socket.on("messageReceived", (messageId) => {
+    console.log(`Mensagem recebida e confirmada: ${messageId}`);
+  });
+
+  // Evento específico para indicar "digitando"
+  socket.on("typing", (data) => {
+    if (data.to) {
+      const receiverSocketId = userSocketMap[data.to];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("typing", { from: data.from || userId });
+      }
+    }
+  });
+
+  // Evento específico para indicar "parou de digitar"
+  socket.on("stopTyping", (data) => {
+    if (data.to) {
+      const receiverSocketId = userSocketMap[data.to];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("stopTyping", { from: data.from || userId });
+      }
+    }
+  });
+
   // Evento de desconexão do Socket.IO
   socket.on("disconnect", () => {
     console.log("Um utilizador desconectou-se", socket.id);
     
-    delete userSocketMap[userId];
+    // Remover o usuário do mapa e notificar outros
+    for (const [key, value] of Object.entries(userSocketMap)) {
+      if (value === socket.id) {
+        delete userSocketMap[key];
+        break;
+      }
+    }
+    
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 
   // Eventos específicos para grupos
   socket.on("joinGroup", (groupId) => {
     socket.join(`group-${groupId}`);
+    console.log(`Usuário ${userId} entrou no grupo ${groupId}`);
   });
 
   socket.on("leaveGroup", (groupId) => {
     socket.leave(`group-${groupId}`);
+    console.log(`Usuário ${userId} saiu do grupo ${groupId}`);
   });
 });
 

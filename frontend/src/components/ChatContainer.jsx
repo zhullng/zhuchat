@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Trash2, MoreVertical, FileText, Download } from "lucide-react";
+import { Trash2, MoreVertical, FileText, Download, Image, FileVideo, FileAudio, FileBadge } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
@@ -24,6 +24,7 @@ const ChatContainer = () => {
   const chatContainerRef = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
+  const [downloadingFiles, setDownloadingFiles] = useState({});
 
   // Efeito para carregar mensagens e configurar a subscrição de mensagens
   useEffect(() => {
@@ -86,14 +87,122 @@ const ChatContainer = () => {
     }
   };
 
-  // Função para baixar um arquivo
-  const downloadFile = (fileData, fileName) => {
-    const link = document.createElement('a');
-    link.href = fileData;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Função otimizada para baixar qualquer tipo de ficheiro
+  const downloadFile = async (fileUrl, fileName, messageId) => {
+    try {
+      if (!fileUrl || !fileName) {
+        toast.error("Informações do ficheiro inválidas");
+        return;
+      }
+
+      // Marcar ficheiro como sendo baixado
+      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
+
+      // Mostrar toast de progresso
+      const toastId = toast.loading("A iniciar download...");
+
+      try {
+        // Fetch do ficheiro a partir da URL
+        const response = await fetch(fileUrl, {
+          method: 'GET',
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erro ao obter o ficheiro: ${response.status}`);
+        }
+        
+        // Verificar tamanho do ficheiro
+        const contentLength = response.headers.get('content-length');
+        const isLargeFile = contentLength && parseInt(contentLength, 10) > 50 * 1024 * 1024; // 50MB
+        
+        if (isLargeFile) {
+          toast.loading("Processando ficheiro grande...", { id: toastId });
+        }
+        
+        // Converter a resposta para blob
+        const blob = await response.blob();
+        
+        // Tenta detectar o tipo correto do ficheiro
+        let finalBlob = blob;
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        
+        // Corrigir tipo MIME para extensões comuns se não estiver correto
+        const knownMimeTypes = {
+          'pdf': 'application/pdf',
+          'doc': 'application/msword',
+          'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'xls': 'application/vnd.ms-excel',
+          'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'ppt': 'application/vnd.ms-powerpoint',
+          'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'mp3': 'audio/mpeg',
+          'mp4': 'video/mp4',
+          'zip': 'application/zip',
+          'txt': 'text/plain'
+        };
+        
+        if (fileExtension && knownMimeTypes[fileExtension] && blob.type === 'application/octet-stream') {
+          finalBlob = new Blob([blob], { type: knownMimeTypes[fileExtension] });
+        }
+        
+        // Criar URL temporária para o blob
+        const blobUrl = URL.createObjectURL(finalBlob);
+        
+        // Criar link e acionar download
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(link);
+        }, 100);
+        
+        // Atualizar toast para sucesso
+        toast.success("Download concluído", { id: toastId });
+      } catch (error) {
+        console.error("Erro ao fazer download:", error);
+        toast.error(`Erro ao baixar ficheiro: ${error.message}`, { id: toastId });
+      } finally {
+        // Marcar ficheiro como não sendo mais baixado
+        setDownloadingFiles(prev => {
+          const newState = { ...prev };
+          delete newState[message._id];
+          return newState;
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar download:", error);
+      toast.error("Erro ao processar download");
+    }
+  };
+
+  // Função para determinar ícone apropriado para o tipo de ficheiro
+  const getFileIcon = (fileType) => {
+    if (!fileType) return <FileText size={22} />;
+    
+    if (fileType.startsWith('image/')) return <Image size={22} />;
+    if (fileType.startsWith('video/')) return <FileVideo size={22} />;
+    if (fileType.startsWith('audio/')) return <FileAudio size={22} />;
+    if (fileType.includes('pdf')) return <FileBadge size={22} />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={22} />;
+    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={22} />;
+    
+    return <FileText size={22} />;
   };
 
   // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
@@ -194,17 +303,22 @@ const ChatContainer = () => {
               {message.file && (
                 <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
                   <div className="p-2 bg-base-100 rounded-md">
-                    <FileText size={24} />
+                    {getFileIcon(message.file.type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{message.file.name}</p>
                     <p className="text-xs opacity-70">{message.file.size || ''}</p>
                   </div>
                   <button
-                    onClick={() => downloadFile(message.file.data, message.file.name)}
+                    onClick={() => downloadFile(message.file.url, message.file.name, message._id)}
                     className="btn btn-sm btn-circle"
+                    disabled={downloadingFiles[message._id]}
                   >
-                    <Download size={16} />
+                    {downloadingFiles[message._id] ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <Download size={16} />
+                    )}
                   </button>
                 </div>
               )}

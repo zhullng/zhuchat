@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 
-import cloudinary, { uploadToCloudinary } from "../lib/cloudinary.js";
+import cloudinary, { uploadToCloudinary, deleteFromCloudinary } from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
 // Função para obter os users a mostrar na barra lateral
@@ -39,8 +39,7 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// Atualizar a função sendMessage no message.controller.js
-
+// Função para enviar mensagens com suporte a qualquer tipo e tamanho de ficheiro
 export const sendMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body; // Texto, imagem e arquivo da mensagem
@@ -50,44 +49,36 @@ export const sendMessage = async (req, res) => {
     let imageUrl;
     let fileData = null;
 
-    // Upload de imagem, se fornecida
+    // Upload de imagem, se fornecida (sem limite de tamanho)
     if (image && image.startsWith('data:')) {
       try {
-        // Configurar o upload para aceitar imagens maiores
-        const uploadResponse = await cloudinary.uploader.upload(image, {
-          resource_type: "auto", // Detecta automaticamente o tipo de recurso
-          chunk_size: 6000000, // 6MB de tamanho de chunk para upload maior
-          timeout: 120000 // 120 segundos de timeout para uploads maiores
-        });
-        imageUrl = uploadResponse.secure_url;
+        console.log("Iniciando upload de imagem...");
+        const uploadResult = await uploadToCloudinary(image, "chat_images");
+        imageUrl = uploadResult.url;
+        console.log("Upload de imagem concluído com sucesso");
       } catch (uploadError) {
         console.error("Erro no upload de imagem:", uploadError);
-        return res.status(500).json({ error: "Falha no upload da imagem" });
+        return res.status(500).json({ error: "Falha no upload da imagem. Tente novamente." });
       }
     }
 
-    // Upload de arquivo, se fornecido
+    // Upload de arquivo, se fornecido (sem limite de tamanho ou tipo)
     if (file && file.data && file.data.startsWith('data:')) {
       try {
-        // Configurando o upload para qualquer tipo de arquivo
-        const uploadResponse = await cloudinary.uploader.upload(file.data, {
-          resource_type: "auto", // Permite qualquer tipo de arquivo
-          public_id: `chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
-          use_filename: true,
-          unique_filename: true,
-          overwrite: false,
-          chunk_size: 6000000, // 6MB de tamanho de chunk
-          timeout: 150000 // 150 segundos de timeout
-        });
+        console.log(`Iniciando upload de ficheiro: ${file.name} (${file.type})`);
+        const uploadResult = await uploadToCloudinary(file.data, "chat_files");
         
         fileData = {
-          url: uploadResponse.secure_url,
+          url: uploadResult.url,
+          public_id: uploadResult.public_id,
           type: file.type || "application/octet-stream",
-          name: file.name || "arquivo"
+          name: file.name || "ficheiro",
+          size: file.size || ""
         };
+        console.log("Upload de ficheiro concluído com sucesso");
       } catch (uploadError) {
-        console.error("Erro no upload de arquivo:", uploadError);
-        return res.status(500).json({ error: "Falha no upload do arquivo" });
+        console.error("Erro no upload de ficheiro:", uploadError);
+        return res.status(500).json({ error: "Falha no upload do ficheiro. Tente novamente." });
       }
     }
 
@@ -174,7 +165,7 @@ export const getConversations = async (req, res) => {
   }
 };
 
-// Função para excluir uma mensagem
+// Função para excluir uma mensagem (incluindo ficheiros do Cloudinary)
 export const deleteMessage = async (req, res) => {
   try {
     const { id: messageId } = req.params; // ID da mensagem a ser excluída
@@ -191,6 +182,34 @@ export const deleteMessage = async (req, res) => {
     // Verificar se o usuário é o remetente da mensagem (apenas remetentes podem excluir)
     if (message.senderId.toString() !== userId.toString()) {
       return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
+    }
+    
+    // Se a mensagem contém uma imagem, excluí-la do Cloudinary
+    if (message.image) {
+      try {
+        // Extrair o public_id da URL
+        const urlParts = message.image.split('/');
+        const publicIdWithExtension = urlParts[urlParts.length - 1];
+        const publicId = publicIdWithExtension.split('.')[0];
+        const folder = urlParts[urlParts.length - 2];
+        
+        if (publicId && folder) {
+          await deleteFromCloudinary(`${folder}/${publicId}`);
+        }
+      } catch (cloudinaryError) {
+        console.error("Erro ao excluir imagem do Cloudinary:", cloudinaryError);
+        // Continuar com a exclusão da mensagem mesmo se a exclusão do Cloudinary falhar
+      }
+    }
+    
+    // Se a mensagem contém um ficheiro, excluí-lo do Cloudinary
+    if (message.file && message.file.public_id) {
+      try {
+        await deleteFromCloudinary(message.file.public_id);
+      } catch (cloudinaryError) {
+        console.error("Erro ao excluir ficheiro do Cloudinary:", cloudinaryError);
+        // Continuar com a exclusão da mensagem mesmo se a exclusão do Cloudinary falhar
+      }
     }
     
     // Excluir a mensagem
