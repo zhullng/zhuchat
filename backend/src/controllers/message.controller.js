@@ -121,7 +121,15 @@ export const sendMessage = async (req, res) => {
         }
 
         // Upload do arquivo
-        const uploadResult = await uploadToCloudinary(file.data, "chat_files");
+        const uploadResult = await uploadToCloudinary(file.data, "chat_files", {
+          resource_type: "auto",
+          chunk_size: 10000000, // 10MB por chunk
+          timeout: 600000, // 10 minutos
+          use_filename: true,
+          unique_filename: true,
+          overwrite: false,
+          max_file_size: 100000000, // 100MB
+        });
         
         fileData = {
           url: uploadResult.url,

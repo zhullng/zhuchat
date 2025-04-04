@@ -284,6 +284,8 @@ export const useChatStore = create((set, get) => ({
           { 
             signal: controller.signal,
             timeout: 600000,
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json'
@@ -300,9 +302,40 @@ export const useChatStore = create((set, get) => ({
         const newMessage = res.data;
         console.log("Mensagem enviada com sucesso:", newMessage);
         
-        // Resto do código permanece igual
-        // ...
+        set((state) => ({
+          messages: [...state.messages, newMessage],
+        }));
   
+        // Atualizar conversa com a nova mensagem
+        set(state => {
+          const updatedConversations = [...state.conversations];
+          
+          const existingConvIndex = updatedConversations.findIndex(
+            c => c.participants && c.participants.includes(selectedUser._id)
+          );
+          
+          if (existingConvIndex >= 0) {
+            updatedConversations[existingConvIndex] = {
+              ...updatedConversations[existingConvIndex],
+              latestMessage: newMessage,
+              unreadCount: 0
+            };
+          } else {
+            updatedConversations.unshift({
+              participants: [selectedUser._id, newMessage.senderId],
+              latestMessage: newMessage,
+              unreadCount: 0
+            });
+          }
+          
+          return { conversations: updatedConversations };
+        });
+        
+        // Marcar conversa como lida após enviar mensagem
+        await get().markConversationAsRead(selectedUser._id);
+  
+        return newMessage;
+        
       } catch (axiosError) {
         console.error("ERRO DETALHADO DO AXIOS:", {
           name: axiosError.name,
@@ -330,7 +363,6 @@ export const useChatStore = create((set, get) => ({
       throw error;
     }
   },
-
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;

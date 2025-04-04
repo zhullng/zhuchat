@@ -15,7 +15,7 @@ cloudinary.config({
 const CLOUDINARY_OPTIONS = {
   resource_type: "auto",       // Detecta automaticamente o tipo de ficheiro
   chunk_size: 10000000,        // 10MB por chunk (aumentado para ficheiros grandes)
-  timeout: 300000,             // 5 minutos de timeout
+  timeout: 600000,             // 10 minutos de timeout
   use_filename: true,          // Usar nome original do ficheiro
   unique_filename: true,       // Adicionar sufixo único
   overwrite: false,            // Não sobrescrever ficheiros
@@ -24,11 +24,12 @@ const CLOUDINARY_OPTIONS = {
 };
 
 // Função auxiliar para realizar upload no Cloudinary com retentativas
-const uploadToCloudinary = async (file, folder = "chat_files") => {
+const uploadToCloudinary = async (file, folder = "chat_files", options = {}) => {
   try {
     // Personalizar opções para o upload específico
     const uploadOptions = {
       ...CLOUDINARY_OPTIONS,
+      ...options,
       folder
     };
     
