@@ -46,7 +46,7 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    console.log("RECEBENDO MENSAGEM - DETALHES COMPLETOS:", {
+    console.log("DIAGNÓSTICO COMPLETO DE ENTRADA:", {
       senderId,
       receiverId,
       hasText: !!text,
@@ -56,7 +56,8 @@ export const sendMessage = async (req, res) => {
         name: file.name,
         type: file.type,
         size: file.size,
-        dataLength: file.data ? file.data.length : 'N/A'
+        dataLength: file.data ? file.data.length : 'N/A',
+        dataPrefix: file.data ? file.data.substring(0, 100) : 'N/A'
       } : null
     });
 
@@ -159,14 +160,16 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.error("Erro final no envio de mensagem:", {
+    console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
       stack: error.stack,
-      body: req.body
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
     });
+
     res.status(500).json({ 
       error: "Erro interno do servidor", 
-      details: error.message 
+      details: error.message,
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
     });
   }
 };

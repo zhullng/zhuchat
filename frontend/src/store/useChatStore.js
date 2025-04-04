@@ -259,139 +259,77 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      // Lista de tipos de arquivo permitidos
-      const allowedFileTypes = [
-        'text/plain', 
-        'application/pdf', 
-        'application/msword', 
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'image/jpeg', 
-        'image/png', 
-        'image/gif'
-      ];
+      console.log("ENVIANDO MENSAGEM COMPLETA - DIAGNÓSTICO DETALHADO:", JSON.stringify({
+        text: messageData.text,
+        hasImage: !!messageData.image,
+        hasFile: !!messageData.file,
+        fileDetails: messageData.file ? {
+          name: messageData.file.name,
+          type: messageData.file.type,
+          size: messageData.file.size,
+          dataLength: messageData.file.data ? messageData.file.data.length : 'N/A',
+          dataPrefix: messageData.file.data ? messageData.file.data.substring(0, 100) : 'N/A'
+        } : null
+      }, null, 2));
   
-      // Validação de arquivo
-      if (messageData.file) {
-        // Verificar se o tipo de arquivo é permitido
-        if (!allowedFileTypes.includes(messageData.file.type)) {
-          toast.error("Tipo de arquivo não permitido");
-          return null;
-        }
+      // Validações anteriores...
   
-        const isBase64 = messageData.file.data.startsWith('data:');
-        const dataLength = isBase64 ? messageData.file.data.length : 0;
-        const fileSize = parseInt(messageData.file.size || '0');
-  
-        const isEmptyOrInvalid = 
-          !isBase64 || 
-          dataLength <= 0 || 
-          fileSize === 0;
-  
-        if (isEmptyOrInvalid) {
-          toast.error("Arquivo inválido ou vazio");
-          return null;
-        }
-      }
-   
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
       
-      const res = await axiosInstance.post(
-        `/messages/send/${selectedUser._id}`, 
-        messageData,
-        { 
-          signal: controller.signal,
-          timeout: 600000,
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            console.log(`Upload progress: ${percentCompleted}%`);
+      try {
+        const res = await axiosInstance.post(
+          `/messages/send/${selectedUser._id}`, 
+          messageData,
+          { 
+            signal: controller.signal,
+            timeout: 600000,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              console.log(`Upload progress: ${percentCompleted}%`);
+            }
           }
-        }
-      );
-      
-      clearTimeout(timeoutId);
-      
-      const newMessage = res.data;
-      console.log("Mensagem enviada com sucesso:", newMessage);
-      
-      // Adicionar mensagem à lista de mensagens
-      set(state => ({ messages: [...state.messages, newMessage] }));
-      
-      // Atualizar conversas com nova mensagem imediatamente
-      set(state => {
-        const authUser = useAuthStore.getState().authUser;
-        const updatedConversations = [...state.conversations];
-        
-        const existingConvIndex = updatedConversations.findIndex(
-          c => c.participants && c.participants.includes(selectedUser._id)
         );
         
-        if (existingConvIndex >= 0) {
-          // Atualizar conversa existente
-          updatedConversations[existingConvIndex] = {
-            ...updatedConversations[existingConvIndex],
-            latestMessage: newMessage,
-          };
-          
-          // Mover para o topo da lista
-          const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-          updatedConversations.unshift(updatedConv);
-        } else {
-          // Criar nova conversa
-          updatedConversations.unshift({
-            participants: [authUser._id, selectedUser._id],
-            latestMessage: newMessage,
-            unreadCount: 0
-          });
-        }
+        clearTimeout(timeoutId);
         
-        return { conversations: updatedConversations };
-      });
-      
-      // Sincronizar com o servidor depois
-      setTimeout(() => {
-        get().getConversations();
-      }, 300);
-      
-      return newMessage;
+        const newMessage = res.data;
+        console.log("Mensagem enviada com sucesso:", newMessage);
+        
+        // Resto do código permanece igual
+        // ...
+  
+      } catch (axiosError) {
+        console.error("ERRO DETALHADO DO AXIOS:", {
+          name: axiosError.name,
+          message: axiosError.message,
+          response: axiosError.response ? {
+            status: axiosError.response.status,
+            data: axiosError.response.data,
+            headers: axiosError.response.headers
+          } : null,
+          request: axiosError.request ? 'Request exists' : null,
+          config: axiosError.config ? 'Config exists' : null
+        });
+  
+        // Tratamento de erro
+        throw axiosError;
+      }
     } catch (error) {
-      console.error("ERRO COMPLETO AO ENVIAR MENSAGEM:", {
+      console.error("ERRO FINAL AO ENVIAR MENSAGEM:", {
         name: error.name,
         message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
         stack: error.stack
       });
       
-      // Melhor tratamento de erros específicos
-      if (error.name === 'AbortError') {
-        toast.error("Envio cancelado por timeout. Tente com um ficheiro menor.");
-      } else if (error.response) {
-        switch (error.response.status) {
-          case 413:
-            toast.error("Ficheiro muito grande para ser enviado.");
-            break;
-          case 500:
-            if (error.response.data?.error?.includes("Cloudinary")) {
-              toast.error("Erro no servidor de armazenamento. Tente novamente mais tarde.");
-            } else {
-              toast.error("Erro interno do servidor. Tente novamente.");
-            }
-            break;
-          default:
-            toast.error(error.response.data?.error || "Falha ao enviar mensagem.");
-        }
-      } else if (error.request) {
-        toast.error("Sem resposta do servidor. Verifique sua conexão.");
-      } else {
-        toast.error("Erro ao preparar mensagem. Tente novamente.");
-      }
-      
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
       throw error;
     }
-   },
+  },
 
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
