@@ -18,13 +18,6 @@ const MessageInput = () => {
 
   const { sendMessage, selectedUser } = useChatStore();
 
-  // Debug useEffect
-  useEffect(() => {
-    console.log("Image Preview State:", imagePreview);
-    console.log("Image Data State:", imageData);
-    console.log("File Info State:", fileInfo);
-  }, [imagePreview, imageData, fileInfo]);
-
   // Função auxiliar para formatar tamanho do arquivo
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' bytes';
@@ -32,15 +25,71 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função de upload de imagem com debug detalhado
+  // Debug de estados mais detalhado
+  useEffect(() => {
+    console.log("Estado de upload:", {
+      imagePreview: imagePreview ? `Imagem (${imagePreview.length} bytes)` : 'Sem imagem',
+      imageData: imageData ? `Dados da imagem (${imageData.length} bytes)` : 'Sem dados de imagem',
+      fileInfo: fileInfo ? `Arquivo: ${fileInfo.name} (${fileInfo.size})` : 'Sem arquivo'
+    });
+  }, [imagePreview, imageData, fileInfo]);
+
+  // Função para ajustar altura do textarea
+  const autoResizeTextarea = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const lineHeight = 20; // Altura estimada de uma linha em pixels
+      const currentLines = Math.ceil(scrollHeight / lineHeight);
+      setLineCount(currentLines);
+      
+      if (text.trim() === "" || scrollHeight <= 40) {
+        textareaRef.current.style.height = "40px";
+        setLineCount(1);
+      } else if (currentLines <= 2) {
+        textareaRef.current.style.height = `${scrollHeight}px`;
+      } else {
+        const newHeight = Math.min(scrollHeight, 80);
+        textareaRef.current.style.height = `${newHeight}px`;
+      }
+    }
+  };
+
+  // Ajustar altura do textarea quando o texto muda
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [text]);
+
+  // Fechar menu de opções quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.attach-button') && !event.target.closest('.options-menu')) {
+        setShowOptions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Função de upload de imagem com validações adicionais
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     console.log("Imagem selecionada:", file);
 
     if (!file) return;
     
+    // Validações mais rigorosas
     if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione um arquivo de imagem");
+      toast.error("Por favor, selecione um arquivo de imagem válido");
+      return;
+    }
+
+    // Limite de tamanho de imagem (opcional)
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+      toast.error("A imagem não pode ser maior que 10MB");
       return;
     }
 
@@ -53,7 +102,6 @@ const MessageInput = () => {
     reader.onload = (event) => {
       console.log("Imagem carregada com sucesso");
       console.log("Tamanho da imagem (bytes):", event.target.result.length);
-      console.log("Tipo de imagem:", file.type);
       
       setImagePreview(event.target.result);
       setImageData(event.target.result);
@@ -63,18 +111,24 @@ const MessageInput = () => {
     
     reader.onerror = (error) => {
       console.error("Erro ao ler imagem:", error);
-      toast.error("Erro ao carregar imagem");
+      toast.error("Erro ao carregar imagem. Tente novamente.");
     };
     
     reader.readAsDataURL(file);
   };
 
-  // Função de upload de arquivo com debug detalhado
+  // Função de upload de arquivo com validações
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     console.log("Arquivo selecionado:", file);
 
     if (!file) return;
+
+    // Limite de tamanho de arquivo (opcional)
+    if (file.size > 50 * 1024 * 1024) { // 50MB
+      toast.error("O arquivo não pode ser maior que 50MB");
+      return;
+    }
 
     const reader = new FileReader();
     
@@ -85,7 +139,6 @@ const MessageInput = () => {
     reader.onload = (event) => {
       console.log("Arquivo carregado com sucesso");
       console.log("Tamanho do arquivo (bytes):", event.target.result.length);
-      console.log("Tipo do arquivo:", file.type);
       
       setFileInfo({
         name: file.name,
@@ -101,23 +154,36 @@ const MessageInput = () => {
     
     reader.onerror = (error) => {
       console.error("Erro ao ler arquivo:", error);
-      toast.error("Erro ao carregar arquivo");
+      toast.error("Erro ao carregar arquivo. Tente novamente.");
     };
     
     reader.readAsDataURL(file);
   };
 
-  // Função para enviar mensagem com mais detalhes
+  // Função para lidar com remoção de anexos
+  const handleRemoveAttachment = () => {
+    setImagePreview(null);
+    setImageData(null);
+    setFileInfo(null);
+    
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Função para enviar mensagem com mais detalhes de debug
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    console.log("Enviando mensagem:", {
-      text,
-      imageData: !!imageData,
-      fileInfo: !!fileInfo
+    console.log("Tentativa de envio de mensagem:", {
+      texto: text ? `Com texto (${text.length} caracteres)` : 'Sem texto',
+      imagem: imageData ? `Imagem carregada (${imageData.length} bytes)` : 'Sem imagem',
+      arquivo: fileInfo ? `Arquivo: ${fileInfo.name}` : 'Sem arquivo'
     });
 
-    if ((!text.trim() && !imageData && !fileInfo) || isUploading) return;
+    if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
+      console.warn("Envio cancelado: conteúdo vazio ou já enviando");
+      return;
+    }
     
     try {
       setIsUploading(true);
@@ -139,25 +205,42 @@ const MessageInput = () => {
         };
       }
 
+      console.log("Enviando dados da mensagem:", {
+        temTexto: !!messageData.text,
+        temImagem: !!messageData.image,
+        temArquivo: !!messageData.file
+      });
+
       const result = await sendMessage(messageData);
       
-      // Limpar após envio
+      // Limpar após envio bem-sucedido
       setText("");
-      setImagePreview(null);
-      setImageData(null);
-      setFileInfo(null);
+      handleRemoveAttachment();
       setLineCount(1);
       
-      if (imageInputRef.current) imageInputRef.current.value = "";
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      
+      // Resetar altura do textarea
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
+
+      console.log("Mensagem enviada com sucesso");
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
+      console.error("Erro detalhado ao enviar mensagem:", {
+        nome: error.name,
+        mensagem: error.message,
+        pilha: error.stack
+      });
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Lidar com tecla Enter (Enviar com Enter, nova linha com Shift+Enter)
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
     }
   };
 
@@ -193,15 +276,10 @@ const MessageInput = () => {
             )}
             
             <button
-              onClick={() => {
-                setImagePreview(null);
-                setImageData(null);
-                setFileInfo(null);
-                if (imageInputRef.current) imageInputRef.current.value = "";
-                if (fileInputRef.current) fileInputRef.current.value = "";
-              }}
+              onClick={handleRemoveAttachment}
               className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
               type="button"
+              disabled={isUploading}
             >
               <X className="size-3" />
             </button>
@@ -209,9 +287,7 @@ const MessageInput = () => {
         </div>
       )}
 
-      {/* Resto do componente de input */}
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        {/* Botão de anexar */}
         <div className="relative">
           <button
             type="button"
@@ -222,9 +298,8 @@ const MessageInput = () => {
             <Plus size={22} />
           </button>
           
-          {/* Opções de anexo */}
           {showOptions && (
-            <div className="absolute bottom-16 left-0 bg-base-100 rounded-md shadow-md border border-base-300 p-1 z-10 min-w-48">
+            <div className="absolute bottom-16 left-0 bg-base-100 rounded-md shadow-md border border-base-300 p-1 z-10 min-w-48 options-menu">
               <button
                 type="button"
                 className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
@@ -248,7 +323,6 @@ const MessageInput = () => {
           )}
         </div>
 
-        {/* Inputs ocultos para upload */}
         <input
           type="file"
           accept="image/*"
@@ -265,23 +339,37 @@ const MessageInput = () => {
           disabled={isUploading}
         />
 
-        {/* Textarea de mensagem */}
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Digite uma mensagem..."
-          className="w-full textarea textarea-bordered"
-          disabled={isUploading}
-        />
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Digite uma mensagem..."
+            className={`w-full textarea textarea-bordered py-2 px-4 resize-none ${
+              lineCount > 2 ? 'overflow-y-auto' : 'overflow-hidden'
+            }`}
+            rows={1}
+            style={{ 
+              height: "40px",
+              maxHeight: "120px",
+              scrollbarWidth: "thin",
+              msOverflowStyle: "none"
+            }}
+            disabled={isUploading}
+          />
+        </div>
 
-        {/* Botão de envio */}
         <button 
           type="submit" 
+          className="btn btn-circle btn-sm"
           disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
-          className="btn btn-circle"
         >
-          <Send size={22} />
+          {isUploading ? (
+            <span className="loading loading-spinner loading-xs"></span>
+          ) : (
+            <Send size={22} />
+          )}
         </button>
       </form>
     </div>

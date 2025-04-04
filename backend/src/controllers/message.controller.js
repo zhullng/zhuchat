@@ -46,18 +46,24 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    console.log("Processando mensagem:", {
+    console.log("Recebendo mensagem:", JSON.stringify({
       senderId,
       receiverId,
       hasText: !!text,
       hasImage: !!image,
-      hasFile: !!file
-    });
+      hasFile: !!file,
+      fileDetails: file ? {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataLength: file.data ? file.data.length : 'N/A'
+      } : null
+    }, null, 2));
 
-    let imageUrl;
+    let imageUrl = null;
     let fileData = null;
 
-    // Upload de imagem
+    // Upload de imagem, se fornecida
     if (image && image.startsWith('data:')) {
       try {
         console.log("Iniciando upload de imagem...");
@@ -65,7 +71,7 @@ export const sendMessage = async (req, res) => {
         imageUrl = uploadResult.url;
         console.log("Upload de imagem concluído:", imageUrl);
       } catch (uploadError) {
-        console.error("Erro detalhado no upload de imagem:", uploadError);
+        console.error("Erro no upload de imagem:", uploadError);
         return res.status(500).json({ 
           error: "Falha no upload da imagem", 
           details: uploadError.message 
@@ -88,7 +94,7 @@ export const sendMessage = async (req, res) => {
         };
         console.log("Upload de ficheiro concluído:", fileData.url);
       } catch (uploadError) {
-        console.error("Erro detalhado no upload de ficheiro:", uploadError);
+        console.error("Erro no upload de ficheiro:", uploadError);
         return res.status(500).json({ 
           error: "Falha no upload do ficheiro", 
           details: uploadError.message 
@@ -123,7 +129,8 @@ export const sendMessage = async (req, res) => {
   } catch (error) {
     console.error("Erro final no envio de mensagem:", {
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
+      body: req.body
     });
     res.status(500).json({ 
       error: "Erro interno do servidor", 

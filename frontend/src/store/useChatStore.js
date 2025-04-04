@@ -259,13 +259,33 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      // Debug: Log dos dados da mensagem
-      console.log("Enviando mensagem para:", selectedUser._id);
-      console.log("Dados da mensagem:", {
-        hasText: !!messageData.text,
+      // Log detalhado dos dados da mensagem
+      console.log("Dados da mensagem:", JSON.stringify({
+        text: messageData.text,
         hasImage: !!messageData.image,
-        hasFile: !!messageData.file
-      });
+        hasFile: !!messageData.file,
+        fileDetails: messageData.file ? {
+          name: messageData.file.name,
+          type: messageData.file.type,
+          size: messageData.file.size,
+          dataLength: messageData.file.data ? messageData.file.data.length : 'N/A'
+        } : null
+      }, null, 2));
+  
+      // Validações adicionais
+      if (messageData.file) {
+        if (!messageData.file.data) {
+          console.error("Dados do arquivo ausentes");
+          toast.error("Dados do arquivo são inválidos");
+          return null;
+        }
+  
+        if (!messageData.file.data.startsWith('data:')) {
+          console.error("Formato de dados do arquivo inválido");
+          toast.error("Formato de dados do arquivo inválido");
+          return null;
+        }
+      }
   
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
@@ -276,9 +296,6 @@ export const useChatStore = create((set, get) => ({
         { 
           signal: controller.signal,
           timeout: 600000,
-          headers: {
-            'Content-Type': 'application/json'
-          },
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             console.log(`Upload progress: ${percentCompleted}%`);
@@ -366,7 +383,7 @@ export const useChatStore = create((set, get) => ({
       throw error;
     }
   },
-
+  
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
