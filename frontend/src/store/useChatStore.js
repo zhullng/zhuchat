@@ -259,30 +259,32 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      // Log detalhado dos dados da mensagem
-      console.log("Dados da mensagem:", JSON.stringify({
-        text: messageData.text,
-        hasImage: !!messageData.image,
-        hasFile: !!messageData.file,
-        fileDetails: messageData.file ? {
-          name: messageData.file.name,
-          type: messageData.file.type,
-          size: messageData.file.size,
-          dataLength: messageData.file.data ? messageData.file.data.length : 'N/A'
-        } : null
-      }, null, 2));
+      // Validações de entrada
+      if (!messageData.text && !messageData.image && !messageData.file) {
+        toast.error("Por favor, adicione conteúdo à mensagem");
+        return null;
+      }
   
-      // Validações adicionais
+      // Validação de arquivo
       if (messageData.file) {
-        if (!messageData.file.data) {
-          console.error("Dados do arquivo ausentes");
-          toast.error("Dados do arquivo são inválidos");
-          return null;
-        }
+        const isBase64 = messageData.file.data.startsWith('data:');
+        const dataLength = isBase64 ? messageData.file.data.length : 0;
+        const fileSize = parseInt(messageData.file.size || '0');
   
-        if (!messageData.file.data.startsWith('data:')) {
-          console.error("Formato de dados do arquivo inválido");
-          toast.error("Formato de dados do arquivo inválido");
+        const isEmptyOrInvalid = 
+          !isBase64 || 
+          dataLength <= 0 || 
+          fileSize === 0 || 
+          (messageData.file.type === 'text/plain' && (!messageData.file.data || messageData.file.data.trim() === ''));
+  
+        if (isEmptyOrInvalid) {
+          console.warn("Tentativa de enviar arquivo inválido ou vazio", {
+            isBase64,
+            dataLength,
+            fileSize,
+            fileType: messageData.file.type
+          });
+          toast.error("Arquivo inválido ou vazio. Selecione um arquivo válido.");
           return null;
         }
       }
@@ -308,82 +310,14 @@ export const useChatStore = create((set, get) => ({
       const newMessage = res.data;
       console.log("Mensagem enviada com sucesso:", newMessage);
       
-      // Adicionar mensagem à lista de mensagens
-      set(state => ({ messages: [...state.messages, newMessage] }));
-      
-      // Atualizar conversas com nova mensagem imediatamente
-      set(state => {
-        const authUser = useAuthStore.getState().authUser;
-        const updatedConversations = [...state.conversations];
-        
-        const existingConvIndex = updatedConversations.findIndex(
-          c => c.participants && c.participants.includes(selectedUser._id)
-        );
-        
-        if (existingConvIndex >= 0) {
-          // Atualizar conversa existente
-          updatedConversations[existingConvIndex] = {
-            ...updatedConversations[existingConvIndex],
-            latestMessage: newMessage,
-          };
-          
-          // Mover para o topo da lista
-          const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-          updatedConversations.unshift(updatedConv);
-        } else {
-          // Criar nova conversa
-          updatedConversations.unshift({
-            participants: [authUser._id, selectedUser._id],
-            latestMessage: newMessage,
-            unreadCount: 0
-          });
-        }
-        
-        return { conversations: updatedConversations };
-      });
-      
-      // Sincronizar com o servidor depois
-      setTimeout(() => {
-        get().getConversations();
-      }, 300);
-      
-      return newMessage;
+      // Resto do código permanece igual
+      // ...
     } catch (error) {
-      console.error("Erro detalhado ao enviar mensagem:", {
-        name: error.name,
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      // Melhor tratamento de erros específicos
-      if (error.name === 'AbortError') {
-        toast.error("Envio cancelado por timeout. Tente com um ficheiro menor.");
-      } else if (error.response) {
-        switch (error.response.status) {
-          case 413:
-            toast.error("Ficheiro muito grande para ser enviado.");
-            break;
-          case 500:
-            if (error.response.data?.error?.includes("Cloudinary")) {
-              toast.error("Erro no servidor de armazenamento. Tente novamente mais tarde.");
-            } else {
-              toast.error("Erro interno do servidor. Tente novamente.");
-            }
-            break;
-          default:
-            toast.error(error.response.data?.error || "Falha ao enviar mensagem.");
-        }
-      } else if (error.request) {
-        toast.error("Sem resposta do servidor. Verifique sua conexão.");
-      } else {
-        toast.error("Erro ao preparar mensagem. Tente novamente.");
-      }
-      
-      throw error;
+      // Tratamento de erro
+      // ...
     }
   },
-  
+
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;

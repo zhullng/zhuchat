@@ -121,43 +121,76 @@ const MessageInput = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     console.log("Arquivo selecionado:", file);
-
+  
     if (!file) return;
-
-    // Limite de tamanho de arquivo (opcional)
+  
+    // Validações de arquivo
+    if (file.size === 0) {
+      toast.error("Não é possível selecionar um arquivo vazio");
+      return;
+    }
+  
+    // Limite de tamanho de arquivo 
     if (file.size > 50 * 1024 * 1024) { // 50MB
       toast.error("O arquivo não pode ser maior que 50MB");
       return;
     }
-
-    const reader = new FileReader();
-    
-    reader.onloadstart = () => {
-      console.log("Iniciando leitura do arquivo");
-    };
-
-    reader.onload = (event) => {
-      console.log("Arquivo carregado com sucesso");
-      console.log("Tamanho do arquivo (bytes):", event.target.result.length);
+  
+    // Verificação adicional para arquivos de texto
+    if (file.type === 'text/plain') {
+      const reader = new FileReader();
       
-      setFileInfo({
-        name: file.name,
-        type: file.type,
-        size: formatFileSize(file.size),
-        data: event.target.result
-      });
+      reader.onload = (event) => {
+        const content = event.target.result.trim();
+        
+        if (content === '') {
+          toast.error("Não é possível enviar um arquivo de texto vazio");
+          return;
+        }
+        
+        // Processamento normal do arquivo
+        setFileInfo({
+          name: file.name,
+          type: file.type,
+          size: formatFileSize(file.size),
+          data: event.target.result
+        });
+        
+        setImagePreview(null);
+        setImageData(null);
+        setShowOptions(false);
+      };
       
-      setImagePreview(null);
-      setImageData(null);
-      setShowOptions(false);
-    };
-    
-    reader.onerror = (error) => {
-      console.error("Erro ao ler arquivo:", error);
-      toast.error("Erro ao carregar arquivo. Tente novamente.");
-    };
-    
-    reader.readAsDataURL(file);
+      reader.onerror = (error) => {
+        console.error("Erro ao ler arquivo:", error);
+        toast.error("Erro ao carregar arquivo");
+      };
+      
+      reader.readAsDataURL(file);
+    } else {
+      // Para outros tipos de arquivo, processamento normal
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        setFileInfo({
+          name: file.name,
+          type: file.type,
+          size: formatFileSize(file.size),
+          data: event.target.result
+        });
+        
+        setImagePreview(null);
+        setImageData(null);
+        setShowOptions(false);
+      };
+      
+      reader.onerror = (error) => {
+        console.error("Erro ao ler arquivo:", error);
+        toast.error("Erro ao carregar arquivo");
+      };
+      
+      reader.readAsDataURL(file);
+    }
   };
 
   // Função para lidar com remoção de anexos

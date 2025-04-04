@@ -63,6 +63,11 @@ export const sendMessage = async (req, res) => {
     let imageUrl = null;
     let fileData = null;
 
+    // Validações de entrada
+    if (!text && !image && !file) {
+      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
+    }
+
     // Upload de imagem, se fornecida
     if (image && image.startsWith('data:')) {
       try {
@@ -83,6 +88,37 @@ export const sendMessage = async (req, res) => {
     if (file && file.data && file.data.startsWith('data:')) {
       try {
         console.log(`Iniciando upload de ficheiro: ${file.name || 'Sem nome'}`);
+        
+        // Verificações adicionais para arquivo
+        const isBase64 = file.data.startsWith('data:');
+        const dataLength = isBase64 ? file.data.length : 0;
+        const fileSize = parseInt(file.size || '0');
+
+        // Verifica se o arquivo está vazio ou inválido
+        const isEmptyOrInvalid = 
+          !isBase64 || 
+          dataLength <= 0 || 
+          fileSize === 0 || 
+          (file.type === 'text/plain' && (!file.data || file.data.trim() === ''));
+
+        if (isEmptyOrInvalid) {
+          console.warn("Tentativa de enviar arquivo inválido ou vazio", {
+            isBase64,
+            dataLength,
+            fileSize,
+            fileType: file.type
+          });
+          return res.status(400).json({ 
+            error: "Arquivo inválido ou vazio",
+            details: {
+              isBase64,
+              dataLength,
+              fileSize,
+              fileType: file.type
+            }
+          });
+        }
+
         const uploadResult = await uploadToCloudinary(file.data, "chat_files");
         
         fileData = {
@@ -100,11 +136,6 @@ export const sendMessage = async (req, res) => {
           details: uploadError.message 
         });
       }
-    }
-
-    // Validar se há conteúdo na mensagem
-    if (!text && !imageUrl && !fileData) {
-      return res.status(400).json({ error: "Mensagem vazia não é permitida" });
     }
 
     // Criar e salvar mensagem
