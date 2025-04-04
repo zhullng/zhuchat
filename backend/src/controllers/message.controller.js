@@ -42,30 +42,41 @@ export const getMessages = async (req, res) => {
 // Função para enviar mensagens com suporte a qualquer tipo e tamanho de ficheiro
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, file } = req.body; // Texto, imagem e arquivo da mensagem
-    const { id: receiverId } = req.params; // ID do user destinatário
-    const senderId = req.user._id; // ID do user remetente
+    const { text, image, file } = req.body;
+    const { id: receiverId } = req.params;
+    const senderId = req.user._id;
+
+    console.log("Processando mensagem:", {
+      senderId,
+      receiverId,
+      hasText: !!text,
+      hasImage: !!image,
+      hasFile: !!file
+    });
 
     let imageUrl;
     let fileData = null;
 
-    // Upload de imagem, se fornecida (sem limite de tamanho)
+    // Upload de imagem
     if (image && image.startsWith('data:')) {
       try {
         console.log("Iniciando upload de imagem...");
         const uploadResult = await uploadToCloudinary(image, "chat_images");
         imageUrl = uploadResult.url;
-        console.log("Upload de imagem concluído com sucesso");
+        console.log("Upload de imagem concluído:", imageUrl);
       } catch (uploadError) {
-        console.error("Erro no upload de imagem:", uploadError);
-        return res.status(500).json({ error: "Falha no upload da imagem. Tente novamente." });
+        console.error("Erro detalhado no upload de imagem:", uploadError);
+        return res.status(500).json({ 
+          error: "Falha no upload da imagem", 
+          details: uploadError.message 
+        });
       }
     }
 
-    // Upload de arquivo, se fornecido (sem limite de tamanho ou tipo)
+    // Upload de arquivo
     if (file && file.data && file.data.startsWith('data:')) {
       try {
-        console.log(`Iniciando upload de ficheiro: ${file.name} (${file.type})`);
+        console.log(`Iniciando upload de ficheiro: ${file.name || 'Sem nome'}`);
         const uploadResult = await uploadToCloudinary(file.data, "chat_files");
         
         fileData = {
@@ -75,36 +86,49 @@ export const sendMessage = async (req, res) => {
           name: file.name || "ficheiro",
           size: file.size || ""
         };
-        console.log("Upload de ficheiro concluído com sucesso");
+        console.log("Upload de ficheiro concluído:", fileData.url);
       } catch (uploadError) {
-        console.error("Erro no upload de ficheiro:", uploadError);
-        return res.status(500).json({ error: "Falha no upload do ficheiro. Tente novamente." });
+        console.error("Erro detalhado no upload de ficheiro:", uploadError);
+        return res.status(500).json({ 
+          error: "Falha no upload do ficheiro", 
+          details: uploadError.message 
+        });
       }
     }
 
-    // Cria um novo objeto de mensagem com suporte a arquivos
+    // Validar se há conteúdo na mensagem
+    if (!text && !imageUrl && !fileData) {
+      return res.status(400).json({ error: "Mensagem vazia não é permitida" });
+    }
+
+    // Criar e salvar mensagem
     const newMessage = new Message({
       senderId,
       receiverId,
-      text,
+      text: text || "",
       image: imageUrl,
       file: fileData
     });
 
-    // Guarda a nova mensagem na base de dados
     await newMessage.save();
+    console.log("Mensagem salva com sucesso:", newMessage._id);
 
-    // Obtém o socketId do user destinatário
+    // Enviar via socket se destinatário estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      // Se o user destinatário estiver online, envia a mensagem para ele
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Erro no controlador de sendMessage: ", error.message);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    console.error("Erro final no envio de mensagem:", {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      details: error.message 
+    });
   }
 };
 

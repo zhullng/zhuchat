@@ -259,19 +259,26 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      // Configurar timeout mais longo para uploads de ficheiros grandes
+      // Debug: Log dos dados da mensagem
+      console.log("Enviando mensagem para:", selectedUser._id);
+      console.log("Dados da mensagem:", {
+        hasText: !!messageData.text,
+        hasImage: !!messageData.image,
+        hasFile: !!messageData.file
+      });
+  
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
       
-      // Enviar a mensagem com um timeout longo
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`, 
         messageData,
         { 
           signal: controller.signal,
-          // Aumentar o timeout para envios grandes
-          timeout: 600000, // 10 minutos
-          // Monitorar o progresso do upload (opcional)
+          timeout: 600000,
+          headers: {
+            'Content-Type': 'application/json'
+          },
           onUploadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             console.log(`Upload progress: ${percentCompleted}%`);
@@ -279,10 +286,10 @@ export const useChatStore = create((set, get) => ({
         }
       );
       
-      // Limpar timeout
       clearTimeout(timeoutId);
       
       const newMessage = res.data;
+      console.log("Mensagem enviada com sucesso:", newMessage);
       
       // Adicionar mensagem à lista de mensagens
       set(state => ({ messages: [...state.messages, newMessage] }));
@@ -292,7 +299,6 @@ export const useChatStore = create((set, get) => ({
         const authUser = useAuthStore.getState().authUser;
         const updatedConversations = [...state.conversations];
         
-        // Encontrar conversa existente ou criar nova
         const existingConvIndex = updatedConversations.findIndex(
           c => c.participants && c.participants.includes(selectedUser._id)
         );
@@ -326,18 +332,30 @@ export const useChatStore = create((set, get) => ({
       
       return newMessage;
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
+      console.error("Erro detalhado ao enviar mensagem:", {
+        name: error.name,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       
       // Melhor tratamento de erros específicos
       if (error.name === 'AbortError') {
         toast.error("Envio cancelado por timeout. Tente com um ficheiro menor.");
       } else if (error.response) {
-        if (error.response.status === 413) {
-          toast.error("Ficheiro muito grande para ser enviado.");
-        } else if (error.response.status === 500 && error.response.data?.error?.includes("Cloudinary")) {
-          toast.error("Erro no servidor de armazenamento. Tente novamente mais tarde.");
-        } else {
-          toast.error(error.response.data?.error || "Falha ao enviar mensagem.");
+        switch (error.response.status) {
+          case 413:
+            toast.error("Ficheiro muito grande para ser enviado.");
+            break;
+          case 500:
+            if (error.response.data?.error?.includes("Cloudinary")) {
+              toast.error("Erro no servidor de armazenamento. Tente novamente mais tarde.");
+            } else {
+              toast.error("Erro interno do servidor. Tente novamente.");
+            }
+            break;
+          default:
+            toast.error(error.response.data?.error || "Falha ao enviar mensagem.");
         }
       } else if (error.request) {
         toast.error("Sem resposta do servidor. Verifique sua conexão.");
