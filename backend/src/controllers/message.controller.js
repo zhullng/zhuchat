@@ -46,8 +46,7 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    // Log detalhado de entrada
-    console.log("DETALHES COMPLETOS DA REQUISIÇÃO:", {
+    console.log("RECEBENDO MENSAGEM - DETALHES COMPLETOS:", {
       senderId,
       receiverId,
       hasText: !!text,
@@ -57,19 +56,27 @@ export const sendMessage = async (req, res) => {
         name: file.name,
         type: file.type,
         size: file.size,
-        dataLength: file.data ? file.data.length : 'N/A',
-        dataPrefix: file.data ? file.data.substring(0, 50) : 'N/A'
+        dataLength: file.data ? file.data.length : 'N/A'
       } : null
     });
 
-    // Validações rigorosas de entrada
+    // Validações de entrada
     if (!text && !image && !file) {
-      console.error("ERRO: Conteúdo da mensagem é obrigatório");
-      return res.status(400).json({ 
-        error: "Conteúdo da mensagem é obrigatório",
-        details: "Sem texto, imagem ou arquivo" 
-      });
+      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
     }
+
+    // Lista de tipos de arquivo permitidos
+    const allowedFileTypes = [
+      'text/plain', 
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg', 
+      'image/png', 
+      'image/gif'
+    ];
 
     let imageUrl = null;
     let fileData = null;
@@ -77,12 +84,11 @@ export const sendMessage = async (req, res) => {
     // Upload de imagem
     if (image && image.startsWith('data:')) {
       try {
-        console.log("Iniciando upload de imagem...");
         const uploadResult = await uploadToCloudinary(image, "chat_images");
         imageUrl = uploadResult.url;
         console.log("Upload de imagem concluído:", imageUrl);
       } catch (uploadError) {
-        console.error("ERRO FATAL no upload de imagem:", uploadError);
+        console.error("Erro no upload de imagem:", uploadError);
         return res.status(500).json({ 
           error: "Falha no upload da imagem", 
           details: uploadError.message 
@@ -91,69 +97,41 @@ export const sendMessage = async (req, res) => {
     }
 
     // Upload de arquivo
-    if (file && file.data) {
+    if (file && file.data && file.data.startsWith('data:')) {
       try {
-        // Validações adicionais de segurança
-        if (!file.data.startsWith('data:')) {
-          console.error("ERRO: Formato de dados do arquivo inválido");
+        // Verificar se o tipo de arquivo é permitido
+        if (!allowedFileTypes.includes(file.type)) {
           return res.status(400).json({ 
-            error: "Formato de dados do arquivo inválido",
-            details: "Dados do arquivo não começam com 'data:'" 
+            error: "Tipo de arquivo não permitido", 
+            allowedTypes: allowedFileTypes 
           });
         }
 
-        // Verificação de tamanho e conteúdo
-        const dataLength = file.data.length;
+        // Verificar se o arquivo não está vazio
+        const isBase64 = file.data.startsWith('data:');
+        const dataLength = isBase64 ? file.data.length : 0;
         const fileSize = parseInt(file.size || '0');
 
-        console.log("DETALHES DO ARQUIVO:", {
-          name: file.name,
-          type: file.type,
-          dataLength,
-          fileSize
-        });
-
-        // Verificações de segurança
         if (dataLength <= 0 || fileSize === 0) {
-          console.error("ERRO: Arquivo vazio ou inválido");
           return res.status(400).json({ 
             error: "Arquivo inválido ou vazio",
             details: { dataLength, fileSize }
           });
         }
 
-        // Verificação de tipo de arquivo
-        const allowedTypes = [
-          'text/plain', 
-          'application/pdf', 
-          'application/msword', 
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'image/jpeg', 
-          'image/png', 
-          'image/gif'
-        ];
-
-        if (!allowedTypes.includes(file.type)) {
-          console.error("ERRO: Tipo de arquivo não permitido");
-          return res.status(400).json({ 
-            error: "Tipo de arquivo não permitido",
-            details: { fileType: file.type }
-          });
-        }
-
-        console.log("Iniciando upload de ficheiro...");
+        // Upload do arquivo
         const uploadResult = await uploadToCloudinary(file.data, "chat_files");
         
         fileData = {
           url: uploadResult.url,
           public_id: uploadResult.public_id,
-          type: file.type || "application/octet-stream",
-          name: file.name || "ficheiro",
-          size: file.size || ""
+          type: file.type,
+          name: file.name,
+          size: file.size
         };
         console.log("Upload de ficheiro concluído:", fileData.url);
       } catch (uploadError) {
-        console.error("ERRO FATAL no upload de ficheiro:", uploadError);
+        console.error("Erro no upload de ficheiro:", uploadError);
         return res.status(500).json({ 
           error: "Falha no upload do ficheiro", 
           details: uploadError.message 
@@ -181,16 +159,14 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.error("ERRO CRÍTICO no envio de mensagem:", {
+    console.error("Erro final no envio de mensagem:", {
       message: error.message,
       stack: error.stack,
       body: req.body
     });
-
     res.status(500).json({ 
       error: "Erro interno do servidor", 
-      details: error.message,
-      stack: error.stack 
+      details: error.message 
     });
   }
 };

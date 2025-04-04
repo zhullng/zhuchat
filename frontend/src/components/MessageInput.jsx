@@ -128,7 +128,26 @@ const MessageInput = () => {
       fullFile: file
     });
   
+    // Lista de tipos de arquivo permitidos
+    const allowedFileTypes = [
+      'text/plain', 
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg', 
+      'image/png', 
+      'image/gif'
+    ];
+  
     if (!file) return;
+  
+    // Validar tipo de arquivo
+    if (!allowedFileTypes.includes(file.type)) {
+      toast.error("Tipo de arquivo não permitido");
+      return;
+    }
   
     // Validações de arquivo
     if (file.size === 0) {

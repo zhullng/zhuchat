@@ -259,45 +259,38 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      console.log("ENVIANDO MENSAGEM COMPLETA:", JSON.stringify({
-        text: messageData.text,
-        hasImage: !!messageData.image,
-        hasFile: !!messageData.file,
-        fileDetails: messageData.file ? {
-          name: messageData.file.name,
-          type: messageData.file.type,
-          size: messageData.file.size,
-          dataLength: messageData.file.data ? messageData.file.data.length : 'N/A',
-          dataPrefix: messageData.file.data ? messageData.file.data.substring(0, 50) : 'N/A'
-        } : null
-      }, null, 2));
-   
-      // Validações adicionais
-      if (!messageData.text && !messageData.image && !messageData.file) {
-        toast.error("Por favor, adicione conteúdo à mensagem");
-        return null;
-      }
-   
+      // Lista de tipos de arquivo permitidos
+      const allowedFileTypes = [
+        'text/plain', 
+        'application/pdf', 
+        'application/msword', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'image/jpeg', 
+        'image/png', 
+        'image/gif'
+      ];
+  
       // Validação de arquivo
       if (messageData.file) {
+        // Verificar se o tipo de arquivo é permitido
+        if (!allowedFileTypes.includes(messageData.file.type)) {
+          toast.error("Tipo de arquivo não permitido");
+          return null;
+        }
+  
         const isBase64 = messageData.file.data.startsWith('data:');
         const dataLength = isBase64 ? messageData.file.data.length : 0;
         const fileSize = parseInt(messageData.file.size || '0');
-   
+  
         const isEmptyOrInvalid = 
           !isBase64 || 
           dataLength <= 0 || 
-          fileSize === 0 || 
-          (messageData.file.type === 'text/plain' && (!messageData.file.data || messageData.file.data.trim() === ''));
-   
+          fileSize === 0;
+  
         if (isEmptyOrInvalid) {
-          console.warn("Tentativa de enviar arquivo inválido ou vazio", {
-            isBase64,
-            dataLength,
-            fileSize,
-            fileType: messageData.file.type
-          });
-          toast.error("Arquivo inválido ou vazio. Selecione um arquivo válido.");
+          toast.error("Arquivo inválido ou vazio");
           return null;
         }
       }
