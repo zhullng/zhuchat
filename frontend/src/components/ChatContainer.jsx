@@ -7,7 +7,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Trash2, MoreVertical, Edit } from "lucide-react";
+import { Trash2, MoreVertical, FileText, Download, Image, FileVideo, FileAudio, FileBadge, File } from "lucide-react";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
@@ -19,14 +19,13 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
     deleteMessage,
-    editMessage
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
-  const [editingMessage, setEditingMessage] = useState(null);
+  const [downloadingFiles, setDownloadingFiles] = useState({});
 
   // Depuração - mostra mensagens no console
   useEffect(() => {
@@ -49,7 +48,9 @@ const ChatContainer = () => {
 
   // Efeito para scroll automático quando as mensagens são carregadas inicialmente
   useEffect(() => {
+    // Se não estiver carregando e temos mensagens
     if (!isMessagesLoading && messages.length > 0 && !initialScrollDone) {
+      // Esperar um pouco para as mensagens renderizarem
       setTimeout(() => {
         if (messageEndRef.current) {
           messageEndRef.current.scrollIntoView({ behavior: "auto" });
@@ -61,6 +62,7 @@ const ChatContainer = () => {
 
   // Efeito separado para fazer scroll quando chegar uma nova mensagem
   useEffect(() => {
+    // Só fazemos o scroll para novas mensagens se já tivermos feito o scroll inicial
     if (initialScrollDone && messageEndRef.current && messages.length > 0) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -93,27 +95,84 @@ const ChatContainer = () => {
     }
   };
 
-  // Função para iniciar edição de mensagem
-  const handleEditMessage = (message) => {
-    setEditingMessage(message);
-    setActiveMessageMenu(null);
+  // Função otimizada para baixar qualquer tipo de ficheiro
+  const downloadFile = async (messageId, fileName) => {
+    try {
+      if (!messageId || !fileName) {
+        toast.error("Informações do ficheiro inválidas");
+        return;
+      }
+
+      // Marcamos este ficheiro como sendo baixado
+      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
+
+      // Mostrar toast de progresso
+      const toastId = toast.loading("A iniciar download...");
+
+      try {
+        console.log("Iniciando download do ficheiro para mensagem:", messageId);
+
+        // Fetch do ficheiro a partir do endpoint específico
+        const response = await axiosInstance.get(`/messages/file/${messageId}`, {
+          responseType: 'blob',
+          timeout: 300000, // 5 minutos
+        });
+        
+        if (!response || !response.data) {
+          throw new Error(`Erro ao obter o ficheiro: Resposta vazia`);
+        }
+        
+        // Obter o blob diretamente da resposta
+        const blob = response.data;
+        
+        // Criar URL temporária para o blob
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Criar link e acionar download
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(link);
+        }, 100);
+        
+        // Atualizar toast para sucesso
+        toast.success("Download concluído", { id: toastId });
+      } catch (error) {
+        console.error("Erro ao fazer download:", error);
+        toast.error(`Erro ao baixar ficheiro: ${error.message}`, { id: toastId });
+      } finally {
+        // Marcamos este ficheiro como não sendo mais baixado
+        setDownloadingFiles(prev => {
+          const newState = { ...prev };
+          delete newState[messageId];
+          return newState;
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar download:", error);
+      toast.error("Erro ao processar download");
+    }
   };
 
-  // Função para salvar mensagem editada
-  const saveEditedMessage = async () => {
-    if (!editingMessage || !editingMessage.text.trim()) {
-      toast.error("A mensagem não pode estar vazia");
-      return;
-    }
-
-    try {
-      await editMessage(editingMessage._id, { text: editingMessage.text.trim() });
-      toast.success("Mensagem editada com sucesso");
-      setEditingMessage(null);
-    } catch (error) {
-      console.error("Erro ao editar mensagem:", error);
-      toast.error("Erro ao editar mensagem");
-    }
+  // Função para determinar ícone apropriado para o tipo de ficheiro
+  const getFileIcon = (fileType) => {
+    if (!fileType) return <File size={22} />;
+    
+    if (fileType.startsWith('image/')) return <Image size={22} />;
+    if (fileType.startsWith('video/')) return <FileVideo size={22} />;
+    if (fileType.startsWith('audio/')) return <FileAudio size={22} />;
+    if (fileType.includes('pdf')) return <FileBadge size={22} />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={22} />;
+    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={22} />;
+    
+    return <FileText size={22} />;
   };
 
   // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
@@ -154,7 +213,9 @@ const ChatContainer = () => {
               </div>
             </div>
 
+            {/* Alteração do layout do cabeçalho para a posição do nome */}
             <div className={`chat-header mb-1 flex items-center ${message.senderId === authUser._id ? "justify-end" : "justify-start"}`}>
+              {/* Para o user logado (authUser), o nome estará à direita e o horário à esquerda */}
               {message.senderId === authUser._id ? (
                 <>
                   <time className="text-xs opacity-50">
@@ -163,6 +224,7 @@ const ChatContainer = () => {
                   <span className="font-semibold text-sm ml-2 flex items-center">
                     {authUser.fullName || 'Nome Desconhecido'}
                     
+                    {/* Botão de opções movido para perto do nome */}
                     <div className="message-menu-container ml-1 relative">
                       <button 
                         onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
@@ -171,15 +233,9 @@ const ChatContainer = () => {
                         <MoreVertical size={14} />
                       </button>
                       
+                      {/* Menu de opções */}
                       {activeMessageMenu === message._id && (
                         <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
-                          <button
-                            onClick={() => handleEditMessage(message)}
-                            className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left whitespace-nowrap"
-                          >
-                            <Edit size={16} />
-                            <span>Editar</span>
-                          </button>
                           <button
                             onClick={() => handleDeleteMessage(message._id)}
                             className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
@@ -193,6 +249,7 @@ const ChatContainer = () => {
                   </span>
                 </>
               ) : (
+                // Para o outro user (selectedUser), o nome estará à esquerda e o horário à direita
                 <>
                   <span className="font-semibold text-sm">
                     {selectedUserDisplayName}
@@ -205,35 +262,44 @@ const ChatContainer = () => {
             </div>
 
             <div className="chat-bubble flex flex-col relative">
-              {editingMessage && editingMessage._id === message._id ? (
-                <div className="flex items-center">
-                  <textarea
-                    value={editingMessage.text}
-                    onChange={(e) => setEditingMessage({...editingMessage, text: e.target.value})}
-                    className="w-full textarea textarea-bordered resize-none mr-2"
-                    rows={3}
-                  />
-                  <div className="flex flex-col space-y-2">
-                    <button 
-                      onClick={saveEditedMessage}
-                      className="btn btn-sm btn-primary"
-                    >
-                      Salvar
-                    </button>
-                    <button 
-                      onClick={() => setEditingMessage(null)}
-                      className="btn btn-sm btn-ghost"
-                    >
-                      Cancelar
-                    </button>
+              {message.image && (
+                <img
+                  src={message.image}
+                  alt="Attachment"
+                  className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
+                />
+              )}
+              
+              {message.file && (
+                <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
+                  <div className="p-2 bg-base-100 rounded-md">
+                    {getFileIcon(message.file.type)}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{message.file.name}</p>
+                    <p className="text-xs opacity-70">{message.file.size || ''}</p>
+                  </div>
+                  <button
+                    onClick={() => downloadFile(message._id, message.file.name)}
+                    className="btn btn-sm btn-circle"
+                    disabled={downloadingFiles[message._id]}
+                  >
+                    {downloadingFiles[message._id] ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <Download size={16} />
+                    )}
+                  </button>
                 </div>
-              ) : (
+              )}
+              
+              {message.text && (
                 <p className="break-words whitespace-pre-wrap">{message.text}</p>
               )}
             </div>
           </div>
         ))}
+        {/* Referência para o final da lista de mensagens */}
         <div ref={messageEndRef}></div>
       </div>
       <MessageInput />
