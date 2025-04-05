@@ -1,6 +1,14 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
+import gridFSService from "../lib/gridfs.service.js";
+
+// Função auxiliar para calcular o tamanho do arquivo formatado
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' bytes';
+  else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  else return (bytes / 1048576).toFixed(1) + ' MB';
+};
 
 // Função para obter os users a mostrar na barra lateral
 export const getUsersForSidebar = async (req, res) => {
@@ -40,6 +48,8 @@ export const getMessages = async (req, res) => {
 // Função para enviar mensagens com suporte a qualquer tipo e tamanho de ficheiro
 export const sendMessage = async (req, res) => {
   try {
+    console.log("Requisição recebida em /messages/send");
+    
     const { text, image, file } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
@@ -54,8 +64,7 @@ export const sendMessage = async (req, res) => {
         name: file.name,
         type: file.type,
         size: file.size,
-        dataLength: file.data ? file.data.length : 'N/A',
-        dataPrefix: file.data ? file.data.substring(0, 100) + '...' : 'N/A'
+        dataLength: file.data ? `${file.data.substring(0, 50)}... (${file.data.length} bytes)` : 'N/A'
       } : null
     });
 
@@ -77,143 +86,169 @@ export const sendMessage = async (req, res) => {
       'image/gif'
     ];
 
-    let imageData = null;
-    let fileData = null;
+    // Criar a mensagem básica
+    const newMessage = new Message({
+      senderId,
+      receiverId,
+      text: text || ""
+    });
 
-    // Processar imagem
+    // Processar imagem (pequenas imagens podem ser armazenadas diretamente)
     if (image && image.startsWith('data:')) {
-      try {
-        console.log("Processando imagem");
-        imageData = image; // Armazenar a imagem diretamente como base64
-      } catch (uploadError) {
-        console.error("ERRO AO PROCESSAR IMAGEM:", {
-          message: uploadError.message,
-          stack: uploadError.stack,
-          name: uploadError.name,
-        });
-        
-        return res.status(500).json({ 
-          error: "Falha ao processar a imagem", 
-          details: uploadError.message 
-        });
+      console.log("Processando imagem");
+      
+      // Calcular tamanho aproximado da imagem base64
+      const base64Size = Math.ceil((image.length * 3) / 4);
+      
+      // Se a imagem for grande, armazená-la no GridFS, caso contrário diretamente
+      if (base64Size > 1024 * 1024) { // Maior que 1MB
+        console.log("Imagem grande detectada, usando GridFS");
+        try {
+          const uploadResult = await gridFSService.uploadFile(
+            image, 
+            `image_${Date.now()}.jpg`, 
+            { 
+              messageId: newMessage._id.toString(),
+              contentType: 'image/jpeg' 
+            }
+          );
+          
+          console.log("Upload de imagem concluído:", uploadResult);
+          
+          // Adicionar referência na mensagem
+          newMessage.fileMetadata = {
+            fileId: uploadResult.fileId,
+            name: 'imagem.jpg',
+            type: 'image/jpeg',
+            size: formatFileSize(base64Size)
+          };
+        } catch (uploadError) {
+          console.error("ERRO AO FAZER UPLOAD DA IMAGEM:", uploadError);
+          return res.status(500).json({ 
+            error: "Falha ao processar imagem grande", 
+            details: uploadError.message 
+          });
+        }
+      } else {
+        // Imagem pequena, armazenar diretamente na mensagem
+        newMessage.image = image;
       }
     }
 
     // Processar arquivo
     if (file && file.data && file.data.startsWith('data:')) {
-      try {
-        console.log("Processando ficheiro");
-        
-        // Verificar se o tipo de arquivo é permitido
-        if (!allowedFileTypes.includes(file.type)) {
-          return res.status(400).json({ 
-            error: "Tipo de arquivo não permitido", 
-            allowedTypes: allowedFileTypes 
-          });
-        }
-
-        // Validação mais robusta da string base64
-        if (!file.data.includes(',')) {
-          return res.status(400).json({
-            error: "Formato de dados base64 inválido",
-            details: "A string não contém o delimitador de dados"
-          });
-        }
-        
-        const dataPrefix = file.data.split(',')[0];
-        const dataContent = file.data.split(',')[1];
-        
-        if (!dataContent || dataContent.length < 10) {
-          return res.status(400).json({ 
-            error: "Dados de arquivo inválidos ou vazios",
-            details: {
-              hasPrefix: !!dataPrefix,
-              contentLength: dataContent ? dataContent.length : 0
-            }
-          });
-        }
-
-        fileData = {
-          data: file.data,     // Dados binários do arquivo em base64
-          type: file.type,     // Tipo MIME
-          name: file.name,     // Nome original
-          size: file.size      // Tamanho formatado
-        };
-        
-        console.log("Processamento de ficheiro concluído com sucesso");
-      } catch (uploadError) {
-        console.error("ERRO AO PROCESSAR FICHEIRO:", {
-          message: uploadError.message,
-          stack: uploadError.stack,
-          name: uploadError.name
+      console.log("Processando arquivo");
+      
+      // Verificar se o tipo de arquivo é permitido
+      if (!allowedFileTypes.includes(file.type)) {
+        return res.status(400).json({ 
+          error: "Tipo de arquivo não permitido", 
+          allowedTypes: allowedFileTypes 
         });
+      }
+
+      // Validação da string base64
+      if (!file.data.includes(',')) {
+        return res.status(400).json({
+          error: "Formato de dados base64 inválido",
+          details: "A string não contém o delimitador de dados"
+        });
+      }
+      
+      try {
+        console.log(`Iniciando upload de arquivo: ${file.name} (${file.type})`);
         
+        // Fazer upload do arquivo para o GridFS
+        const uploadResult = await gridFSService.uploadFile(
+          file.data,
+          file.name,
+          {
+            messageId: newMessage._id.toString(),
+            contentType: file.type,
+            originalSize: file.size
+          }
+        );
+        
+        console.log("Upload de arquivo concluído:", uploadResult);
+        
+        // Adicionar referência do arquivo na mensagem
+        newMessage.fileMetadata = {
+          fileId: uploadResult.fileId,
+          name: file.name,
+          type: file.type,
+          size: file.size
+        };
+      } catch (uploadError) {
+        console.error("ERRO AO FAZER UPLOAD DO ARQUIVO:", uploadError);
         return res.status(500).json({ 
-          error: "Falha ao processar o ficheiro", 
+          error: "Falha ao fazer upload do arquivo", 
           details: uploadError.message 
         });
       }
     }
 
-    // Criar e salvar mensagem
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      text: text || "",
-      image: imageData,
-      file: fileData
-    });
-
+    // Salvar a mensagem no banco de dados
     await newMessage.save();
     console.log("Mensagem salva com sucesso:", newMessage._id);
+
+    // Criar versão da mensagem para envio via socket e resposta HTTP
+    const responseMessage = {
+      ...newMessage.toObject(),
+      // Não enviar o conteúdo binário por socket ou HTTP
+      file: newMessage.fileMetadata ? {
+        fileId: newMessage.fileMetadata.fileId.toString(),
+        name: newMessage.fileMetadata.name,
+        type: newMessage.fileMetadata.type,
+        size: newMessage.fileMetadata.size
+      } : null
+    };
 
     // Enviar via socket se destinatário estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      // Para evitar enviar dados grandes pelo socket, criar uma versão mais leve
-      const socketMessage = {
-        ...newMessage.toObject(),
-        // Se tiver imagem grande, apenas indicar que existe
-        image: newMessage.image ? true : false,
-        // Se tiver arquivo, enviar metadados mas não o conteúdo
-        file: newMessage.file ? {
-          name: newMessage.file.name,
-          type: newMessage.file.type,
-          size: newMessage.file.size,
-          // Não enviar os dados binários pelo socket
-          data: undefined
-        } : null
-      };
-      
-      io.to(receiverSocketId).emit("newMessage", socketMessage);
+      io.to(receiverSocketId).emit("newMessage", responseMessage);
     }
 
-    // Retornar apenas os metadados na resposta HTTP
-    const responseMessage = {
-      ...newMessage.toObject(),
-      // Se tiver arquivo, não incluir dados binários na resposta
-      file: newMessage.file ? {
-        name: newMessage.file.name,
-        type: newMessage.file.type,
-        size: newMessage.file.size,
-        // Incluir um ID para referência futura
-        _id: newMessage._id
-      } : null
-    };
-
+    // Responder com a mensagem criada
     res.status(201).json(responseMessage);
   } catch (error) {
     console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
       stack: error.stack,
-      name: error.name,
-      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      name: error.name
     });
 
     res.status(500).json({ 
       error: "Erro interno do servidor", 
       details: error.message
     });
+  }
+};
+
+// Endpoint para obter um arquivo específico de uma mensagem
+export const getFile = async (req, res) => {
+  try {
+    const { id: fileId } = req.params;
+    console.log(`Requisição para download do arquivo: ${fileId}`);
+    
+    try {
+      // Buscar o arquivo no GridFS
+      const fileData = await gridFSService.downloadFile(fileId);
+      
+      // Configurar headers para download
+      res.setHeader('Content-Disposition', `attachment; filename="${fileData.filename}"`);
+      res.setHeader('Content-Type', fileData.contentType || 'application/octet-stream');
+      
+      // Enviar o buffer do arquivo
+      res.send(fileData.buffer);
+      console.log(`Arquivo ${fileId} enviado com sucesso`);
+    } catch (downloadError) {
+      console.error(`Erro ao baixar arquivo ${fileId}:`, downloadError);
+      res.status(404).json({ error: "Arquivo não encontrado" });
+    }
+  } catch (error) {
+    console.error("Erro ao obter arquivo:", error);
+    res.status(500).json({ error: "Erro ao obter arquivo" });
   }
 };
 
@@ -242,17 +277,15 @@ export const getConversations = async (req, res) => {
       
       // Se ainda não vimos esta conversa, adicionar ao mapa
       if (!conversationsMap[otherUserId]) {
-        // Criar uma versão leve da mensagem sem dados binários grandes
+        // Criar versão leve da mensagem
         const lightMessage = {
           ...message.toObject(),
-          // Indicar que há imagem, mas não incluir dados
-          image: message.image ? true : false,
-          // Incluir metadados do arquivo, mas não dados binários
-          file: message.file ? {
-            name: message.file.name,
-            type: message.file.type,
-            size: message.file.size,
-            _id: message._id
+          // Manter apenas metadados do arquivo, não o conteúdo
+          fileMetadata: message.fileMetadata ? {
+            fileId: message.fileMetadata.fileId,
+            name: message.fileMetadata.name,
+            type: message.fileMetadata.type,
+            size: message.fileMetadata.size
           } : null
         };
         
@@ -270,12 +303,12 @@ export const getConversations = async (req, res) => {
           // Criar versão leve da mensagem
           const lightMessage = {
             ...message.toObject(),
-            image: message.image ? true : false,
-            file: message.file ? {
-              name: message.file.name,
-              type: message.file.type,
-              size: message.file.size,
-              _id: message._id
+            // Manter apenas metadados do arquivo, não o conteúdo
+            fileMetadata: message.fileMetadata ? {
+              fileId: message.fileMetadata.fileId,
+              name: message.fileMetadata.name,
+              type: message.fileMetadata.type,
+              size: message.fileMetadata.size
             } : null
           };
           
@@ -296,6 +329,52 @@ export const getConversations = async (req, res) => {
     res.status(200).json(conversations);
   } catch (error) {
     console.error("Erro em getConversations:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Função para excluir uma mensagem (incluindo arquivos do GridFS)
+export const deleteMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params; // ID da mensagem a ser excluída
+    const userId = req.user._id; // ID do usuário que está fazendo a solicitação
+    
+    // Buscar a mensagem para verificar se o usuário tem permissão para excluí-la
+    const message = await Message.findById(messageId);
+    
+    // Verificar se a mensagem existe
+    if (!message) {
+      return res.status(404).json({ error: "Mensagem não encontrada" });
+    }
+    
+    // Verificar se o usuário é o remetente da mensagem (apenas remetentes podem excluir)
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
+    }
+    
+    // Se a mensagem contém um arquivo no GridFS, excluí-lo
+    if (message.fileMetadata && message.fileMetadata.fileId) {
+      try {
+        await gridFSService.deleteFile(message.fileMetadata.fileId);
+        console.log(`Arquivo ${message.fileMetadata.fileId} excluído do GridFS`);
+      } catch (deleteError) {
+        console.error(`Erro ao excluir arquivo ${message.fileMetadata.fileId}:`, deleteError);
+        // Continuar mesmo com erro na exclusão do arquivo
+      }
+    }
+    
+    // Excluir a mensagem
+    await Message.findByIdAndDelete(messageId);
+    
+    // Notificar o outro usuário sobre a exclusão via socket, se estiver online
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", messageId);
+    }
+    
+    res.status(200).json({ success: true, message: "Mensagem excluída com sucesso" });
+  } catch (error) {
+    console.error("Erro em deleteMessage:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
@@ -324,71 +403,6 @@ export const markConversationAsRead = async (req, res) => {
     });
   } catch (error) {
     console.error("Erro em markConversationAsRead:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
-  }
-};
-
-// Endpoint para obter um arquivo específico
-export const getFile = async (req, res) => {
-  try {
-    const { id: messageId } = req.params;
-    
-    // Encontrar a mensagem pelo ID
-    const message = await Message.findById(messageId);
-    
-    if (!message) {
-      return res.status(404).json({ error: "Mensagem não encontrada" });
-    }
-    
-    // Verificar se a mensagem contém um arquivo
-    if (!message.file || !message.file.data) {
-      return res.status(404).json({ error: "Arquivo não encontrado" });
-    }
-    
-    // Configurar headers para download
-    res.setHeader('Content-Disposition', `attachment; filename="${message.file.name}"`);
-    res.setHeader('Content-Type', message.file.type || 'application/octet-stream');
-    
-    // Enviar dados binários
-    res.send(message.file.data);
-    
-  } catch (error) {
-    console.error("Erro ao obter arquivo:", error);
-    res.status(500).json({ error: "Erro ao obter arquivo" });
-  }
-};
-
-// Função para excluir uma mensagem
-export const deleteMessage = async (req, res) => {
-  try {
-    const { id: messageId } = req.params; // ID da mensagem a ser excluída
-    const userId = req.user._id; // ID do usuário que está fazendo a solicitação
-    
-    // Buscar a mensagem para verificar se o usuário tem permissão para excluí-la
-    const message = await Message.findById(messageId);
-    
-    // Verificar se a mensagem existe
-    if (!message) {
-      return res.status(404).json({ error: "Mensagem não encontrada" });
-    }
-    
-    // Verificar se o usuário é o remetente da mensagem (apenas remetentes podem excluir)
-    if (message.senderId.toString() !== userId.toString()) {
-      return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
-    }
-    
-    // Excluir a mensagem
-    await Message.findByIdAndDelete(messageId);
-    
-    // Notificar o outro usuário sobre a exclusão via socket, se estiver online
-    const receiverSocketId = getReceiverSocketId(message.receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageDeleted", messageId);
-    }
-    
-    res.status(200).json({ success: true, message: "Mensagem excluída com sucesso" });
-  } catch (error) {
-    console.error("Erro em deleteMessage:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };

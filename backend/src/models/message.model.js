@@ -21,21 +21,21 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: function() {
         // Texto obrigatório apenas se não houver imagem ou ficheiro
-        return !this.image && !this.file;
+        return !this.image && !this.fileMetadata;
       }
     },
     
-    // Dados da imagem em base64 (se houver)
+    // URL da imagem (se houver imagens pequenas incorporadas como base64)
     image: {
       type: String,
     },
     
-    // Informações do ficheiro (se houver)
-    file: {
-      name: String,       // Nome original do ficheiro
-      type: String,       // Tipo MIME
-      size: String,       // Tamanho formatado para exibição
-      data: String,       // Dados do ficheiro em base64
+    // Metadados do arquivo (se houver), apenas referências ao GridFS
+    fileMetadata: {
+      fileId: { type: mongoose.Schema.Types.ObjectId }, // ID do arquivo no GridFS
+      name: String,     // Nome original do ficheiro
+      type: String,     // Tipo MIME
+      size: String,     // Tamanho formatado para exibição
     },
     
     // Status de leitura

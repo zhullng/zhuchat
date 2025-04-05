@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import cors from "cors"; 
 import path from "path"; 
-import mongoose from "mongoose"; // Adicione esta linha
+import mongoose from "mongoose";
 import { connectDB } from "./lib/db.js"; // Conexão com o MongoDB
 
 import groupRoutes from "./routes/group.route.js";
@@ -31,6 +31,12 @@ app.use(cors({
   credentials: true 
 }));
 
+// Log de requisições para debug
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
 // Configurar cabeçalhos HTTP para uploads grandes
 app.use((req, res, next) => {
   // Aumentar o timeout da conexão HTTP para uploads grandes
@@ -38,8 +44,6 @@ app.use((req, res, next) => {
     req.setTimeout(300000); // 5 minutos para rotas de envio de mensagens
   }
   
-  // Permitir conteúdo de até 100MB
-  res.setHeader('Content-Length', '104857600'); // 100MB em bytes
   next();
 });
 
@@ -57,7 +61,7 @@ app.use("/api/groups", groupRoutes);
 
 // Middleware para tratamento de erros
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("Erro de servidor:", err);
   const statusCode = err.statusCode || 500;
   const message = err.message || "Erro interno do servidor";
   res.status(statusCode).json({ error: message });
@@ -80,21 +84,6 @@ process.on("uncaughtException", (error) => {
 process.on("unhandledRejection", (error) => {
   console.error("Promessa rejeitada não tratada:", error);
   // Não encerrar o processo para manter o servidor funcionando
-});
-
-// Ajustar configurações do MongoDB para armazenar arquivos grandes
-mongoose.connection.on('connected', () => {
-  // Aumentar o limite de tamanho de documentos para permitir armazenar arquivos grandes
-  mongoose.connection.db.admin().command({ 
-    setParameter: 1, 
-    maxDocumentSize: 100 * 1024 * 1024 // 100MB 
-  }, (err) => {
-    if (err) {
-      console.warn("Não foi possível aumentar o tamanho máximo de documento:", err.message);
-    } else {
-      console.log("Tamanho máximo de documento ajustado para 100MB");
-    }
-  });
 });
 
 // Conectar banco antes de iniciar servidor

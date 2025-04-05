@@ -17,10 +17,10 @@ router.get("/users", protectRoute, getUsersForSidebar);
 router.get("/conversations", protectRoute, getConversations);
 router.patch("/read/:id", protectRoute, markConversationAsRead);
 
-// Nova rota para excluir mensagem
+// Rota para excluir mensagem
 router.delete("/:id", protectRoute, deleteMessage);
 
-// Nova rota para obter arquivo de uma mensagem
+// Rota para obter arquivo de uma mensagem pelo ID do arquivo
 router.get("/file/:id", protectRoute, getFile);
 
 // Rotas com parâmetros dinâmicos depois
