@@ -259,7 +259,7 @@ export const useChatStore = create((set, get) => ({
         set((state) => ({
           messages: [...state.messages, newMessage],
         }));
-
+  
         set(state => {
           const updatedConversations = [...state.conversations];
           
@@ -285,7 +285,7 @@ export const useChatStore = create((set, get) => ({
         });
         
         await get().markConversationAsRead(selectedUser._id);
-
+  
         return newMessage;
         
       } catch (axiosError) {
@@ -294,7 +294,7 @@ export const useChatStore = create((set, get) => ({
           message: axiosError.message,
           response: axiosError.response?.data
         });
-
+  
         throw axiosError;
       }
     } catch (error) {

@@ -117,89 +117,89 @@ const MessageInput = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified,
-      fullFile: file
+const handleFileChange = (e) => {
+  const file = e.target.files[0];
+  console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    lastModified: file.lastModified,
+    fullFile: file
+  });
+
+  if (!file) return;
+
+  // Lista de tipos de arquivo permitidos
+  const allowedFileTypes = [
+    'text/plain', 
+    'application/pdf', 
+    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/jpeg', 
+    'image/png', 
+    'image/gif'
+  ];
+
+  // Validar tipo de arquivo
+  if (!allowedFileTypes.includes(file.type)) {
+    console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
+    toast.error(`Tipo de arquivo não permitido: ${file.type}`);
+    return;
+  }
+
+  // Validações de arquivo
+  if (file.size === 0) {
+    toast.error("Não é possível selecionar um arquivo vazio");
+    return;
+  }
+
+  // Limite de tamanho de arquivo 
+  if (file.size > 50 * 1024 * 1024) { // 50MB
+    toast.error("O arquivo não pode ser maior que 50MB");
+    return;
+  }
+
+  const reader = new FileReader();
+  
+  reader.onloadstart = () => {
+    console.log("Iniciando leitura do arquivo:", file.name);
+  };
+
+  reader.onload = (event) => {
+    console.log("ARQUIVO CARREGADO - DETALHES:", {
+      fileName: file.name,
+      fileType: file.type,
+      dataLength: event.target.result.length,
+      dataPrefix: event.target.result.substring(0, 100)
     });
-
-    if (!file) return;
-
-    // Lista de tipos de arquivo permitidos
-    const allowedFileTypes = [
-      'text/plain', 
-      'application/pdf', 
-      'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'image/jpeg', 
-      'image/png', 
-      'image/gif'
-    ];
-
-    // Validar tipo de arquivo
-    if (!allowedFileTypes.includes(file.type)) {
-      console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
-      toast.error(`Tipo de arquivo não permitido: ${file.type}`);
-      return;
-    }
-
-    // Validações de arquivo
-    if (file.size === 0) {
-      toast.error("Não é possível selecionar um arquivo vazio");
-      return;
-    }
-
-    // Limite de tamanho de arquivo 
-    if (file.size > 50 * 1024 * 1024) { // 50MB
-      toast.error("O arquivo não pode ser maior que 50MB");
-      return;
-    }
-
-    const reader = new FileReader();
     
-    reader.onloadstart = () => {
-      console.log("Iniciando leitura do arquivo:", file.name);
-    };
-
-    reader.onload = (event) => {
-      console.log("ARQUIVO CARREGADO - DETALHES:", {
-        fileName: file.name,
-        fileType: file.type,
-        dataLength: event.target.result.length,
-        dataPrefix: event.target.result.substring(0, 100)
+    try {
+      setFileInfo({
+        name: file.name,
+        type: file.type,
+        size: formatFileSize(file.size),
+        data: event.target.result
       });
       
-      try {
-        setFileInfo({
-          name: file.name,
-          type: file.type,
-          size: formatFileSize(file.size),
-          data: event.target.result
-        });
-        
-        setImagePreview(null);
-        setImageData(null);
-        setShowOptions(false);
-      } catch (error) {
-        console.error("ERRO AO DEFINIR FILEINFO:", error);
-        toast.error("Erro ao processar arquivo. Tente novamente.");
-      }
-    };
-    
-    reader.onerror = (error) => {
-      console.error("ERRO AO LER ARQUIVO:", error);
-      toast.error("Erro ao carregar arquivo. Tente novamente.");
-    };
-    
-    // Use readAsDataURL para arquivos binários
-    reader.readAsDataURL(file);
+      setImagePreview(null);
+      setImageData(null);
+      setShowOptions(false);
+    } catch (error) {
+      console.error("ERRO AO DEFINIR FILEINFO:", error);
+      toast.error("Erro ao processar arquivo. Tente novamente.");
+    }
   };
+  
+  reader.onerror = (error) => {
+    console.error("ERRO AO LER ARQUIVO:", error);
+    toast.error("Erro ao carregar arquivo. Tente novamente.");
+  };
+  
+  // Use readAsDataURL para arquivos binários
+  reader.readAsDataURL(file);
+};
 
   // Função para lidar com remoção de anexos
   const handleRemoveAttachment = () => {
@@ -214,13 +214,7 @@ const MessageInput = () => {
   // Função para enviar mensagem com mais detalhes de debug
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
-    console.log("Tentativa de envio de mensagem:", {
-      texto: text ? `Com texto (${text.length} caracteres)` : 'Sem texto',
-      imagem: imageData ? `Imagem carregada (${imageData.length} bytes)` : 'Sem imagem',
-      arquivo: fileInfo ? `Arquivo: ${fileInfo.name}` : 'Sem arquivo'
-    });
-
+  
     if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
       console.warn("Envio cancelado: conteúdo vazio ou já enviando");
       return;
@@ -232,11 +226,11 @@ const MessageInput = () => {
       const messageData = {
         text: text.trim() || ""
       };
-
+  
       if (imageData) {
         messageData.image = imageData;
       }
-
+  
       if (fileInfo) {
         messageData.file = {
           data: fileInfo.data,
@@ -245,13 +239,7 @@ const MessageInput = () => {
           size: fileInfo.size
         };
       }
-
-      console.log("Enviando dados da mensagem:", {
-        temTexto: !!messageData.text,
-        temImagem: !!messageData.image,
-        temArquivo: !!messageData.file
-      });
-
+  
       const result = await sendMessage(messageData);
       
       // Limpar após envio bem-sucedido
@@ -263,7 +251,7 @@ const MessageInput = () => {
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
-
+  
       console.log("Mensagem enviada com sucesso");
     } catch (error) {
       console.error("Erro detalhado ao enviar mensagem:", {
