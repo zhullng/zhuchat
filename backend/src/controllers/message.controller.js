@@ -40,6 +40,7 @@ export const getMessages = async (req, res) => {
 };
 
 // Função para enviar mensagens com suporte a qualquer tipo e tamanho de ficheiro
+// Função para enviar mensagens com melhor tratamento de imagens JPEG
 export const sendMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body;
@@ -57,7 +58,7 @@ export const sendMessage = async (req, res) => {
         type: file.type,
         size: file.size,
         dataLength: file.data ? file.data.length : 'N/A',
-        dataPrefix: file.data ? file.data.substring(0, 100) : 'N/A'
+        dataPrefix: file.data ? file.data.substring(0, 100) + '...' : 'N/A'
       } : null
     });
 
@@ -82,14 +83,44 @@ export const sendMessage = async (req, res) => {
     let imageUrl = null;
     let fileData = null;
 
-    // Upload de imagem
+    // Upload de imagem com tratamento especial para JPEG
     if (image && image.startsWith('data:')) {
       try {
-        const uploadResult = await uploadToCloudinary(image, "chat_images");
+        console.log("Iniciando upload de imagem");
+        
+        // Determinar se é uma imagem JPEG
+        const isJpeg = image.startsWith('data:image/jpeg');
+        
+        // Opções específicas para JPEG
+        const uploadOptions = {
+          resource_type: "image",
+          // Opções otimizadas para JPEGs
+          chunk_size: isJpeg ? 5000000 : 10000000, // Chunks menores para JPEG
+          eager: isJpeg ? [
+            { width: 1280, height: 1280, crop: "limit" } // Redimensionar JPEG grandes
+          ] : undefined,
+          eager_async: isJpeg,
+          quality: isJpeg ? "auto" : undefined
+        };
+        
+        console.log("Opções de upload para imagem:", uploadOptions);
+        
+        const uploadResult = await uploadToCloudinary(
+          image, 
+          "chat_images",
+          uploadOptions
+        );
+        
         imageUrl = uploadResult.url;
-        console.log("Upload de imagem concluído:", imageUrl);
+        console.log("Upload de imagem concluído com sucesso:", imageUrl);
       } catch (uploadError) {
-        console.error("Erro no upload de imagem:", uploadError);
+        console.error("ERRO DETALHADO NO UPLOAD DE IMAGEM:", {
+          message: uploadError.message,
+          stack: uploadError.stack,
+          name: uploadError.name,
+          details: JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError))
+        });
+        
         return res.status(500).json({ 
           error: "Falha no upload da imagem", 
           details: uploadError.message 
@@ -97,9 +128,11 @@ export const sendMessage = async (req, res) => {
       }
     }
 
-    // Upload de arquivo
+    // Upload de arquivo com tratamento especial para JPEG
     if (file && file.data && file.data.startsWith('data:')) {
       try {
+        console.log("Iniciando upload de ficheiro");
+        
         // Verificar se o tipo de arquivo é permitido
         if (!allowedFileTypes.includes(file.type)) {
           return res.status(400).json({ 
@@ -108,28 +141,53 @@ export const sendMessage = async (req, res) => {
           });
         }
 
-        // Verificar se o arquivo não está vazio
-        const isBase64 = file.data.startsWith('data:');
-        const dataLength = isBase64 ? file.data.length : 0;
-        const fileSize = parseInt(file.size || '0');
-
-        if (dataLength <= 0 || fileSize === 0) {
+        // Validação mais robusta da string base64
+        if (!file.data.includes(',')) {
+          return res.status(400).json({
+            error: "Formato de dados base64 inválido",
+            details: "A string não contém o delimitador de dados"
+          });
+        }
+        
+        const dataPrefix = file.data.split(',')[0];
+        const dataContent = file.data.split(',')[1];
+        
+        if (!dataContent || dataContent.length < 10) {
           return res.status(400).json({ 
-            error: "Arquivo inválido ou vazio",
-            details: { dataLength, fileSize }
+            error: "Dados de arquivo inválidos ou vazios",
+            details: {
+              hasPrefix: !!dataPrefix,
+              contentLength: dataContent ? dataContent.length : 0
+            }
           });
         }
 
-        // Upload do arquivo
-        const uploadResult = await uploadToCloudinary(file.data, "chat_files", {
-          resource_type: "auto",
-          chunk_size: 10000000, // 10MB por chunk
-          timeout: 600000, // 10 minutos
+        // Verificar se é um arquivo de imagem JPEG
+        const isJpegFile = file.type === 'image/jpeg' || 
+                           dataPrefix.includes('image/jpeg');
+        
+        // Opções específicas para o tipo de arquivo
+        const uploadOptions = {
+          resource_type: isJpegFile ? "image" : "auto",
+          // Usar chunks menores e compressão para JPEGs
+          chunk_size: isJpegFile ? 5000000 : 10000000,
+          eager: isJpegFile ? [
+            { width: 1280, height: 1280, crop: "limit" }
+          ] : undefined,
+          eager_async: isJpegFile,
+          quality: isJpegFile ? "auto" : undefined,
+          // Outras opções padrão
           use_filename: true,
           unique_filename: true,
-          overwrite: false,
-          max_file_size: 100000000, // 100MB
+          overwrite: false
+        };
+        
+        console.log("Opções de upload para ficheiro:", {
+          ...uploadOptions,
+          isJpegFile
         });
+
+        const uploadResult = await uploadToCloudinary(file.data, "chat_files", uploadOptions);
         
         fileData = {
           url: uploadResult.url,
@@ -138,9 +196,16 @@ export const sendMessage = async (req, res) => {
           name: file.name,
           size: file.size
         };
-        console.log("Upload de ficheiro concluído:", fileData.url);
+        
+        console.log("Upload de ficheiro concluído com sucesso:", fileData.url);
       } catch (uploadError) {
-        console.error("Erro no upload de ficheiro:", uploadError);
+        console.error("ERRO DETALHADO NO UPLOAD DE FICHEIRO:", {
+          message: uploadError.message,
+          stack: uploadError.stack,
+          name: uploadError.name,
+          details: JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError))
+        });
+        
         return res.status(500).json({ 
           error: "Falha no upload do ficheiro", 
           details: uploadError.message 
@@ -171,6 +236,7 @@ export const sendMessage = async (req, res) => {
     console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
       stack: error.stack,
+      name: error.name,
       fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
     });
 
