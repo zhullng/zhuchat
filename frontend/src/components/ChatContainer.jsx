@@ -18,7 +18,7 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
-    deleteMessage,
+    deleteMessage, // Método deleteMessage importado diretamente do store
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -27,71 +27,17 @@ const ChatContainer = () => {
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState({});
 
-  // Depuração - mostra mensagens no console
-  useEffect(() => {
-    if (messages && messages.length > 0) {
-      console.log("Mensagens carregadas:", messages);
-    }
-  }, [messages]);
-
-  // Efeito para carregar mensagens e configurar a subscrição de mensagens
-  useEffect(() => {
-    getMessages(selectedUser._id);
-    subscribeToMessages();
-    
-    // Resetar estado de scroll inicial quando mudar de conversa
-    setInitialScrollDone(false);
-    setActiveMessageMenu(null);
-    
-    return () => unsubscribeFromMessages();
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
-
-  // Efeito para scroll automático quando as mensagens são carregadas inicialmente
-  useEffect(() => {
-    // Se não estiver carregando e temos mensagens
-    if (!isMessagesLoading && messages.length > 0 && !initialScrollDone) {
-      // Esperar um pouco para as mensagens renderizarem
-      setTimeout(() => {
-        if (messageEndRef.current) {
-          messageEndRef.current.scrollIntoView({ behavior: "auto" });
-          setInitialScrollDone(true);
-        }
-      }, 100);
-    }
-  }, [messages, isMessagesLoading, initialScrollDone]);
-
-  // Efeito separado para fazer scroll quando chegar uma nova mensagem
-  useEffect(() => {
-    // Só fazemos o scroll para novas mensagens se já tivermos feito o scroll inicial
-    if (initialScrollDone && messageEndRef.current && messages.length > 0) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages.length, initialScrollDone]);
-
-  // Fechar menu quando clicar fora
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (activeMessageMenu && !e.target.closest('.message-menu-container')) {
-        setActiveMessageMenu(null);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [activeMessageMenu]);
-
-  // Função para eliminar uma mensagem
+  // Função para eliminar uma mensagem com tratamento de erros
   const handleDeleteMessage = async (messageId) => {
     try {
+      // Usar o método deleteMessage diretamente do store
       await deleteMessage(messageId);
-      toast.success("Mensagem eliminada com sucesso");
+      
+      // Fechar menu após exclusão
+      setActiveMessageMenu(null);
     } catch (error) {
       console.error("Erro ao eliminar mensagem:", error);
       toast.error("Erro ao eliminar mensagem");
-    } finally {
-      setActiveMessageMenu(null);
     }
   };
 

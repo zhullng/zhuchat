@@ -158,27 +158,40 @@ export const deleteMessage = async (req, res) => {
     const { id: messageId } = req.params;
     const userId = req.user._id;
     
+    // Encontrar a mensagem
     const message = await Message.findById(messageId);
     
+    // Verificar se a mensagem existe
     if (!message) {
       return res.status(404).json({ error: "Mensagem não encontrada" });
     }
     
+    // Verificar permissão de exclusão (apenas o remetente pode excluir)
     if (message.senderId.toString() !== userId.toString()) {
       return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
     }
     
+    // Excluir mensagem do banco de dados
     await Message.findByIdAndDelete(messageId);
     
+    // Notificar o destinatário via WebSocket se estiver online
     const receiverSocketId = getReceiverSocketId(message.receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("messageDeleted", messageId);
     }
     
-    res.status(200).json({ success: true, message: "Mensagem excluída com sucesso" });
+    // Resposta de sucesso
+    res.status(200).json({ 
+      success: true, 
+      message: "Mensagem excluída com sucesso" 
+    });
   } catch (error) {
-    console.error("Erro em deleteMessage:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    // Log e tratamento de erro
+    console.error("Erro ao excluir mensagem:", error);
+    res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      details: error.message 
+    });
   }
 };
 

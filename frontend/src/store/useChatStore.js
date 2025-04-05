@@ -1,3 +1,4 @@
+
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
@@ -32,6 +33,36 @@ export const useChatStore = create((set, get) => ({
   conversations: [], 
   unreadCounts: {},
   viewedConversations: {}, 
+
+  // Função para eliminar mensagem com tratamento de erros e atualização de estado
+  deleteMessage: async (messageId) => {
+    try {
+      // Chamada para o endpoint de exclusão de mensagem
+      const response = await axiosInstance.delete(`/messages/${messageId}`);
+      
+      // Atualizar estado removendo a mensagem local
+      set(state => ({
+        messages: state.messages.filter(msg => msg._id !== messageId)
+      }));
+      
+      // Notificação de sucesso
+      toast.success("Mensagem eliminada com sucesso");
+      
+      // Atualizar conversas após exclusão
+      get().getConversations();
+      
+      return response.data;
+    } catch (error) {
+      // Log detalhado do erro
+      console.error("Erro ao eliminar mensagem:", error);
+      
+      // Notificação de erro para o usuário
+      toast.error(error.response?.data?.error || "Erro ao eliminar mensagem");
+      
+      // Propagar o erro para tratamento adicional, se necessário
+      throw error;
+    }
+  },
 
   // Função para inicializar conversas visualizadas
   initializeViewedConversations: () => {
