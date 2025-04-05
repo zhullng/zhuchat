@@ -214,7 +214,13 @@ const handleFileChange = (e) => {
   // Função para enviar mensagem com mais detalhes de debug
   const handleSendMessage = async (e) => {
     e.preventDefault();
-  
+    
+    console.log("Tentativa de envio de mensagem:", {
+      texto: text ? `Com texto (${text.length} caracteres)` : 'Sem texto',
+      imagem: imageData ? `Imagem carregada (${imageData.length} bytes)` : 'Sem imagem',
+      arquivo: fileInfo ? `Arquivo: ${fileInfo.name}` : 'Sem arquivo'
+    });
+
     if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
       console.warn("Envio cancelado: conteúdo vazio ou já enviando");
       return;
@@ -226,11 +232,11 @@ const handleFileChange = (e) => {
       const messageData = {
         text: text.trim() || ""
       };
-  
+
       if (imageData) {
         messageData.image = imageData;
       }
-  
+
       if (fileInfo) {
         messageData.file = {
           data: fileInfo.data,
@@ -239,7 +245,13 @@ const handleFileChange = (e) => {
           size: fileInfo.size
         };
       }
-  
+
+      console.log("Enviando dados da mensagem:", {
+        temTexto: !!messageData.text,
+        temImagem: !!messageData.image,
+        temArquivo: !!messageData.file
+      });
+
       const result = await sendMessage(messageData);
       
       // Limpar após envio bem-sucedido
@@ -251,7 +263,7 @@ const handleFileChange = (e) => {
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
-  
+
       console.log("Mensagem enviada com sucesso");
     } catch (error) {
       console.error("Erro detalhado ao enviar mensagem:", {
