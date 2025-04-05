@@ -1,7 +1,5 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
-
-import cloudinary, { uploadToCloudinary, deleteFromCloudinary } from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
 // Função para obter os users a mostrar na barra lateral
@@ -40,7 +38,6 @@ export const getMessages = async (req, res) => {
 };
 
 // Função para enviar mensagens com suporte a qualquer tipo e tamanho de ficheiro
-// Função para enviar mensagens com melhor tratamento de imagens JPEG
 export const sendMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body;
@@ -80,58 +77,32 @@ export const sendMessage = async (req, res) => {
       'image/gif'
     ];
 
-    let imageUrl = null;
+    let imageData = null;
     let fileData = null;
 
-    // Upload de imagem com tratamento especial para JPEG
+    // Processar imagem
     if (image && image.startsWith('data:')) {
       try {
-        console.log("Iniciando upload de imagem");
-        
-        // Determinar se é uma imagem JPEG
-        const isJpeg = image.startsWith('data:image/jpeg');
-        
-        // Opções específicas para JPEG
-        const uploadOptions = {
-          resource_type: "image",
-          // Opções otimizadas para JPEGs
-          chunk_size: isJpeg ? 5000000 : 10000000, // Chunks menores para JPEG
-          eager: isJpeg ? [
-            { width: 1280, height: 1280, crop: "limit" } // Redimensionar JPEG grandes
-          ] : undefined,
-          eager_async: isJpeg,
-          quality: isJpeg ? "auto" : undefined
-        };
-        
-        console.log("Opções de upload para imagem:", uploadOptions);
-        
-        const uploadResult = await uploadToCloudinary(
-          image, 
-          "chat_images",
-          uploadOptions
-        );
-        
-        imageUrl = uploadResult.url;
-        console.log("Upload de imagem concluído com sucesso:", imageUrl);
+        console.log("Processando imagem");
+        imageData = image; // Armazenar a imagem diretamente como base64
       } catch (uploadError) {
-        console.error("ERRO DETALHADO NO UPLOAD DE IMAGEM:", {
+        console.error("ERRO AO PROCESSAR IMAGEM:", {
           message: uploadError.message,
           stack: uploadError.stack,
           name: uploadError.name,
-          details: JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError))
         });
         
         return res.status(500).json({ 
-          error: "Falha no upload da imagem", 
+          error: "Falha ao processar a imagem", 
           details: uploadError.message 
         });
       }
     }
 
-    // Upload de arquivo com tratamento especial para JPEG
+    // Processar arquivo
     if (file && file.data && file.data.startsWith('data:')) {
       try {
-        console.log("Iniciando upload de ficheiro");
+        console.log("Processando ficheiro");
         
         // Verificar se o tipo de arquivo é permitido
         if (!allowedFileTypes.includes(file.type)) {
@@ -162,52 +133,23 @@ export const sendMessage = async (req, res) => {
           });
         }
 
-        // Verificar se é um arquivo de imagem JPEG
-        const isJpegFile = file.type === 'image/jpeg' || 
-                           dataPrefix.includes('image/jpeg');
-        
-        // Opções específicas para o tipo de arquivo
-        const uploadOptions = {
-          resource_type: isJpegFile ? "image" : "auto",
-          // Usar chunks menores e compressão para JPEGs
-          chunk_size: isJpegFile ? 5000000 : 10000000,
-          eager: isJpegFile ? [
-            { width: 1280, height: 1280, crop: "limit" }
-          ] : undefined,
-          eager_async: isJpegFile,
-          quality: isJpegFile ? "auto" : undefined,
-          // Outras opções padrão
-          use_filename: true,
-          unique_filename: true,
-          overwrite: false
-        };
-        
-        console.log("Opções de upload para ficheiro:", {
-          ...uploadOptions,
-          isJpegFile
-        });
-
-        const uploadResult = await uploadToCloudinary(file.data, "chat_files", uploadOptions);
-        
         fileData = {
-          url: uploadResult.url,
-          public_id: uploadResult.public_id,
-          type: file.type,
-          name: file.name,
-          size: file.size
+          data: file.data,     // Dados binários do arquivo em base64
+          type: file.type,     // Tipo MIME
+          name: file.name,     // Nome original
+          size: file.size      // Tamanho formatado
         };
         
-        console.log("Upload de ficheiro concluído com sucesso:", fileData.url);
+        console.log("Processamento de ficheiro concluído com sucesso");
       } catch (uploadError) {
-        console.error("ERRO DETALHADO NO UPLOAD DE FICHEIRO:", {
+        console.error("ERRO AO PROCESSAR FICHEIRO:", {
           message: uploadError.message,
           stack: uploadError.stack,
-          name: uploadError.name,
-          details: JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError))
+          name: uploadError.name
         });
         
         return res.status(500).json({ 
-          error: "Falha no upload do ficheiro", 
+          error: "Falha ao processar o ficheiro", 
           details: uploadError.message 
         });
       }
@@ -218,7 +160,7 @@ export const sendMessage = async (req, res) => {
       senderId,
       receiverId,
       text: text || "",
-      image: imageUrl,
+      image: imageData,
       file: fileData
     });
 
@@ -228,10 +170,38 @@ export const sendMessage = async (req, res) => {
     // Enviar via socket se destinatário estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
+      // Para evitar enviar dados grandes pelo socket, criar uma versão mais leve
+      const socketMessage = {
+        ...newMessage.toObject(),
+        // Se tiver imagem grande, apenas indicar que existe
+        image: newMessage.image ? true : false,
+        // Se tiver arquivo, enviar metadados mas não o conteúdo
+        file: newMessage.file ? {
+          name: newMessage.file.name,
+          type: newMessage.file.type,
+          size: newMessage.file.size,
+          // Não enviar os dados binários pelo socket
+          data: undefined
+        } : null
+      };
+      
+      io.to(receiverSocketId).emit("newMessage", socketMessage);
     }
 
-    res.status(201).json(newMessage);
+    // Retornar apenas os metadados na resposta HTTP
+    const responseMessage = {
+      ...newMessage.toObject(),
+      // Se tiver arquivo, não incluir dados binários na resposta
+      file: newMessage.file ? {
+        name: newMessage.file.name,
+        type: newMessage.file.type,
+        size: newMessage.file.size,
+        // Incluir um ID para referência futura
+        _id: newMessage._id
+      } : null
+    };
+
+    res.status(201).json(responseMessage);
   } catch (error) {
     console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
@@ -242,8 +212,7 @@ export const sendMessage = async (req, res) => {
 
     res.status(500).json({ 
       error: "Erro interno do servidor", 
-      details: error.message,
-      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      details: error.message
     });
   }
 };
@@ -273,9 +242,23 @@ export const getConversations = async (req, res) => {
       
       // Se ainda não vimos esta conversa, adicionar ao mapa
       if (!conversationsMap[otherUserId]) {
+        // Criar uma versão leve da mensagem sem dados binários grandes
+        const lightMessage = {
+          ...message.toObject(),
+          // Indicar que há imagem, mas não incluir dados
+          image: message.image ? true : false,
+          // Incluir metadados do arquivo, mas não dados binários
+          file: message.file ? {
+            name: message.file.name,
+            type: message.file.type,
+            size: message.file.size,
+            _id: message._id
+          } : null
+        };
+        
         conversationsMap[otherUserId] = {
           participants: [userId.toString(), otherUserId],
-          latestMessage: message,
+          latestMessage: lightMessage,
           unreadCount: (message.receiverId.toString() === userId.toString() && !message.read) ? 1 : 0
         };
       } else {
@@ -284,7 +267,19 @@ export const getConversations = async (req, res) => {
         const newTimestamp = new Date(message.createdAt).getTime();
         
         if (newTimestamp > currentTimestamp) {
-          conversationsMap[otherUserId].latestMessage = message;
+          // Criar versão leve da mensagem
+          const lightMessage = {
+            ...message.toObject(),
+            image: message.image ? true : false,
+            file: message.file ? {
+              name: message.file.name,
+              type: message.file.type,
+              size: message.file.size,
+              _id: message._id
+            } : null
+          };
+          
+          conversationsMap[otherUserId].latestMessage = lightMessage;
         }
         
         // Incrementar contador de não lidas se aplicável
@@ -301,69 +296,6 @@ export const getConversations = async (req, res) => {
     res.status(200).json(conversations);
   } catch (error) {
     console.error("Erro em getConversations:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
-  }
-};
-
-// Função para excluir uma mensagem (incluindo ficheiros do Cloudinary)
-export const deleteMessage = async (req, res) => {
-  try {
-    const { id: messageId } = req.params; // ID da mensagem a ser excluída
-    const userId = req.user._id; // ID do usuário que está fazendo a solicitação
-    
-    // Buscar a mensagem para verificar se o usuário tem permissão para excluí-la
-    const message = await Message.findById(messageId);
-    
-    // Verificar se a mensagem existe
-    if (!message) {
-      return res.status(404).json({ error: "Mensagem não encontrada" });
-    }
-    
-    // Verificar se o usuário é o remetente da mensagem (apenas remetentes podem excluir)
-    if (message.senderId.toString() !== userId.toString()) {
-      return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
-    }
-    
-    // Se a mensagem contém uma imagem, excluí-la do Cloudinary
-    if (message.image) {
-      try {
-        // Extrair o public_id da URL
-        const urlParts = message.image.split('/');
-        const publicIdWithExtension = urlParts[urlParts.length - 1];
-        const publicId = publicIdWithExtension.split('.')[0];
-        const folder = urlParts[urlParts.length - 2];
-        
-        if (publicId && folder) {
-          await deleteFromCloudinary(`${folder}/${publicId}`);
-        }
-      } catch (cloudinaryError) {
-        console.error("Erro ao excluir imagem do Cloudinary:", cloudinaryError);
-        // Continuar com a exclusão da mensagem mesmo se a exclusão do Cloudinary falhar
-      }
-    }
-    
-    // Se a mensagem contém um ficheiro, excluí-lo do Cloudinary
-    if (message.file && message.file.public_id) {
-      try {
-        await deleteFromCloudinary(message.file.public_id);
-      } catch (cloudinaryError) {
-        console.error("Erro ao excluir ficheiro do Cloudinary:", cloudinaryError);
-        // Continuar com a exclusão da mensagem mesmo se a exclusão do Cloudinary falhar
-      }
-    }
-    
-    // Excluir a mensagem
-    await Message.findByIdAndDelete(messageId);
-    
-    // Notificar o outro usuário sobre a exclusão via socket, se estiver online
-    const receiverSocketId = getReceiverSocketId(message.receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageDeleted", messageId);
-    }
-    
-    res.status(200).json({ success: true, message: "Mensagem excluída com sucesso" });
-  } catch (error) {
-    console.error("Erro em deleteMessage:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
@@ -392,6 +324,71 @@ export const markConversationAsRead = async (req, res) => {
     });
   } catch (error) {
     console.error("Erro em markConversationAsRead:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Endpoint para obter um arquivo específico
+export const getFile = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    
+    // Encontrar a mensagem pelo ID
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Mensagem não encontrada" });
+    }
+    
+    // Verificar se a mensagem contém um arquivo
+    if (!message.file || !message.file.data) {
+      return res.status(404).json({ error: "Arquivo não encontrado" });
+    }
+    
+    // Configurar headers para download
+    res.setHeader('Content-Disposition', `attachment; filename="${message.file.name}"`);
+    res.setHeader('Content-Type', message.file.type || 'application/octet-stream');
+    
+    // Enviar dados binários
+    res.send(message.file.data);
+    
+  } catch (error) {
+    console.error("Erro ao obter arquivo:", error);
+    res.status(500).json({ error: "Erro ao obter arquivo" });
+  }
+};
+
+// Função para excluir uma mensagem
+export const deleteMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params; // ID da mensagem a ser excluída
+    const userId = req.user._id; // ID do usuário que está fazendo a solicitação
+    
+    // Buscar a mensagem para verificar se o usuário tem permissão para excluí-la
+    const message = await Message.findById(messageId);
+    
+    // Verificar se a mensagem existe
+    if (!message) {
+      return res.status(404).json({ error: "Mensagem não encontrada" });
+    }
+    
+    // Verificar se o usuário é o remetente da mensagem (apenas remetentes podem excluir)
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
+    }
+    
+    // Excluir a mensagem
+    await Message.findByIdAndDelete(messageId);
+    
+    // Notificar o outro usuário sobre a exclusão via socket, se estiver online
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", messageId);
+    }
+    
+    res.status(200).json({ success: true, message: "Mensagem excluída com sucesso" });
+  } catch (error) {
+    console.error("Erro em deleteMessage:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };

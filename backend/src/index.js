@@ -81,6 +81,21 @@ process.on("unhandledRejection", (error) => {
   // Não encerrar o processo para manter o servidor funcionando
 });
 
+// Ajustar configurações do MongoDB para armazenar arquivos grandes
+mongoose.connection.on('connected', () => {
+  // Aumentar o limite de tamanho de documentos para permitir armazenar arquivos grandes
+  mongoose.connection.db.admin().command({ 
+    setParameter: 1, 
+    maxDocumentSize: 100 * 1024 * 1024 // 100MB 
+  }, (err) => {
+    if (err) {
+      console.warn("Não foi possível aumentar o tamanho máximo de documento:", err.message);
+    } else {
+      console.log("Tamanho máximo de documento ajustado para 100MB");
+    }
+  });
+});
+
 // Conectar banco antes de iniciar servidor
 connectDB()
   .then(() => {

@@ -6,7 +6,8 @@ import {
     sendMessage,
     getConversations,
     markConversationAsRead,
-    deleteMessage
+    deleteMessage,
+    getFile
   } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -18,6 +19,9 @@ router.patch("/read/:id", protectRoute, markConversationAsRead);
 
 // Nova rota para excluir mensagem
 router.delete("/:id", protectRoute, deleteMessage);
+
+// Nova rota para obter arquivo de uma mensagem
+router.get("/file/:id", protectRoute, getFile);
 
 // Rotas com parâmetros dinâmicos depois
 router.get("/:id", protectRoute, getMessages);

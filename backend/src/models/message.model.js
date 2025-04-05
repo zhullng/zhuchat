@@ -25,7 +25,7 @@ const messageSchema = new mongoose.Schema(
       }
     },
     
-    // URL da imagem no Cloudinary (se houver)
+    // Dados da imagem em base64 (se houver)
     image: {
       type: String,
     },
@@ -35,8 +35,7 @@ const messageSchema = new mongoose.Schema(
       name: String,       // Nome original do ficheiro
       type: String,       // Tipo MIME
       size: String,       // Tamanho formatado para exibição
-      url: String,        // URL do Cloudinary
-      public_id: String,  // ID público do Cloudinary (para exclusão)
+      data: String,       // Dados do ficheiro em base64
     },
     
     // Status de leitura

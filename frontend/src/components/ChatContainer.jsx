@@ -1,5 +1,6 @@
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState } from "react";
+import { axiosInstance } from "../lib/axios";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -95,9 +96,9 @@ const ChatContainer = () => {
   };
 
   // Função otimizada para baixar qualquer tipo de ficheiro
-  const downloadFile = async (fileUrl, fileName, messageId) => {
+  const downloadFile = async (messageId, fileName) => {
     try {
-      if (!fileUrl || !fileName) {
+      if (!messageId || !fileName) {
         toast.error("Informações do ficheiro inválidas");
         return;
       }
@@ -109,63 +110,23 @@ const ChatContainer = () => {
       const toastId = toast.loading("A iniciar download...");
 
       try {
-        console.log("Iniciando download do ficheiro:", fileUrl);
+        console.log("Iniciando download do ficheiro para mensagem:", messageId);
 
-        // Fetch do ficheiro a partir da URL
-        const response = await fetch(fileUrl, {
-          method: 'GET',
-          cache: 'no-cache',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-          },
+        // Fetch do ficheiro a partir do endpoint específico
+        const response = await axiosInstance.get(`/messages/file/${messageId}`, {
+          responseType: 'blob',
+          timeout: 300000, // 5 minutos
         });
         
-        if (!response.ok) {
-          throw new Error(`Erro ao obter o ficheiro: ${response.status}`);
+        if (!response || !response.data) {
+          throw new Error(`Erro ao obter o ficheiro: Resposta vazia`);
         }
         
-        // Verificar tamanho do ficheiro
-        const contentLength = response.headers.get('content-length');
-        const isLargeFile = contentLength && parseInt(contentLength, 10) > 50 * 1024 * 1024; // 50MB
-        
-        if (isLargeFile) {
-          toast.loading("Processando ficheiro grande...", { id: toastId });
-        }
-        
-        // Converter a resposta para blob
-        const blob = await response.blob();
-        
-        // Tenta detectar o tipo correto do ficheiro
-        let finalBlob = blob;
-        const fileExtension = fileName.split('.').pop().toLowerCase();
-        
-        // Corrigir tipo MIME para extensões comuns se não estiver correto
-        const knownMimeTypes = {
-          'pdf': 'application/pdf',
-          'doc': 'application/msword',
-          'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'xls': 'application/vnd.ms-excel',
-          'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'ppt': 'application/vnd.ms-powerpoint',
-          'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          'jpg': 'image/jpeg',
-          'jpeg': 'image/jpeg',
-          'png': 'image/png',
-          'gif': 'image/gif',
-          'mp3': 'audio/mpeg',
-          'mp4': 'video/mp4',
-          'zip': 'application/zip',
-          'txt': 'text/plain'
-        };
-        
-        if (fileExtension && knownMimeTypes[fileExtension] && blob.type === 'application/octet-stream') {
-          finalBlob = new Blob([blob], { type: knownMimeTypes[fileExtension] });
-        }
+        // Obter o blob diretamente da resposta
+        const blob = response.data;
         
         // Criar URL temporária para o blob
-        const blobUrl = URL.createObjectURL(finalBlob);
+        const blobUrl = URL.createObjectURL(blob);
         
         // Criar link e acionar download
         const link = document.createElement('a');
@@ -319,7 +280,7 @@ const ChatContainer = () => {
                     <p className="text-xs opacity-70">{message.file.size || ''}</p>
                   </div>
                   <button
-                    onClick={() => downloadFile(message.file.url, message.file.name, message._id)}
+                    onClick={() => downloadFile(message._id, message.file.name)}
                     className="btn btn-sm btn-circle"
                     disabled={downloadingFiles[message._id]}
                   >

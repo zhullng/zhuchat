@@ -36,6 +36,7 @@ export const useChatStore = create((set, get) => ({
   conversations: [], 
   unreadCounts: {},
   viewedConversations: {}, // Nova propriedade para rastrear conversas visualizadas
+  downloadingFiles: {}, // Estado para rastrear downloads em andamento
   
   // Função para inicializar conversas visualizadas (chamada durante login)
   initializeViewedConversations: () => {
@@ -271,9 +272,7 @@ export const useChatStore = create((set, get) => ({
           dataPrefix: messageData.file.data ? messageData.file.data.substring(0, 100) : 'N/A'
         } : null
       }, null, 2));
-  
-      // Validações anteriores...
-  
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
       
@@ -305,7 +304,7 @@ export const useChatStore = create((set, get) => ({
         set((state) => ({
           messages: [...state.messages, newMessage],
         }));
-  
+
         // Atualizar conversa com a nova mensagem
         set(state => {
           const updatedConversations = [...state.conversations];
@@ -333,7 +332,7 @@ export const useChatStore = create((set, get) => ({
         
         // Marcar conversa como lida após enviar mensagem
         await get().markConversationAsRead(selectedUser._id);
-  
+
         return newMessage;
         
       } catch (axiosError) {
@@ -348,7 +347,7 @@ export const useChatStore = create((set, get) => ({
           request: axiosError.request ? 'Request exists' : null,
           config: axiosError.config ? 'Config exists' : null
         });
-  
+
         // Tratamento de erro
         throw axiosError;
       }
@@ -363,6 +362,78 @@ export const useChatStore = create((set, get) => ({
       throw error;
     }
   },
+
+  // Função otimizada para baixar qualquer tipo de ficheiro
+  downloadFile: async (messageId, fileName) => {
+    try {
+      if (!messageId || !fileName) {
+        toast.error("Informações do ficheiro inválidas");
+        return;
+      }
+
+      // Marcamos este ficheiro como sendo baixado
+      set(state => ({ 
+        downloadingFiles: { 
+          ...state.downloadingFiles, 
+          [messageId]: true 
+        } 
+      }));
+
+      // Mostrar toast de progresso
+      const toastId = toast.loading("A iniciar download...");
+
+      try {
+        console.log("Iniciando download do ficheiro para mensagem:", messageId);
+
+        // Fetch do ficheiro a partir do endpoint específico
+        const response = await axiosInstance.get(`/messages/file/${messageId}`, {
+          responseType: 'blob',
+          timeout: 300000, // 5 minutos
+        });
+        
+        if (!response || !response.data) {
+          throw new Error(`Erro ao obter o ficheiro: Resposta vazia`);
+        }
+        
+        // Obter o blob diretamente da resposta
+        const blob = response.data;
+        
+        // Criar URL temporária para o blob
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Criar link e acionar download
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(link);
+        }, 100);
+        
+        // Atualizar toast para sucesso
+        toast.success("Download concluído", { id: toastId });
+      } catch (error) {
+        console.error("Erro ao fazer download:", error);
+        toast.error(`Erro ao baixar ficheiro: ${error.message}`, { id: toastId });
+      } finally {
+        // Marcamos este ficheiro como não sendo mais baixado
+        set(state => {
+          const newDownloadingFiles = { ...state.downloadingFiles };
+          delete newDownloadingFiles[messageId];
+          return { downloadingFiles: newDownloadingFiles };
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao processar download:", error);
+      toast.error("Erro ao processar download");
+    }
+  },
+  
   // Função para se inscrever para notificações de novas mensagens por WebSocket
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
@@ -852,7 +923,8 @@ resetChatState: () => {
     isTransfersLoading: false,
     conversations: [],
     unreadCounts: {},
-    viewedConversations: {} // Limpar conversas visualizadas
+    viewedConversations: {}, // Limpar conversas visualizadas
+    downloadingFiles: {} // Limpar estado de downloads
   });
 }
 }));
