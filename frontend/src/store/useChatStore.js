@@ -360,12 +360,67 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
+  editMessage: async (messageId, messageData) => {
+    try {
+      const res = await axiosInstance.patch(`/messages/${messageId}/edit`, messageData);
+      
+      // Update the message in the local state
+      set((state) => ({
+        messages: state.messages.map((message) => 
+          message._id === messageId 
+            ? { ...message, ...res.data } 
+            : message
+        ),
+        conversations: state.conversations.map((conv) => {
+          if (conv.latestMessage && conv.latestMessage._id === messageId) {
+            return {
+              ...conv,
+              latestMessage: { ...conv.latestMessage, ...res.data }
+            };
+          }
+          return conv;
+        })
+      }));
+  
+      return res.data;
+    } catch (error) {
+      console.error("ERRO AO EDITAR MENSAGEM:", error);
+      
+      toast.error(error.response?.data?.error || "Erro ao editar mensagem. Tente novamente.");
+      throw error;
+    }
+  },
+
   // Subscrever mensagens por WebSocket
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
     
     if (socket) {
+      // Add messageEdited event listener
+      socket.on("messageEdited", (editedMessage) => {
+        const authUser = useAuthStore.getState().authUser;
+        
+        set((state) => ({
+          messages: state.messages.map((message) => 
+            message._id === editedMessage._id 
+              ? { ...message, ...editedMessage } 
+              : message
+          ),
+          conversations: state.conversations.map((conv) => {
+            if (conv.latestMessage && conv.latestMessage._id === editedMessage._id) {
+              return {
+                ...conv,
+                latestMessage: { ...conv.latestMessage, ...editedMessage }
+              };
+            }
+            return conv;
+          })
+        }));
+      });
+
+      // Remove previous listeners to prevent duplicates
       socket.off("newMessage");
+      socket.off("messageDeleted");
 
       socket.on("newMessage", (newMessage) => {
         const authUser = useAuthStore.getState().authUser;

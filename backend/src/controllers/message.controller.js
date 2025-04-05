@@ -207,3 +207,52 @@ export const markConversationAsRead = async (req, res) => {
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
+
+export const editMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const { text } = req.body;
+    const userId = req.user._id;
+
+    // Validate input
+    if (!text || text.trim() === '') {
+      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
+    }
+
+    // Find the message
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Mensagem não encontrada" });
+    }
+    
+    // Check if the user is the sender of the message
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Sem permissão para editar esta mensagem" });
+    }
+
+    // Update the message
+    message.text = text.trim();
+    await message.save();
+
+    // Prepare the updated message for socket emission
+    const updatedMessage = {
+      ...message.toObject(),
+      text: message.text
+    };
+
+    // Emit the updated message to the receiver if online
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageEdited", updatedMessage);
+    }
+
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Erro ao editar mensagem:", error);
+    res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      details: error.message 
+    });
+  }
+};
