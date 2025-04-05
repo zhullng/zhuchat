@@ -45,172 +45,30 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// Função para enviar mensagens com suporte a qualquer tipo e tamanho de ficheiro
 export const sendMessage = async (req, res) => {
   try {
-    console.log("Requisição recebida em /messages/send");
-    
-    const { text, image, file } = req.body;
+    const { text } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    console.log("DIAGNÓSTICO COMPLETO DE ENTRADA:", {
-      senderId,
-      receiverId,
-      hasText: !!text,
-      hasImage: !!image,
-      hasFile: !!file,
-      fileDetails: file ? {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        dataLength: file.data ? `${file.data.substring(0, 50)}... (${file.data.length} bytes)` : 'N/A'
-      } : null
-    });
-
-    // Validações de entrada
-    if (!text && !image && !file) {
-      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
+    if (!text) {
+      return res.status(400).json({ error: "Texto da mensagem é obrigatório" });
     }
 
-    // Lista de tipos de arquivo permitidos
-    const allowedFileTypes = [
-      'text/plain', 
-      'application/pdf', 
-      'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'image/jpeg', 
-      'image/png', 
-      'image/gif'
-    ];
-
-    // Criar a mensagem básica
     const newMessage = new Message({
       senderId,
       receiverId,
-      text: text || ""
+      text
     });
 
-    // Processar imagem (pequenas imagens podem ser armazenadas diretamente)
-    if (image && image.startsWith('data:')) {
-      console.log("Processando imagem");
-      
-      // Calcular tamanho aproximado da imagem base64
-      const base64Size = Math.ceil((image.length * 3) / 4);
-      
-      // Se a imagem for grande, armazená-la no GridFS, caso contrário diretamente
-      if (base64Size > 1024 * 1024) { // Maior que 1MB
-        console.log("Imagem grande detectada, usando GridFS");
-        try {
-          const uploadResult = await gridFSService.uploadFile(
-            image, 
-            `image_${Date.now()}.jpg`, 
-            { 
-              messageId: newMessage._id.toString(),
-              contentType: 'image/jpeg' 
-            }
-          );
-          
-          console.log("Upload de imagem concluído:", uploadResult);
-          
-          // Adicionar referência na mensagem
-          newMessage.fileMetadata = {
-            fileId: uploadResult.fileId,
-            name: 'imagem.jpg',
-            type: 'image/jpeg',
-            size: formatFileSize(base64Size)
-          };
-        } catch (uploadError) {
-          console.error("ERRO AO FAZER UPLOAD DA IMAGEM:", uploadError);
-          return res.status(500).json({ 
-            error: "Falha ao processar imagem grande", 
-            details: uploadError.message 
-          });
-        }
-      } else {
-        // Imagem pequena, armazenar diretamente na mensagem
-        newMessage.image = image;
-      }
-    }
-
-    // Processar arquivo
-    if (file && file.data && file.data.startsWith('data:')) {
-      console.log("Processando arquivo");
-      
-      // Verificar se o tipo de arquivo é permitido
-      if (!allowedFileTypes.includes(file.type)) {
-        return res.status(400).json({ 
-          error: "Tipo de arquivo não permitido", 
-          allowedTypes: allowedFileTypes 
-        });
-      }
-
-      // Validação da string base64
-      if (!file.data.includes(',')) {
-        return res.status(400).json({
-          error: "Formato de dados base64 inválido",
-          details: "A string não contém o delimitador de dados"
-        });
-      }
-      
-      try {
-        console.log(`Iniciando upload de arquivo: ${file.name} (${file.type})`);
-        
-        // Fazer upload do arquivo para o GridFS
-        const uploadResult = await gridFSService.uploadFile(
-          file.data,
-          file.name,
-          {
-            messageId: newMessage._id.toString(),
-            contentType: file.type,
-            originalSize: file.size
-          }
-        );
-        
-        console.log("Upload de arquivo concluído:", uploadResult);
-        
-        // Adicionar referência do arquivo na mensagem
-        newMessage.fileMetadata = {
-          fileId: uploadResult.fileId,
-          name: file.name,
-          type: file.type,
-          size: file.size
-        };
-      } catch (uploadError) {
-        console.error("ERRO AO FAZER UPLOAD DO ARQUIVO:", uploadError);
-        return res.status(500).json({ 
-          error: "Falha ao fazer upload do arquivo", 
-          details: uploadError.message 
-        });
-      }
-    }
-
-    // Salvar a mensagem no banco de dados
     await newMessage.save();
-    console.log("Mensagem salva com sucesso:", newMessage._id);
 
-    // Criar versão da mensagem para envio via socket e resposta HTTP
-    const responseMessage = {
-      ...newMessage.toObject(),
-      // Não enviar o conteúdo binário por socket ou HTTP
-      file: newMessage.fileMetadata ? {
-        fileId: newMessage.fileMetadata.fileId.toString(),
-        name: newMessage.fileMetadata.name,
-        type: newMessage.fileMetadata.type,
-        size: newMessage.fileMetadata.size
-      } : null
-    };
-
-    // Enviar via socket se destinatário estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", responseMessage);
+      io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
-    // Responder com a mensagem criada
-    res.status(201).json(responseMessage);
+    res.status(201).json(newMessage);
   } catch (error) {
     console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
