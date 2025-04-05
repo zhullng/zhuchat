@@ -16,26 +16,18 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     
-    // Texto da mensagem (opcional se houver imagem ou ficheiro)
+    // Texto da mensagem (opcional se houver imagem)
     text: {
       type: String,
       required: function() {
-        // Texto obrigatório apenas se não houver imagem ou ficheiro
-        return !this.image && !this.fileMetadata;
+        // Texto obrigatório apenas se não houver imagem
+        return !this.image;
       }
     },
     
-    // URL da imagem (se houver imagens pequenas incorporadas como base64)
+    // URL da imagem (se houver imagens)
     image: {
       type: String,
-    },
-    
-    // Metadados do arquivo (se houver), apenas referências ao GridFS
-    fileMetadata: {
-      fileId: { type: mongoose.Schema.Types.ObjectId }, // ID do arquivo no GridFS
-      name: String,     // Nome original do ficheiro
-      type: String,     // Tipo MIME
-      size: String,     // Tamanho formatado para exibição
     },
     
     // Status de leitura

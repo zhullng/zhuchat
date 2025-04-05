@@ -20,9 +20,9 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-// Aumentar limites para permitir uploads de ficheiros grandes
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ limit: '100mb', extended: true }));
+// Aumentar limites para permitir uploads de imagens
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Middlewares básicos
 app.use(cookieParser());
@@ -37,9 +37,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configurar cabeçalhos HTTP para uploads grandes
+// Configurar cabeçalhos HTTP para uploads de imagens
 app.use((req, res, next) => {
-  // Aumentar o timeout da conexão HTTP para uploads grandes
+  // Aumentar o timeout da conexão HTTP para uploads de imagens
   if (req.url.includes('/api/messages/send')) {
     req.setTimeout(300000); // 5 minutos para rotas de envio de mensagens
   }
@@ -47,7 +47,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Aumentar o timeout do servidor para uploads grandes
+// Aumentar o timeout do servidor para uploads de imagens
 server.timeout = 300000; // 5 minutos
 
 // Rotas da API
