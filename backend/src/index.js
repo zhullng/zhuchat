@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import cors from "cors"; 
 import path from "path"; 
+import mongoose from "mongoose"; // Adicione esta linha
 import { connectDB } from "./lib/db.js"; // Conexão com o MongoDB
 
 import groupRoutes from "./routes/group.route.js";
