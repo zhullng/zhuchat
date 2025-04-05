@@ -18,7 +18,7 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
-    deleteMessage, // Método deleteMessage importado diretamente do store
+    deleteMessage,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -27,13 +27,62 @@ const ChatContainer = () => {
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState({});
 
+  // Função para rolar para a última mensagem
+  const scrollToLatestMessage = () => {
+    if (messageEndRef.current) {
+      messageEndRef.current.scrollIntoView({ 
+        behavior: messages.length > 5 ? "smooth" : "auto", 
+        block: "end" 
+      });
+      setInitialScrollDone(true);
+    }
+  };
+
+  // Efeito para carregar mensagens e configurar a subscrição de mensagens
+  useEffect(() => {
+    getMessages(selectedUser._id);
+    subscribeToMessages();
+    
+    // Resetar estado de scroll inicial quando mudar de conversa
+    setInitialScrollDone(false);
+    setActiveMessageMenu(null);
+    
+    return () => unsubscribeFromMessages();
+  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+
+  // Efeito para scroll automático quando as mensagens são carregadas
+  useEffect(() => {
+    if (!isMessagesLoading && messages.length > 0 && !initialScrollDone) {
+      // Usar setTimeout para garantir que o DOM tenha sido renderizado
+      setTimeout(scrollToLatestMessage, 100);
+    }
+  }, [messages, isMessagesLoading, initialScrollDone]);
+
+  // Efeito para scroll quando novas mensagens chegam
+  useEffect(() => {
+    if (initialScrollDone && messages.length > 0) {
+      scrollToLatestMessage();
+    }
+  }, [messages.length, initialScrollDone]);
+
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeMessageMenu && !e.target.closest('.message-menu-container')) {
+        setActiveMessageMenu(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeMessageMenu]);
+
   // Função para eliminar uma mensagem com tratamento de erros
   const handleDeleteMessage = async (messageId) => {
     try {
-      // Usar o método deleteMessage diretamente do store
       await deleteMessage(messageId);
-      
-      // Fechar menu após exclusão
       setActiveMessageMenu(null);
     } catch (error) {
       console.error("Erro ao eliminar mensagem:", error);
