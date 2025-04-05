@@ -25,7 +25,6 @@ const saveViewedConversations = (userId, viewedConversations) => {
 };
 
 export const useChatStore = create((set, get) => ({
-  // Estado do store
   messages: [], 
   users: [], 
   selectedUser: null, 
@@ -35,10 +34,10 @@ export const useChatStore = create((set, get) => ({
   isTransfersLoading: false, 
   conversations: [], 
   unreadCounts: {},
-  viewedConversations: {}, // Nova propriedade para rastrear conversas visualizadas
-  downloadingFiles: {}, // Estado para rastrear downloads em andamento
-  
-  // Função para inicializar conversas visualizadas (chamada durante login)
+  viewedConversations: {}, 
+  downloadingFiles: {}, 
+
+  // Função para inicializar conversas visualizadas
   initializeViewedConversations: () => {
     const authUser = useAuthStore.getState().authUser;
     if (authUser?._id) {
@@ -47,11 +46,10 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função getUsers atualizada para filtrar usuários bloqueados
+  // Obter lista de utilizadores
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
-      // Primeiro, buscar a lista de usuários bloqueados para filtrá-los depois
       let blockedUserIds = [];
       try {
         const blockedRes = await axiosInstance.get("/contacts/blocked");
@@ -64,16 +62,13 @@ export const useChatStore = create((set, get) => ({
         console.warn("Erro ao obter usuários bloqueados:", blockedError);
       }
 
-      // Verificar se a API de contactos existe, senão cair para a API de utilizadores
       try {
         console.log("Tentando obter contactos...");
         const contactsRes = await axiosInstance.get("/contacts");
         console.log("Contactos obtidos:", contactsRes.data);
         
-        // Garantir que a resposta é um array
         const contactsData = Array.isArray(contactsRes.data) ? contactsRes.data : [];
         
-        // Transformar os contactos no formato esperado pela UI e filtrar usuários bloqueados
         const contactUsers = contactsData
           .map(contact => ({
             _id: contact.user?._id,
@@ -81,34 +76,31 @@ export const useChatStore = create((set, get) => ({
             email: contact.user?.email || "",
             profilePic: contact.user?.profilePic || "",
             note: contact.note || "",
-            contactId: contact._id // Guardar o ID do contato para facilitar a remoção
+            contactId: contact._id
           }))
-          .filter(user => !blockedUserIds.includes(user._id)); // Filtrar usuários bloqueados
+          .filter(user => !blockedUserIds.includes(user._id));
         
         set({ users: contactUsers });
       } catch (contactError) {
         console.warn("Erro ao obter contactos, usando todos os utilizadores:", contactError);
-        // Fallback: buscar todos os utilizadores se a API de contactos falhar
         const usersRes = await axiosInstance.get("/messages/users");
         const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
         
-        // Filtrar usuários bloqueados aqui também
         const filteredUsers = usersData.filter(user => !blockedUserIds.includes(user._id));
         set({ users: filteredUsers });
       }
       
-      // Após carregar utilizadores, buscar conversas para ordenação
       get().getConversations();
     } catch (error) {
       console.error("Erro completo:", error);
-      set({ users: [] }); // Definir um array vazio em caso de erro
+      set({ users: [] });
       toast.error(error.response?.data?.error || "Erro ao obter utilizadores");
     } finally {
       set({ isUsersLoading: false });
     }
   },
 
-  // Função para obter as conversas e ordená-las por recentes
+  // Obter conversas
   getConversations: async () => {
     try {
       const res = await axiosInstance.get("/messages/conversations");
@@ -120,7 +112,6 @@ export const useChatStore = create((set, get) => ({
         return;
       }
       
-      // Resetar unreadCounts com base nos dados do servidor
       const unreadCounts = {};
       const authUser = useAuthStore.getState().authUser;
       const viewedConversations = get().viewedConversations;
@@ -144,7 +135,6 @@ export const useChatStore = create((set, get) => ({
         }
       });
       
-      // Ordenar as conversas com base na data da última mensagem
       const sortedConversations = [...conversations].sort((a, b) => {
         if (a.latestMessage && b.latestMessage) {
           return new Date(b.latestMessage.createdAt) - new Date(a.latestMessage.createdAt);
@@ -159,14 +149,13 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função de marcar conversa como lida
+  // Marcar conversa como lida
   markConversationAsRead: async (userId) => {
     if (!userId || userId === 'ai-assistant') return;
     
     try {
       const authUser = useAuthStore.getState().authUser;
       
-      // Atualizar localmente primeiro para resposta imediata na UI
       set(state => {
         const updatedViewedConversations = {
           ...state.viewedConversations,
@@ -199,10 +188,8 @@ export const useChatStore = create((set, get) => ({
         };
       });
       
-      // Depois atualizar no servidor
       await axiosInstance.patch(`/messages/read/${userId}`);
       
-      // Forçar sincronização com o servidor após atualização
       setTimeout(() => {
         get().getConversations();
       }, 300);
@@ -211,24 +198,21 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função para obter as mensagens de um utilizador específico
+  // Obter mensagens de um utilizador
   getMessages: async (userId) => {
     set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
       const messages = Array.isArray(res.data) ? res.data : [];
       
-      // Obter o ID do usuário autenticado
       const authUser = useAuthStore.getState().authUser;
       
-      // Adiciona o usuário à lista de conversas visualizadas
       set(state => {
         const updatedViewedConversations = {
           ...state.viewedConversations,
-          [userId]: true // Marcar como já visualizada
+          [userId]: true
         };
         
-        // Persistir no localStorage se o usuário estiver autenticado
         if (authUser?._id) {
           saveViewedConversations(authUser._id, updatedViewedConversations);
         }
@@ -239,7 +223,6 @@ export const useChatStore = create((set, get) => ({
         };
       });
       
-      // Marcar como lidas imediatamente ao obter mensagens
       await get().markConversationAsRead(userId);
     } catch (error) {
       console.error("Erro ao obter mensagens:", error);
@@ -250,7 +233,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Função otimizada para enviar uma nova mensagem com suporte a ficheiros grandes
+  // Enviar mensagem
   sendMessage: async (messageData) => {
     const { selectedUser } = get();
     
@@ -260,18 +243,15 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      console.log("ENVIANDO MENSAGEM COMPLETA - DIAGNÓSTICO DETALHADO:", JSON.stringify({
+      console.log("ENVIANDO MENSAGEM COMPLETA - DIAGNÓSTICO DETALHADO:", {
         text: messageData.text,
-        hasImage: !!messageData.image,
         hasFile: !!messageData.file,
         fileDetails: messageData.file ? {
           name: messageData.file.name,
           type: messageData.file.type,
-          size: messageData.file.size,
-          dataLength: messageData.file.data ? messageData.file.data.length : 'N/A',
-          dataPrefix: messageData.file.data ? messageData.file.data.substring(0, 100) : 'N/A'
+          size: messageData.file.size
         } : null
-      }, null, 2));
+      });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
@@ -287,7 +267,6 @@ export const useChatStore = create((set, get) => ({
             maxContentLength: Infinity,
             headers: {
               'Content-Type': 'application/json',
-              'Accept': 'application/json'
             },
             onUploadProgress: (progressEvent) => {
               const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -299,13 +278,11 @@ export const useChatStore = create((set, get) => ({
         clearTimeout(timeoutId);
         
         const newMessage = res.data;
-        console.log("Mensagem enviada com sucesso:", newMessage);
         
         set((state) => ({
           messages: [...state.messages, newMessage],
         }));
 
-        // Atualizar conversa com a nova mensagem
         set(state => {
           const updatedConversations = [...state.conversations];
           
@@ -330,7 +307,6 @@ export const useChatStore = create((set, get) => ({
           return { conversations: updatedConversations };
         });
         
-        // Marcar conversa como lida após enviar mensagem
         await get().markConversationAsRead(selectedUser._id);
 
         return newMessage;
@@ -339,31 +315,20 @@ export const useChatStore = create((set, get) => ({
         console.error("ERRO DETALHADO DO AXIOS:", {
           name: axiosError.name,
           message: axiosError.message,
-          response: axiosError.response ? {
-            status: axiosError.response.status,
-            data: axiosError.response.data,
-            headers: axiosError.response.headers
-          } : null,
-          request: axiosError.request ? 'Request exists' : null,
-          config: axiosError.config ? 'Config exists' : null
+          response: axiosError.response?.data
         });
 
-        // Tratamento de erro
         throw axiosError;
       }
     } catch (error) {
-      console.error("ERRO FINAL AO ENVIAR MENSAGEM:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
+      console.error("ERRO FINAL AO ENVIAR MENSAGEM:", error);
       
-      toast.error("Erro ao enviar mensagem. Tente novamente.");
+      toast.error(error.response?.data?.error || "Erro ao enviar mensagem. Tente novamente.");
       throw error;
     }
   },
 
-  // Função otimizada para baixar qualquer tipo de ficheiro
+  // Fazer download de arquivo
   downloadFile: async (messageId, fileName) => {
     try {
       if (!messageId || !fileName) {
@@ -371,7 +336,6 @@ export const useChatStore = create((set, get) => ({
         return;
       }
 
-      // Marcamos este ficheiro como sendo baixado
       set(state => ({ 
         downloadingFiles: { 
           ...state.downloadingFiles, 
@@ -379,29 +343,24 @@ export const useChatStore = create((set, get) => ({
         } 
       }));
 
-      // Mostrar toast de progresso
       const toastId = toast.loading("A iniciar download...");
 
       try {
         console.log("Iniciando download do ficheiro para mensagem:", messageId);
 
-        // Fetch do ficheiro a partir do endpoint específico
         const response = await axiosInstance.get(`/messages/file/${messageId}`, {
           responseType: 'blob',
-          timeout: 300000, // 5 minutos
+          timeout: 300000,
         });
         
         if (!response || !response.data) {
           throw new Error(`Erro ao obter o ficheiro: Resposta vazia`);
         }
         
-        // Obter o blob diretamente da resposta
         const blob = response.data;
         
-        // Criar URL temporária para o blob
         const blobUrl = URL.createObjectURL(blob);
         
-        // Criar link e acionar download
         const link = document.createElement('a');
         link.href = blobUrl;
         link.download = fileName;
@@ -409,19 +368,16 @@ export const useChatStore = create((set, get) => ({
         document.body.appendChild(link);
         link.click();
         
-        // Limpar
         setTimeout(() => {
           URL.revokeObjectURL(blobUrl);
           document.body.removeChild(link);
         }, 100);
         
-        // Atualizar toast para sucesso
         toast.success("Download concluído", { id: toastId });
       } catch (error) {
         console.error("Erro ao fazer download:", error);
         toast.error(`Erro ao baixar ficheiro: ${error.message}`, { id: toastId });
       } finally {
-        // Marcamos este ficheiro como não sendo mais baixado
         set(state => {
           const newDownloadingFiles = { ...state.downloadingFiles };
           delete newDownloadingFiles[messageId];
@@ -433,203 +389,11 @@ export const useChatStore = create((set, get) => ({
       toast.error("Erro ao processar download");
     }
   },
-  
-  // Função para se inscrever para notificações de novas mensagens por WebSocket
-  subscribeToMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    
-    // Desinscrever primeiro para evitar duplicação
-    if (socket) {
-      socket.off("newMessage");
 
-      socket.on("newMessage", (newMessage) => {
-        const authUser = useAuthStore.getState().authUser;
-        const currentSelectedUser = get().selectedUser;
-        const viewedConversations = get().viewedConversations;
-        
-        // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
-        if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
-          set(state => {
-            const updatedViewedConversations = {
-              ...state.viewedConversations,
-              [newMessage.senderId]: true
-            };
-            
-            // Persistir no localStorage se o usuário estiver autenticado
-            if (authUser?._id) {
-              saveViewedConversations(authUser._id, updatedViewedConversations);
-            }
-            
-            return {
-              messages: [...state.messages, newMessage],
-              viewedConversations: updatedViewedConversations
-            };
-          });
-          
-          // Marca como lida já que o utilizador está a visualizar a conversa
-          get().markConversationAsRead(currentSelectedUser._id);
-          
-          // Atualiza a conversa com a mensagem como lida
-          set(state => {
-            const updatedConversations = [...state.conversations];
-            
-            const existingConvIndex = updatedConversations.findIndex(
-              c => c.participants && c.participants.includes(newMessage.senderId)
-            );
-            
-            if (existingConvIndex >= 0) {
-              updatedConversations[existingConvIndex] = {
-                ...updatedConversations[existingConvIndex],
-                latestMessage: {
-                  ...newMessage,
-                  read: true
-                },
-                unreadCount: 0
-              };
-              
-              // Mover para o topo da lista
-              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-              updatedConversations.unshift(updatedConv);
-            }
-            
-            return { 
-              conversations: updatedConversations,
-              unreadCounts: {
-                ...state.unreadCounts,
-                [newMessage.senderId]: 0
-              }
-            };
-          });
-        } 
-        // Se a mensagem é para o utilizador atual mas de outro remetente
-        else if (newMessage.receiverId === authUser._id) {
-          // Verificar se o ID do remetente está nas conversas já visualizadas
-          const isConversationPreviouslyViewed = viewedConversations[newMessage.senderId];
-          
-          // Verificar se a última mensagem da conversa é mais antiga que a nova mensagem
-          const existingConv = get().conversations.find(
-            c => c.participants && c.participants.includes(newMessage.senderId)
-          );
-          
-          let isNewConversation = false;
-          
-          // Se não existe conversa ou a última mensagem é mais antiga que a nova
-          if (!existingConv || !existingConv.latestMessage || 
-              (new Date(existingConv.latestMessage.createdAt) < new Date(newMessage.createdAt))) {
-            isNewConversation = true;
-          }
-          
-          // Só incrementa contadores e toca som se for uma nova conversa
-          // E se a conversa não foi visualizada anteriormente
-          if (isNewConversation && !isConversationPreviouslyViewed) {
-            // Tocar som de notificação aqui
-            try {
-              const notificationSound = new Audio('/notification.mp3');
-              notificationSound.volume = 0.5;
-              notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-            } catch (err) {
-              console.log('Erro ao criar áudio:', err);
-            }
-            
-            // Incrementar contador de não lidas apenas para conversas não visualizadas
-            set(state => {
-              const senderId = newMessage.senderId;
-              const currentCount = state.unreadCounts[senderId] || 0;
-              
-              return {
-                unreadCounts: {
-                  ...state.unreadCounts,
-                  [senderId]: currentCount + 1
-                }
-              };
-            });
-          }
-          
-          // Sempre atualiza a conversa na UI, mas sem incrementar contadores se já foi visualizada
-          set(state => {
-            const updatedConversations = [...state.conversations];
-            
-            // Encontrar conversa existente ou criar nova
-            const existingConvIndex = updatedConversations.findIndex(
-              c => c.participants && c.participants.includes(newMessage.senderId)
-            );
-            
-            if (existingConvIndex >= 0) {
-              // Se conversa já foi visualizada, não incrementa contador
-              const currentUnreadCount = isConversationPreviouslyViewed ? 
-                0 : (updatedConversations[existingConvIndex].unreadCount || 0) + 1;
-              
-              updatedConversations[existingConvIndex] = {
-                ...updatedConversations[existingConvIndex],
-                latestMessage: {
-                  ...newMessage,
-                  read: isConversationPreviouslyViewed // Marca como lida se já foi visualizada
-                },
-                unreadCount: currentUnreadCount
-              };
-              
-              // Mover para o topo da lista
-              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-              updatedConversations.unshift(updatedConv);
-            } else {
-              // Criar nova conversa - se for nova e não visualizada, começa com unreadCount=1
-              updatedConversations.unshift({
-                participants: [authUser._id, newMessage.senderId],
-                latestMessage: newMessage,
-                unreadCount: isConversationPreviouslyViewed ? 0 : 1
-              });
-            }
-            
-            // Atualizar o estado de unreadCounts também
-            const updatedUnreadCounts = {...state.unreadCounts};
-            if (isConversationPreviouslyViewed) {
-              updatedUnreadCounts[newMessage.senderId] = 0;
-            }
-            
-            return { 
-              conversations: updatedConversations,
-              unreadCounts: updatedUnreadCounts
-            };
-          });
-        }
-        
-        // Sincronizar com o servidor depois de um curto atraso
-        setTimeout(() => {
-          get().getConversations();
-        }, 500);
-      });
-
-      // Inscrever-se para eventos de exclusão de mensagens
-      socket.on("messageDeleted", (messageId) => {
-        // Remover a mensagem da lista se existir
-        set(state => ({
-          messages: state.messages.filter(msg => msg._id !== messageId)
-        }));
-        
-        // Atualizar conversas após um curto atraso
-        setTimeout(() => {
-          get().getConversations();
-        }, 300);
-      });
-    } else {
-      console.warn("Socket não disponível para subscrever mensagens");
-    }
-  },
-
-  // Função para se desinscrever das notificações de novas mensagens
-  unsubscribeFromMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    if (socket && socket.connected) {
-      socket.off("newMessage");
-      socket.off("messageDeleted");
-    }
-  },
-
-  // Função para definir o utilizador selecionado no chat - MODIFICADA PARA LIMPAR GRUPO SELECIONADO
+  // Definir utilizador selecionado
   setSelectedUser: (selectedUser) => {
     const authUser = useAuthStore.getState().authUser;
     
-    // Limpar qualquer grupo selecionado quando um usuário é selecionado
     if (selectedUser) {
       try {
         const groupStore = useGroupStore.getState();
@@ -642,14 +406,12 @@ export const useChatStore = create((set, get) => ({
     }
     
     set(state => {
-      // Se houver um usuário selecionado que não é o assistente
       if (selectedUser && selectedUser._id !== 'ai-assistant') {
         const updatedViewedConversations = {
           ...state.viewedConversations,
           [selectedUser._id]: true
         };
         
-        // Persistir no localStorage se o usuário estiver autenticado
         if (authUser?._id) {
           saveViewedConversations(authUser._id, updatedViewedConversations);
         }
@@ -663,244 +425,16 @@ export const useChatStore = create((set, get) => ({
       return { selectedUser };
     });
     
-    // Se houver um utilizador selecionado, marcar como lida antes de buscar mensagens
     if (selectedUser && selectedUser._id !== 'ai-assistant') {
-      // Marcar como lida ANTES de buscar mensagens para resposta mais rápida da UI
       get().markConversationAsRead(selectedUser._id);
       get().getMessages(selectedUser._id);
     }
   },
 
-  // Função para buscar o histórico de transferências
-  getTransferHistory: async () => {
-    const { authUser } = useAuthStore.getState();
-    if (!authUser?._id) return;
+  // Outras funções já existentes no código original... 
+  // (bloquear usuário, adicionar contato, etc.)
 
-    set({ isTransfersLoading: true });
-    try {
-      const res = await axiosInstance.get(`/transfers/history/${authUser._id}`);
-      const transfers = Array.isArray(res.data) ? res.data : [];
-      set({ transfers });
-    } catch (error) {
-      console.error("Erro ao carregar histórico de transferências:", error);
-      set({ transfers: [] });
-      toast.error(error.response?.data?.message || "Erro ao carregar histórico");
-    } finally {
-      set({ isTransfersLoading: false });
-    }
-  },
-
-  // Atualizar nota/nickname do contacto
-  updateContactNote: async (contactId, note) => {
-    try {
-      const res = await axiosInstance.patch(`/contacts/${contactId}/note`, { note });
-      toast.success("Nickname atualizado com sucesso");
-      
-      // Atualizar a lista de contactos para refletir a mudança
-      get().getUsers();
-      
-      return { success: true, data: res.data };
-    } catch (error) {
-      console.error("Erro ao atualizar nickname:", error);
-      toast.error(error.response?.data?.error || "Erro ao atualizar nickname");
-      return { success: false };
-    }
-  },
-  
-  // Função para se inscrever para notificações de novas transferências por WebSocket
-  subscribeToTransfers: () => {
-    const socket = useAuthStore.getState().socket;
-    
-    if (socket) {
-      // Desinscrever primeiro para evitar duplicação
-      socket.off("transfer-update");
-
-      socket.on("transfer-update", (transferData) => {
-        const { authUser } = useAuthStore.getState();
-        if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
-          set((state) => ({
-            transfers: [...state.transfers, transferData],
-          }));
-        }
-      });
-    } else {
-      console.warn("Socket não disponível para subscrever transferências");
-    }
-  },
-
-  // Função para se desinscrever das notificações de transferências
-  unsubscribeFromTransfers: () => {
-    const socket = useAuthStore.getState().socket;
-    if (socket && socket.connected) {
-      socket.off("transfer-update");
-    }
-  },
-
-  // Adicionar contacto
-  addContact: async (email) => {
-    try {
-      const res = await axiosInstance.post("/contacts/add", { email });
-      toast.success("Pedido de contacto enviado com sucesso");
-      return res.data;
-    } catch (error) {
-      console.error("Erro ao adicionar contacto:", error);
-      toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
-      throw error;
-    }
-  },
-
-  // Obter pedidos de contacto pendentes
-  getPendingRequests: async () => {
-    try {
-      const res = await axiosInstance.get("/contacts/pending");
-      return Array.isArray(res.data) ? res.data : [];
-    } catch (error) {
-      console.error("Erro ao obter pedidos pendentes:", error);
-      return [];
-    }
-  },
-
-  // Responder a um pedido de contacto
-  respondToRequest: async (contactId, status) => {
-    try {
-      const res = await axiosInstance.patch(`/contacts/${contactId}/respond`, { status });
-      toast.success(status === "accepted" 
-        ? "Pedido de contacto aceite" 
-        : "Pedido de contacto rejeitado"
-      );
-      // Atualizar a lista de contactos
-      get().getUsers();
-      return res.data;
-    } catch (error) {
-      console.error("Erro ao processar pedido:", error);
-      toast.error("Erro ao processar o pedido de contacto");
-      throw error;
-    }
-  },
-
-  // Remover contacto (versão melhorada)
-  removeContact: async (userId) => {
-    try {
-      // Primeiro, precisamos encontrar o contato que corresponde a este usuário
-      const user = get().users.find(u => u._id === userId);
-      
-      // Se temos o ID do contato armazenado, usamos diretamente
-      if (user && user.contactId) {
-        const res = await axiosInstance.delete(`/contacts/${user.contactId}`);
-        toast.success("Contacto removido com sucesso");
-        // Atualizar a lista de contactos
-        get().getUsers();
-        return res.data;
-      } 
-      // Caso contrário, usamos o ID do usuário diretamente
-      else {
-        const res = await axiosInstance.delete(`/contacts/${userId}`);
-        toast.success("Contacto removido com sucesso");
-        // Atualizar a lista de contactos
-        get().getUsers();
-        return res.data;
-      }
-    } catch (error) {
-      console.error("Erro ao remover contacto:", error);
-      toast.error(error.response?.data?.error || "Erro ao remover contacto");
-      throw error;
-    }
-  },
-
-  // Nova função para bloquear utilizador
-  blockUser: async (userId) => {
-    try {
-      // Verificar se o userId é válido
-      if (!userId) {
-        toast.error("ID de utilizador inválido");
-        return false;
-      }
-  
-      await axiosInstance.post(`/contacts/block/${userId}`);
-      
-      // Atualizar a lista de utilizadores após o bloqueio bem-sucedido
-      get().getUsers();
-      
-      toast.success("Utilizador bloqueado com sucesso");
-      return true;
-    } catch (error) {
-      const errorMessage = 
-        error.response?.data?.error || 
-        "Não foi possível bloquear o utilizador. Tente novamente.";
-      
-      console.error("Erro ao bloquear utilizador:", errorMessage);
-      toast.error(errorMessage);
-      return false;
-    }
-  },
-
-  // Função melhorada para excluir mensagens com suporte a ficheiros
-  deleteMessage: async (messageId) => {
-    try {
-      // Atualizar o estado local para feedback imediato
-      set((state) => ({
-        messages: state.messages.filter((message) => message._id !== messageId)
-      }));
-  
-      // Chamada à API para excluir a mensagem no servidor
-      const response = await axiosInstance.delete(`/messages/${messageId}`);
-      
-      // Atualize as conversas para refletir a alteração
-      setTimeout(() => {
-        get().getConversations();
-      }, 300);
-      
-      return true;
-    } catch (error) {
-      console.error('Erro ao excluir mensagem:', error);
-      
-      // Em caso de erro, recarregue as mensagens para restaurar o estado
-      const state = get();
-      if (state.selectedUser?._id) {
-        get().getMessages(state.selectedUser._id);
-      }
-      
-      throw error;
-    }
-  },
-  
-  getBlockedUsers: async () => {
-    try {
-      const response = await axiosInstance.get("/contacts/blocked");
-      return Array.isArray(response.data) ? response.data : [];
-    } catch (error) {
-      const errorMessage = 
-        error.response?.data?.error || 
-        "Não foi possível carregar os utilizadores bloqueados";
-      
-      console.error("Erro ao carregar utilizadores bloqueados:", errorMessage);
-      toast.error(errorMessage);
-      return [];
-    }
-  },
-  
- // Função para desbloquear um utilizador
- unblockUser: async (userId) => {
-  try {
-    await axiosInstance.delete(`/contacts/unblock/${userId}`);
-    
-    // Atualizar a lista de utilizadores após o desbloqueio bem-sucedido
-    get().getUsers();
-    
-    toast.success("Utilizador desbloqueado com sucesso");
-    return true;
-  } catch (error) {
-    const errorMessage = 
-      error.response?.data?.error || 
-      "Não foi possível desbloquear o utilizador";
-    
-    console.error("Erro ao desbloquear utilizador:", errorMessage);
-    toast.error(errorMessage);
-    return false;
-  }
-},
-
-// Nova função para resetar o estado do chat (para usar no logout)
+// Função para resetar o estado do chat
 resetChatState: () => {
   const authUser = useAuthStore.getState().authUser;
   
@@ -926,5 +460,403 @@ resetChatState: () => {
     viewedConversations: {}, // Limpar conversas visualizadas
     downloadingFiles: {} // Limpar estado de downloads
   });
+},
+
+// Histórico de transferências
+getTransferHistory: async () => {
+  const { authUser } = useAuthStore.getState();
+  if (!authUser?._id) return;
+
+  set({ isTransfersLoading: true });
+  try {
+    const res = await axiosInstance.get(`/transfers/history/${authUser._id}`);
+    const transfers = Array.isArray(res.data) ? res.data : [];
+    set({ transfers });
+  } catch (error) {
+    console.error("Erro ao carregar histórico de transferências:", error);
+    set({ transfers: [] });
+    toast.error(error.response?.data?.message || "Erro ao carregar histórico");
+  } finally {
+    set({ isTransfersLoading: false });
+  }
+},
+
+// Atualizar nota/nickname do contacto
+updateContactNote: async (contactId, note) => {
+  try {
+    const res = await axiosInstance.patch(`/contacts/${contactId}/note`, { note });
+    toast.success("Nickname atualizado com sucesso");
+    
+    // Atualizar a lista de contactos para refletir a mudança
+    get().getUsers();
+    
+    return { success: true, data: res.data };
+  } catch (error) {
+    console.error("Erro ao atualizar nickname:", error);
+    toast.error(error.response?.data?.error || "Erro ao atualizar nickname");
+    return { success: false };
+  }
+},
+
+// Subscrever notificações de transferências por WebSocket
+subscribeToTransfers: () => {
+  const socket = useAuthStore.getState().socket;
+  
+  if (socket) {
+    // Desinscrever primeiro para evitar duplicação
+    socket.off("transfer-update");
+
+    socket.on("transfer-update", (transferData) => {
+      const { authUser } = useAuthStore.getState();
+      if (transferData.senderId === authUser._id || transferData.receiverId === authUser._id) {
+        set((state) => ({
+          transfers: [...state.transfers, transferData],
+        }));
+      }
+    });
+  } else {
+    console.warn("Socket não disponível para subscrever transferências");
+  }
+},
+
+// Desinscrever notificações de transferências
+unsubscribeFromTransfers: () => {
+  const socket = useAuthStore.getState().socket;
+  if (socket && socket.connected) {
+    socket.off("transfer-update");
+  }
+},
+
+// Adicionar contacto
+addContact: async (email) => {
+  try {
+    const res = await axiosInstance.post("/contacts/add", { email });
+    toast.success("Pedido de contacto enviado com sucesso");
+    return res.data;
+  } catch (error) {
+    console.error("Erro ao adicionar contacto:", error);
+    toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
+    throw error;
+  }
+},
+
+// Obter pedidos de contacto pendentes
+getPendingRequests: async () => {
+  try {
+    const res = await axiosInstance.get("/contacts/pending");
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (error) {
+    console.error("Erro ao obter pedidos pendentes:", error);
+    return [];
+  }
+},
+
+// Responder a um pedido de contacto
+respondToRequest: async (contactId, status) => {
+  try {
+    const res = await axiosInstance.patch(`/contacts/${contactId}/respond`, { status });
+    toast.success(status === "accepted" 
+      ? "Pedido de contacto aceite" 
+      : "Pedido de contacto rejeitado"
+    );
+    // Atualizar a lista de contactos
+    get().getUsers();
+    return res.data;
+  } catch (error) {
+    console.error("Erro ao processar pedido:", error);
+    toast.error("Erro ao processar o pedido de contacto");
+    throw error;
+  }
+},
+
+// Remover contacto
+removeContact: async (userId) => {
+  try {
+    // Primeiro, precisamos encontrar o contato que corresponde a este usuário
+    const user = get().users.find(u => u._id === userId);
+    
+    // Se temos o ID do contato armazenado, usamos diretamente
+    if (user && user.contactId) {
+      const res = await axiosInstance.delete(`/contacts/${user.contactId}`);
+      toast.success("Contacto removido com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    } 
+    // Caso contrário, usamos o ID do usuário diretamente
+    else {
+      const res = await axiosInstance.delete(`/contacts/${userId}`);
+      toast.success("Contacto removido com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    }
+  } catch (error) {
+    console.error("Erro ao remover contacto:", error);
+    toast.error(error.response?.data?.error || "Erro ao remover contacto");
+    throw error;
+  }
+},
+
+// Bloquear utilizador
+blockUser: async (userId) => {
+  try {
+    // Verificar se o userId é válido
+    if (!userId) {
+      toast.error("ID de utilizador inválido");
+      return false;
+    }
+
+    await axiosInstance.post(`/contacts/block/${userId}`);
+    
+    // Atualizar a lista de utilizadores após o bloqueio bem-sucedido
+    get().getUsers();
+    
+    toast.success("Utilizador bloqueado com sucesso");
+    return true;
+  } catch (error) {
+    const errorMessage = 
+      error.response?.data?.error || 
+      "Não foi possível bloquear o utilizador. Tente novamente.";
+    
+    console.error("Erro ao bloquear utilizador:", errorMessage);
+    toast.error(errorMessage);
+    return false;
+  }
+},
+
+// Excluir mensagem
+deleteMessage: async (messageId) => {
+  try {
+    // Atualizar o estado local para feedback imediato
+    set((state) => ({
+      messages: state.messages.filter((message) => message._id !== messageId)
+    }));
+
+    // Chamada à API para excluir a mensagem no servidor
+    const response = await axiosInstance.delete(`/messages/${messageId}`);
+    
+    // Atualize as conversas para refletir a alteração
+    setTimeout(() => {
+      get().getConversations();
+    }, 300);
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao excluir mensagem:', error);
+    
+    // Em caso de erro, recarregue as mensagens para restaurar o estado
+    const state = get();
+    if (state.selectedUser?._id) {
+      get().getMessages(state.selectedUser._id);
+    }
+    
+    throw error;
+  }
+},
+
+// Obter utilizadores bloqueados
+getBlockedUsers: async () => {
+  try {
+    const response = await axiosInstance.get("/contacts/blocked");
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    const errorMessage = 
+      error.response?.data?.error || 
+      "Não foi possível carregar os utilizadores bloqueados";
+    
+    console.error("Erro ao carregar utilizadores bloqueados:", errorMessage);
+    toast.error(errorMessage);
+    return [];
+  }
+},
+
+// Desbloquear utilizador
+unblockUser: async (userId) => {
+  try {
+    await axiosInstance.delete(`/contacts/unblock/${userId}`);
+    
+    // Atualizar a lista de utilizadores após o desbloqueio bem-sucedido
+    get().getUsers();
+    
+    toast.success("Utilizador desbloqueado com sucesso");
+    return true;
+  } catch (error) {
+    const errorMessage = 
+      error.response?.data?.error || 
+      "Não foi possível desbloquear o utilizador";
+    
+    console.error("Erro ao desbloquear utilizador:", errorMessage);
+    toast.error(errorMessage);
+    return false;
+  }
+},
+
+// Subscrever mensagens por WebSocket
+subscribeToMessages: () => {
+  const socket = useAuthStore.getState().socket;
+  
+  if (socket) {
+    socket.off("newMessage");
+
+    socket.on("newMessage", (newMessage) => {
+      const authUser = useAuthStore.getState().authUser;
+      const currentSelectedUser = get().selectedUser;
+      const viewedConversations = get().viewedConversations;
+      
+      // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
+      if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
+        set(state => {
+          const updatedViewedConversations = {
+            ...state.viewedConversations,
+            [newMessage.senderId]: true
+          };
+          
+          if (authUser?._id) {
+            saveViewedConversations(authUser._id, updatedViewedConversations);
+          }
+          
+          return {
+            messages: [...state.messages, newMessage],
+            viewedConversations: updatedViewedConversations
+          };
+        });
+        
+        get().markConversationAsRead(currentSelectedUser._id);
+        
+        set(state => {
+          const updatedConversations = [...state.conversations];
+          
+          const existingConvIndex = updatedConversations.findIndex(
+            c => c.participants && c.participants.includes(newMessage.senderId)
+          );
+          
+          if (existingConvIndex >= 0) {
+            updatedConversations[existingConvIndex] = {
+              ...updatedConversations[existingConvIndex],
+              latestMessage: {
+                ...newMessage,
+                read: true
+              },
+              unreadCount: 0
+            };
+            
+            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+            updatedConversations.unshift(updatedConv);
+          }
+          
+          return { 
+            conversations: updatedConversations,
+            unreadCounts: {
+              ...state.unreadCounts,
+              [newMessage.senderId]: 0
+            }
+          };
+        });
+      } 
+      else if (newMessage.receiverId === authUser._id) {
+        const isConversationPreviouslyViewed = viewedConversations[newMessage.senderId];
+        
+        const existingConv = get().conversations.find(
+          c => c.participants && c.participants.includes(newMessage.senderId)
+        );
+        
+        let isNewConversation = false;
+        
+        if (!existingConv || !existingConv.latestMessage || 
+            (new Date(existingConv.latestMessage.createdAt) < new Date(newMessage.createdAt))) {
+          isNewConversation = true;
+        }
+        
+        if (isNewConversation && !isConversationPreviouslyViewed) {
+          try {
+            const notificationSound = new Audio('/notification.mp3');
+            notificationSound.volume = 0.5;
+            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+          } catch (err) {
+            console.log('Erro ao criar áudio:', err);
+          }
+          
+          set(state => {
+            const senderId = newMessage.senderId;
+            const currentCount = state.unreadCounts[senderId] || 0;
+            
+            return {
+              unreadCounts: {
+                ...state.unreadCounts,
+                [senderId]: currentCount + 1
+              }
+            };
+          });
+        }
+        
+        set(state => {
+          const updatedConversations = [...state.conversations];
+          
+          const existingConvIndex = updatedConversations.findIndex(
+            c => c.participants && c.participants.includes(newMessage.senderId)
+          );
+          
+          if (existingConvIndex >= 0) {
+            const currentUnreadCount = isConversationPreviouslyViewed ? 
+              0 : (updatedConversations[existingConvIndex].unreadCount || 0) + 1;
+            
+            updatedConversations[existingConvIndex] = {
+              ...updatedConversations[existingConvIndex],
+              latestMessage: {
+                ...newMessage,
+                read: isConversationPreviouslyViewed
+              },
+              unreadCount: currentUnreadCount
+            };
+            
+            const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+            updatedConversations.unshift(updatedConv);
+          } else {
+            updatedConversations.unshift({
+              participants: [authUser._id, newMessage.senderId],
+              latestMessage: newMessage,
+              unreadCount: isConversationPreviouslyViewed ? 0 : 1
+            });
+          }
+          
+          const updatedUnreadCounts = {...state.unreadCounts};
+          if (isConversationPreviouslyViewed) {
+            updatedUnreadCounts[newMessage.senderId] = 0;
+          }
+          
+          return { 
+            conversations: updatedConversations,
+            unreadCounts: updatedUnreadCounts
+          };
+        });
+      }
+      
+      setTimeout(() => {
+        get().getConversations();
+      }, 500);
+    });
+
+    socket.on("messageDeleted", (messageId) => {
+      set(state => ({
+        messages: state.messages.filter(msg => msg._id !== messageId)
+      }));
+      
+      setTimeout(() => {
+        get().getConversations();
+      }, 300);
+    });
+  } else {
+    console.warn("Socket não disponível para subscrever mensagens");
+  }
+},
+
+// Desinscrever mensagens por WebSocket
+unsubscribeFromMessages: () => {
+  const socket = useAuthStore.getState().socket;
+  if (socket && socket.connected) {
+    socket.off("newMessage");
+    socket.off("messageDeleted");
+  }
 }
 }));

@@ -47,28 +47,80 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text } = req.body;
+    console.log("Requisição recebida em /messages/send");
+    
+    const { text, image, file } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    if (!text) {
-      return res.status(400).json({ error: "Texto da mensagem é obrigatório" });
+    // Determinar texto da mensagem
+    let messageText = text || "";
+    if (!text && file) {
+      messageText = `Arquivo: ${file.name}`;
     }
 
+    // Validação de entrada atualizada
+    if (!messageText && !image && !file) {
+      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
+    }
+
+    // Criar a mensagem básica
     const newMessage = new Message({
       senderId,
       receiverId,
-      text
+      text: messageText
     });
 
-    await newMessage.save();
+    // Processar upload de arquivo
+    if (file && file.data) {
+      try {
+        const uploadResult = await gridFSService.uploadFile(
+          file.data, 
+          file.name, 
+          {
+            messageId: newMessage._id.toString(),
+            contentType: file.type,
+            originalSize: file.size
+          }
+        );
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
+        // Adicionar metadados do arquivo à mensagem
+        newMessage.fileMetadata = {
+          fileId: uploadResult.fileId,
+          name: file.name,
+          type: file.type,
+          size: file.size
+        };
+      } catch (uploadError) {
+        console.error("Erro ao fazer upload do arquivo:", uploadError);
+        return res.status(500).json({ 
+          error: "Falha ao processar arquivo", 
+          details: uploadError.message 
+        });
+      }
     }
 
-    res.status(201).json(newMessage);
+    // Salvar a mensagem
+    await newMessage.save();
+
+    // Preparar mensagem para resposta e socket
+    const responseMessage = {
+      ...newMessage.toObject(),
+      file: newMessage.fileMetadata ? {
+        fileId: newMessage.fileMetadata.fileId.toString(),
+        name: newMessage.fileMetadata.name,
+        type: newMessage.fileMetadata.type,
+        size: newMessage.fileMetadata.size
+      } : null
+    };
+
+    // Enviar via socket se destinatário estiver online
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", responseMessage);
+    }
+
+    res.status(201).json(responseMessage);
   } catch (error) {
     console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
