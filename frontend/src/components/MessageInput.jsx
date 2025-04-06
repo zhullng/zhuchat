@@ -34,30 +34,29 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função ultra-simplificada para ler arquivos
-  const readFile = (file) => {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        reject(new Error("Arquivo não fornecido"));
-        return;
-      }
-      
-      // Simplificação extrema - apenas leia o arquivo como DataURL diretamente
-      const reader = new FileReader();
-      
-      reader.onload = (event) => {
-        // Retorna os dados do arquivo sem qualquer processamento
-        resolve(event.target.result);
-      };
-      
-      reader.onerror = (error) => {
-        console.error("Erro ao ler arquivo:", error);
-        reject(error);
-      };
-      
-      // Simplesmente leia o arquivo como está
-      reader.readAsDataURL(file);
-    });
+  // Função para verificar tamanho máximo de arquivo
+  const isFileTooLarge = (file) => {
+    // Verificar se é um vídeo
+    const isVideo = file.type.startsWith('video/') || 
+                    file.name.toLowerCase().endsWith('.mov') || 
+                    file.name.toLowerCase().endsWith('.mp4');
+    
+    // Limite para vídeos: 10MB para iOS (devido a problemas de memória)
+    if (isVideo && isIOS && file.size > 10 * 1024 * 1024) {
+      return true;
+    }
+    
+    // Limite para vídeos em outros dispositivos: 50MB
+    if (isVideo && file.size > 50 * 1024 * 1024) {
+      return true;
+    }
+    
+    // Limite para imagens: 10MB
+    if (file.type.startsWith('image/') && file.size > 10 * 1024 * 1024) {
+      return true;
+    }
+    
+    return false;
   };
 
   // Debug de estados mais detalhado
@@ -124,9 +123,9 @@ const MessageInput = () => {
       return;
     }
 
-    // Limite de tamanho de imagem (opcional)
-    if (file.size > 10 * 1024 * 1024) { // 10MB
-      toast.error("A imagem não pode ser maior que 10MB");
+    // Verificar tamanho
+    if (isFileTooLarge(file)) {
+      toast.error("A imagem é muito grande. Limite: 10MB");
       return;
     }
 
@@ -155,105 +154,152 @@ const MessageInput = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    
-    if (!file) return;
-    
-    console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified,
-      extension: file.name.split('.').pop().toLowerCase() // Extrai a extensão
-    });
-
-    // Verificar se é um vídeo MOV/QuickTime
-    const isMovFile = isQuickTimeVideo(file);
-
-    // Expanded list of allowed file types including more video formats
-    const allowedFileTypes = [
-      'text/plain', 
-      'application/pdf', 
-      'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'image/jpeg', 
-      'image/png', 
-      'image/gif',
-      // Video MIME types
-      'video/quicktime',
-      'video/mov',
-      'video/mp4',
-      'video/mpeg',
-      'video/webm',
-      'video/x-msvideo',
-      'video/x-ms-wmv',
-      'video/3gpp',
-      'video/*'
-    ];
-
-    // Validação mais permissiva para iOS e MOV files
-    if (!allowedFileTypes.includes(file.type) && !file.type.startsWith('video/') && !isMovFile) {
-      console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
-      toast.error(`Tipo de arquivo não permitido: ${file.type}`);
-      return;
-    }
-
-    // Validate file is not empty
-    if (file.size === 0) {
-      toast.error("Não é possível selecionar um arquivo vazio");
-      return;
-    }
-
-    // Increased file size limit for videos (100MB)
-    const maxVideoSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxVideoSize) {
-      toast.error("O arquivo de vídeo não pode ser maior que 100MB");
-      return;
-    }
-
-    // Show warning for large files
-    if (file.size > 50 * 1024 * 1024) { // 50MB
-      toast.warning("Aviso: Arquivo grande. O upload pode demorar.", {
-        duration: 4000
-      });
-    }
-
-    // Processo de leitura do arquivo
+  // Função completamente reformulada para lidar com arquivos
+  const handleFileChange = (e) => {
     try {
-      setIsUploading(true);
+      const file = e.target.files[0];
       
-      // Criar preview do vídeo para arquivos de vídeo
-      if (file.type.startsWith('video/') || isMovFile) {
-        const previewUrl = URL.createObjectURL(file);
-        setFilePreview(previewUrl);
+      if (!file) return;
+      
+      // Log detalhado para depuração
+      console.log("ARQUIVO SELECIONADO - DETALHES:", {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified,
+        extension: file.name.split('.').pop().toLowerCase()
+      });
+      
+      // Verificar tipos permitidos
+      const isVideo = file.type.startsWith('video/') || 
+                      file.name.toLowerCase().endsWith('.mov') || 
+                      file.name.toLowerCase().endsWith('.mp4');
+      
+      // Verificar tipo de arquivo
+      if (!isVideo && 
+          !file.type.startsWith('image/') && 
+          !file.type.includes('pdf') && 
+          !file.type.includes('word') && 
+          !file.type.includes('text/plain')) {
+        toast.error("Tipo de arquivo não permitido");
+        return;
       }
       
-      // Simplificação: apenas leia o arquivo como está
-      const fileData = await readFile(file);
+      // Verificar tamanho
+      if (isFileTooLarge(file)) {
+        toast.error(isIOS 
+          ? "Para iOS, o limite de vídeo é 10MB. Por favor, escolha um arquivo menor." 
+          : "Arquivo muito grande. Por favor, escolha um arquivo menor."
+        );
+        return;
+      }
+
+      // Para vídeos no iOS, adotar uma abordagem completamente diferente
+      if (isVideo && isIOS) {
+        setIsUploading(true);
+        
+        // Para o iOS, adicione o fileInfo diretamente para vídeos
+        // Isto evita problemas com o FileReader que pode falhar com vídeos grandes
+        setFileInfo({
+          name: file.name,
+          type: 'video/mp4', // Padronizar para mp4 independente da origem
+          size: formatFileSize(file.size),
+          data: null, // Vamos preencher isto depois
+          originalType: file.type,
+          file: file // Guardar referência ao arquivo original
+        });
+        
+        // Criar preview
+        try {
+          const previewUrl = URL.createObjectURL(file);
+          setFilePreview(previewUrl);
+        } catch (previewError) {
+          console.error("Erro ao criar preview:", previewError);
+        }
+        
+        // Ler o arquivo em um processo separado para não bloquear a UI
+        setTimeout(() => {
+          try {
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+              setFileInfo(prev => ({
+                ...prev,
+                data: event.target.result
+              }));
+              setIsUploading(false);
+            };
+            
+            reader.onerror = (error) => {
+              console.error("Erro ao ler arquivo:", error);
+              toast.error("Erro ao processar vídeo. Tente um arquivo menor.");
+              setFileInfo(null);
+              setFilePreview(null);
+              setIsUploading(false);
+            };
+            
+            reader.readAsDataURL(file);
+          } catch (readerError) {
+            console.error("Erro ao criar FileReader:", readerError);
+            toast.error("Erro ao processar vídeo. Tente um arquivo menor.");
+            setFileInfo(null);
+            setFilePreview(null);
+            setIsUploading(false);
+          }
+        }, 100);
+        
+        setImagePreview(null);
+        setImageData(null);
+        setShowOptions(false);
+        return;
+      }
       
-      // Determinar o tipo para armazenamento
-      const fileType = (file.type.startsWith('video/') || isMovFile) 
-                       ? 'video/mp4'  // Simplificar para MP4
-                       : file.type;
+      // Para outros tipos de arquivo, use o método tradicional
+      setIsUploading(true);
       
-      setFileInfo({
-        name: file.name,
-        type: fileType,
-        size: formatFileSize(file.size),
-        data: fileData,
-        originalType: file.type
-      });
+      const reader = new FileReader();
       
-      setImagePreview(null);
-      setImageData(null);
-      setShowOptions(false);
+      reader.onload = (event) => {
+        try {
+          // Para vídeos, criar preview
+          if (isVideo) {
+            try {
+              const previewUrl = URL.createObjectURL(file);
+              setFilePreview(previewUrl);
+            } catch (previewError) {
+              console.error("Erro ao criar preview:", previewError);
+            }
+          }
+          
+          setFileInfo({
+            name: file.name,
+            type: isVideo ? 'video/mp4' : file.type,
+            size: formatFileSize(file.size),
+            data: event.target.result,
+            originalType: file.type
+          });
+          
+          setImagePreview(null);
+          setImageData(null);
+          setShowOptions(false);
+        } catch (error) {
+          console.error("Erro ao processar arquivo:", error);
+          toast.error("Erro ao processar arquivo. Tente novamente.");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error("Erro ao ler arquivo:", error);
+        toast.error("Erro ao ler arquivo. Tente novamente.");
+        setIsUploading(false);
+      };
+      
+      reader.readAsDataURL(file);
     } catch (error) {
-      console.error("Erro ao ler arquivo:", error);
-      toast.error("Erro ao carregar arquivo. Tente novamente.");
-    } finally {
+      console.error("Erro global em handleFileChange:", error);
+      toast.error("Ocorreu um erro ao processar o arquivo");
       setIsUploading(false);
     }
   };
@@ -285,6 +331,13 @@ const MessageInput = () => {
     try {
       setIsUploading(true);
       
+      // Para vídeos do iOS, verificar se os dados já foram carregados
+      if (fileInfo && fileInfo.type.startsWith('video/') && !fileInfo.data && fileInfo.file) {
+        toast.error("Aguarde o carregamento do vídeo");
+        setIsUploading(false);
+        return;
+      }
+      
       const messageData = {
         text: text.trim() || ""
       };
@@ -294,74 +347,38 @@ const MessageInput = () => {
         messageData.image = imageData;
       }
 
-      // Modificação - simplificação extrema de como enviamos arquivos de vídeo
-      if (fileInfo) {
-        // Se for um vídeo, garante que estamos enviando de forma consistente
-        if (fileInfo.type && fileInfo.type.startsWith('video/')) {
-          messageData.file = {
-            name: fileInfo.name,
-            type: 'video/mp4', // Simplifique para MP4 independente do tipo real
-            size: fileInfo.size,
-            data: fileInfo.data // Envie os dados exatamente como estão
-          };
-        } else {
-          // Para arquivos não-vídeo, mantenha o comportamento tradicional
-          messageData.file = {
-            name: fileInfo.name,
-            type: fileInfo.type,
-            size: fileInfo.size,
-            data: fileInfo.data
-          };
-        }
+      // Adicionar arquivo se existir
+      if (fileInfo && fileInfo.data) {
+        messageData.file = {
+          name: fileInfo.name,
+          type: fileInfo.type,
+          size: fileInfo.size,
+          data: fileInfo.data
+        };
       }
 
-      // Tentativa com tratamento de erro mais detalhado
-      try {
-        // Enviar mensagem com todos os dados de uma vez
-        await sendMessage(messageData);
-        
-        // Limpar após envio bem-sucedido
-        setText("");
-        handleRemoveAttachment();
-        setLineCount(1);
-        
-        // Resetar altura do textarea
-        if (textareaRef.current) {
-          textareaRef.current.style.height = "40px";
-        }
-      } catch (error) {
-        console.error("Erro ao enviar mensagem:", error);
-        
-        // Tente uma segunda vez com menos detalhes se falhar
-        if (fileInfo && fileInfo.type && fileInfo.type.startsWith('video/')) {
-          const simplifiedMessage = {
-            text: messageData.text,
-            file: {
-              name: fileInfo.name,
-              type: 'video/mp4',
-              size: fileInfo.size,
-              data: fileInfo.data
-            }
-          };
-          
-          try {
-            await sendMessage(simplifiedMessage);
-            setText("");
-            handleRemoveAttachment();
-            setLineCount(1);
-            if (textareaRef.current) {
-              textareaRef.current.style.height = "40px";
-            }
-          } catch (secondError) {
-            console.error("Erro na segunda tentativa:", secondError);
-            toast.error("Erro ao enviar mensagem. Tente novamente.");
-          }
-        } else {
-          toast.error("Erro ao enviar mensagem. Tente novamente.");
-        }
+      console.log("Enviando mensagem com dados:", {
+        hasText: !!messageData.text,
+        hasImage: !!messageData.image,
+        hasFile: !!messageData.file,
+        fileType: messageData.file ? messageData.file.type : null,
+        fileName: messageData.file ? messageData.file.name : null
+      });
+
+      // Enviar mensagem
+      await sendMessage(messageData);
+      
+      // Limpar após envio bem-sucedido
+      setText("");
+      handleRemoveAttachment();
+      setLineCount(1);
+      
+      // Resetar altura do textarea
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "40px";
       }
-    } catch (outerError) {
-      console.error("Erro global:", outerError);
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
       toast.error("Erro ao enviar mensagem. Tente novamente.");
     } finally {
       setIsUploading(false);
@@ -402,7 +419,16 @@ const MessageInput = () => {
                       className="w-20 h-20 object-cover rounded-lg"
                       preload="metadata"
                     />
-                    <span className="ml-2 text-sm">Vídeo anexado</span>
+                    <span className="ml-2 text-sm">
+                      {!fileInfo.data && isUploading ? (
+                        <span className="flex items-center">
+                          Carregando vídeo
+                          <span className="loading loading-dots loading-xs ml-1"></span>
+                        </span>
+                      ) : (
+                        "Vídeo anexado"
+                      )}
+                    </span>
                   </div>
                 ) : (
                   <div className="p-2 bg-base-100 rounded-lg">
