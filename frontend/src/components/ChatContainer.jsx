@@ -276,12 +276,16 @@ const ChatContainer = () => {
                 {fileData && (
                   <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
                     {fileData.type.startsWith('video/') ? (
-                      // Renderização de vídeo inline com ajustes de estilo
-                      <div className="w-full max-w-[300px]">
+                      <div className="w-full max-w-[500px]">
                         <video 
                           controls 
-                          className="w-full rounded-md cursor-pointer"
+                          controlsList="nodownload"
+                          className="w-full h-auto rounded-md cursor-pointer object-contain"
                           src={fileData.data}
+                          onError={(e) => {
+                            console.error("Erro ao carregar vídeo:", e);
+                            console.log("Dados do vídeo (início):", fileData.data.substring(0, 100));
+                          }}
                         >
                           Seu navegador não suporta reprodução de vídeo.
                         </video>
