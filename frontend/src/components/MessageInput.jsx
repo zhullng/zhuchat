@@ -12,12 +12,20 @@ const MessageInput = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [lineCount, setLineCount] = useState(1);
   const [filePreview, setFilePreview] = useState(null);
+  // Estado para detectar sistema iOS
+  const [isIOS, setIsIOS] = useState(false);
 
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const textareaRef = useRef(null);
 
   const { sendMessage, selectedUser } = useChatStore();
+
+  // Detectar se o dispositivo é iOS
+  useEffect(() => {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    setIsIOS(/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream);
+  }, []);
 
   // Função auxiliar para formatar tamanho do arquivo
   const formatFileSize = (bytes) => {
@@ -102,9 +110,10 @@ const MessageInput = () => {
       imagePreview: imagePreview ? `Imagem (${imagePreview.length} bytes)` : 'Sem imagem',
       imageData: imageData ? `Dados da imagem (${imageData.length} bytes)` : 'Sem dados de imagem',
       fileInfo: fileInfo ? `Arquivo: ${fileInfo.name} (${fileInfo.size})` : 'Sem arquivo',
-      filePreview: filePreview ? 'Com preview' : 'Sem preview'
+      filePreview: filePreview ? 'Com preview' : 'Sem preview',
+      isIOS: isIOS ? 'Dispositivo iOS' : 'Não é iOS'
     });
-  }, [imagePreview, imageData, fileInfo, filePreview]);
+  }, [imagePreview, imageData, fileInfo, filePreview, isIOS]);
 
   // Função para ajustar altura do textarea
   const autoResizeTextarea = () => {
@@ -220,11 +229,13 @@ const MessageInput = () => {
       'video/webm',
       'video/x-msvideo',
       'video/x-ms-wmv',
-      'video/3gpp'
+      'video/3gpp',
+      'video/*'
     ];
 
-    // Validate file type
-    if (!allowedFileTypes.includes(file.type)) {
+    // Validação mais permissiva para iOS
+    // Se o tipo não for explicitamente permitido, mas começar com 'video/', permitir mesmo assim
+    if (!allowedFileTypes.includes(file.type) && !file.type.startsWith('video/')) {
       console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
       toast.error(`Tipo de arquivo não permitido: ${file.type}`);
       return;
@@ -518,7 +529,8 @@ const MessageInput = () => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept="video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          // Aceitar todos os tipos de vídeo e remover atributo "capture" para permitir seleção da galeria
+          accept="video/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
           className="hidden"
           disabled={isUploading}
         />
