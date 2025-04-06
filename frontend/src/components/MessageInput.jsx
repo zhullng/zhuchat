@@ -117,89 +117,105 @@ const MessageInput = () => {
     reader.readAsDataURL(file);
   };
 
-const handleFileChange = (e) => {
-  const file = e.target.files[0];
-  
-  if (!file) return;
-  
-  console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    lastModified: file.lastModified
-  });
-
-  // Lista de tipos de arquivo permitidos
-  const allowedFileTypes = [
-    'text/plain', 
-    'application/pdf', 
-    'application/msword', 
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'image/jpeg', 
-    'image/png', 
-    'image/gif'
-  ];
-
-  // Validar tipo de arquivo
-  if (!allowedFileTypes.includes(file.type)) {
-    console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
-    toast.error(`Tipo de arquivo não permitido: ${file.type}`);
-    return;
-  }
-
-  // Validações de arquivo
-  if (file.size === 0) {
-    toast.error("Não é possível selecionar um arquivo vazio");
-    return;
-  }
-
-  // Limite de tamanho de arquivo 
-  if (file.size > 5 * 1024 * 1024) { // 5MB para evitar problemas com armazenamento
-    toast.error("O arquivo não pode ser maior que 5MB");
-    return;
-  }
-
-  const reader = new FileReader();
-  
-  reader.onloadstart = () => {
-    console.log("Iniciando leitura do arquivo:", file.name);
-  };
-
-  reader.onload = (event) => {
-    console.log("ARQUIVO CARREGADO - DETALHES:", {
-      fileName: file.name,
-      fileType: file.type,
-      dataLength: event.target.result.length,
-      dataPrefix: event.target.result.substring(0, 100)
-    });
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
     
-    try {
-      setFileInfo({
-        name: file.name,
-        type: file.type,
-        size: formatFileSize(file.size),
-        data: event.target.result
+    if (!file) return;
+    
+    console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    });
+
+    // Expanded list of allowed file types including more video formats
+    const allowedFileTypes = [
+      'text/plain', 
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg', 
+      'image/png', 
+      'image/gif',
+      // Video MIME types
+      'video/mp4',
+      'video/mpeg',
+      'video/quicktime',
+      'video/webm',
+      'video/x-msvideo',
+      'video/x-ms-wmv',
+      'video/3gpp'
+    ];
+
+    // Validate file type
+    if (!allowedFileTypes.includes(file.type)) {
+      console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
+      toast.error(`Tipo de arquivo não permitido: ${file.type}`);
+      return;
+    }
+
+    // Validate file is not empty
+    if (file.size === 0) {
+      toast.error("Não é possível selecionar um arquivo vazio");
+      return;
+    }
+
+    // Increased file size limit for videos (100MB)
+    const maxVideoSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxVideoSize) {
+      toast.error("O arquivo de vídeo não pode ser maior que 100MB");
+      return;
+    }
+
+    // Show warning for large files
+    if (file.size > 50 * 1024 * 1024) { // 50MB
+      toast.warning("Aviso: Arquivo grande. O upload pode demorar.", {
+        duration: 4000
+      });
+    }
+
+    const reader = new FileReader();
+    
+    reader.onloadstart = () => {
+      console.log("Iniciando leitura do arquivo:", file.name);
+    };
+
+    reader.onload = (event) => {
+      console.log("ARQUIVO CARREGADO - DETALHES:", {
+        fileName: file.name,
+        fileType: file.type,
+        dataLength: event.target.result.length,
+        dataPrefix: event.target.result.substring(0, 100)
       });
       
-      setImagePreview(null);
-      setImageData(null);
-      setShowOptions(false);
-    } catch (error) {
-      console.error("ERRO AO DEFINIR FILEINFO:", error);
-      toast.error("Erro ao processar arquivo. Tente novamente.");
-    }
+      try {
+        setFileInfo({
+          name: file.name,
+          type: file.type,
+          size: formatFileSize(file.size),
+          data: event.target.result
+        });
+        
+        setImagePreview(null);
+        setImageData(null);
+        setShowOptions(false);
+      } catch (error) {
+        console.error("ERRO AO DEFINIR FILEINFO:", error);
+        toast.error("Erro ao processar arquivo. Tente novamente.");
+      }
+    };
+    
+    reader.onerror = (error) => {
+      console.error("ERRO AO LER ARQUIVO:", error);
+      toast.error("Erro ao carregar arquivo. Tente novamente.");
+    };
+    
+    // Use readAsDataURL for binary files
+    reader.readAsDataURL(file);
   };
-  
-  reader.onerror = (error) => {
-    console.error("ERRO AO LER ARQUIVO:", error);
-    toast.error("Erro ao carregar arquivo. Tente novamente.");
-  };
-  
-  // Use readAsDataURL para arquivos binários
-  reader.readAsDataURL(file);
-};
 
   // Função para lidar com remoção de anexos
   const handleRemoveAttachment = () => {
@@ -390,15 +406,15 @@ const handleFileChange = (e) => {
           className="btn btn-circle btn-sm"
           disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
         >
-          {isUploading ? (
-            <span className="loading loading-spinner loading-xs"></span>
-          ) : (
-            <Send size={22} />
-          )}
-        </button>
-      </form>
-    </div>
-  );
-};
+        {isUploading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <Send size={22} />
+                  )}
+                </button>
+              </form>
+            </div>
+          );
+        };
 
-export default MessageInput;
+        export default MessageInput;
