@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
 import toast from "react-hot-toast";
+import { isIOSDevice, isQuickTimeVideo } from "../lib/utils";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
@@ -23,8 +24,7 @@ const MessageInput = () => {
 
   // Detectar se o dispositivo é iOS
   useEffect(() => {
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-    setIsIOS(/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream);
+    setIsIOS(isIOSDevice());
   }, []);
 
   // Função auxiliar para formatar tamanho do arquivo
@@ -34,73 +34,70 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função avançada para converter vídeos para formato compatível universal
-  const convertToUniversalFormat = (file) => {
+  // Função melhorada para processar vídeos
+  const processVideoFile = (file) => {
     return new Promise((resolve, reject) => {
-      if (!file || !file.type.startsWith('video/')) {
-        resolve(file); // Não é vídeo, retorna o arquivo original
+      if (!file) {
+        reject(new Error("Arquivo não fornecido"));
+        return;
+      }
+
+      // Verifique se é um tipo de vídeo
+      const isVideoFile = file.type.startsWith('video/') || 
+                          file.name.toLowerCase().endsWith('.mov') || 
+                          file.name.toLowerCase().endsWith('.mp4');
+      
+      if (!isVideoFile) {
+        // Não é vídeo, retorna o arquivo original
+        resolve(file); 
         return;
       }
       
       // Mostra aviso para o usuário
-      toast.info("Processando vídeo para compatibilidade universal...", {
+      toast.info("Processando vídeo...", {
         duration: 3000
       });
       
+      // Abordagem simplificada: apenas leia o arquivo como DataURL
       const reader = new FileReader();
       
       reader.onload = (event) => {
-        const arrayBuffer = event.target.result;
+        // Obtenha o resultado da leitura (DataURL)
+        const dataUrl = event.target.result;
         
-        // Verifica se temos dados válidos
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-          toast.error("Dados de vídeo inválidos");
-          reject(new Error("Dados de vídeo inválidos"));
-          return;
+        // Em vez de tentar converter, apenas normalize o formato de saída
+        let fileType = 'video/mp4';
+        
+        // Se o MIME type original for indefinido ou vazio, use o tipo de arquivo detectado
+        if (!file.type || file.type === '') {
+          if (file.name.toLowerCase().endsWith('.mov')) {
+            fileType = 'video/quicktime';
+          } else if (file.name.toLowerCase().endsWith('.mp4')) {
+            fileType = 'video/mp4';
+          }
+        } else {
+          fileType = file.type;
         }
         
-        try {
-          // Criar um Blob a partir do ArrayBuffer
-          const videoBlob = new Blob([arrayBuffer], { type: 'video/mp4' });
-          
-          // Converter o Blob para base64
-          const blobReader = new FileReader();
-          blobReader.onload = (e) => {
-            const base64data = e.target.result;
-            
-            // Criar objeto com metadados e dados convertidos
-            const convertedFile = {
-              name: file.name.replace(/\.(mov|quicktime|m4v)$/i, '.mp4'),
-              type: 'video/mp4',
-              size: formatFileSize(file.size),
-              originalType: file.type,
-              data: base64data
-            };
-            
-            resolve(convertedFile);
-          };
-          
-          blobReader.onerror = (error) => {
-            console.error("Erro ao converter blob para base64:", error);
-            toast.error("Erro ao processar vídeo");
-            reject(error);
-          };
-          
-          blobReader.readAsDataURL(videoBlob);
-        } catch (error) {
-          console.error("Erro ao processar vídeo:", error);
-          toast.error("Erro ao processar vídeo");
-          reject(error);
-        }
+        // Crie o objeto de resultado
+        const result = {
+          name: file.name,
+          type: fileType,
+          size: formatFileSize(file.size),
+          originalType: file.type || fileType,
+          data: dataUrl
+        };
+        
+        // Resolva a promessa com os dados
+        resolve(result);
       };
       
       reader.onerror = (error) => {
         console.error("Erro ao ler arquivo:", error);
-        toast.error("Erro ao ler arquivo de vídeo");
         reject(error);
       };
       
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataURL(file);
     });
   };
 
@@ -208,8 +205,12 @@ const MessageInput = () => {
       name: file.name,
       type: file.type,
       size: file.size,
-      lastModified: file.lastModified
+      lastModified: file.lastModified,
+      extension: file.name.split('.').pop().toLowerCase() // Extrai a extensão
     });
+
+    // Verificar se é um vídeo MOV/QuickTime
+    const isMovFile = isQuickTimeVideo(file);
 
     // Expanded list of allowed file types including more video formats
     const allowedFileTypes = [
@@ -223,9 +224,10 @@ const MessageInput = () => {
       'image/png', 
       'image/gif',
       // Video MIME types
+      'video/quicktime',
+      'video/mov',
       'video/mp4',
       'video/mpeg',
-      'video/quicktime',
       'video/webm',
       'video/x-msvideo',
       'video/x-ms-wmv',
@@ -233,9 +235,8 @@ const MessageInput = () => {
       'video/*'
     ];
 
-    // Validação mais permissiva para iOS
-    // Se o tipo não for explicitamente permitido, mas começar com 'video/', permitir mesmo assim
-    if (!allowedFileTypes.includes(file.type) && !file.type.startsWith('video/')) {
+    // Validação mais permissiva para iOS e MOV files
+    if (!allowedFileTypes.includes(file.type) && !file.type.startsWith('video/') && !isMovFile) {
       console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
       toast.error(`Tipo de arquivo não permitido: ${file.type}`);
       return;
@@ -261,95 +262,96 @@ const MessageInput = () => {
       });
     }
 
-    const reader = new FileReader();
-    
-    reader.onloadstart = () => {
-      console.log("Iniciando leitura do arquivo:", file.name);
-    };
-
-    reader.onload = async (event) => {
-      console.log("ARQUIVO CARREGADO - DETALHES:", {
-        fileName: file.name,
-        fileType: file.type,
-        dataLength: event.target.result.length,
-        dataPrefix: event.target.result.substring(0, 100)
-      });
+    // Processo de leitura do arquivo
+    if (file.type.startsWith('video/') || isMovFile) {
+      // Para vídeos, usamos o processamento especial
+      setIsUploading(true);
+      const toastId = toast.loading("Preparando vídeo...");
       
-      try {
-        // Criar preview para vídeos
-        let previewUrl = null;
-        if (file.type.startsWith('video/')) {
-          previewUrl = URL.createObjectURL(file);
-        }
-
-        // Se for um vídeo, sempre processa para garantir compatibilidade universal
-        if (file.type.startsWith('video/')) {
-          setIsUploading(true); // Indica que está processando
-          toast.loading("Preparando vídeo para compatibilidade universal...", {
-            id: "video-processing"
+      // Criar preview do vídeo
+      const previewUrl = URL.createObjectURL(file);
+      setFilePreview(previewUrl);
+      
+      // Processar o vídeo com nossa função dedicada
+      processVideoFile(file)
+        .then(processedFile => {
+          setFileInfo({
+            name: processedFile.name,
+            type: processedFile.type,
+            size: processedFile.size,
+            data: processedFile.data,
+            originalType: processedFile.originalType
           });
           
-          try {
-            // Use o arquivo original para criar previewUrl
-            // Mas converta para formato universal para armazenamento
-            const processedFile = await convertToUniversalFormat(file);
-            
-            setFileInfo({
-              name: processedFile.name,
-              type: processedFile.type,
-              size: processedFile.size,
-              data: processedFile.data,
-              originalType: file.type
-            });
-            
-            toast.success("Vídeo processado com sucesso", {
-              id: "video-processing"
-            });
-          } catch (error) {
-            console.error("Erro no processamento do vídeo:", error);
-            
-            // Fallback para o método original se a conversão falhar
+          toast.success("Vídeo pronto para envio", { id: toastId });
+          setImagePreview(null);
+          setImageData(null);
+          setShowOptions(false);
+        })
+        .catch(error => {
+          console.error("Erro ao processar vídeo:", error);
+          
+          // Se falhar, usar método tradicional como fallback
+          const reader = new FileReader();
+          reader.onload = (event) => {
             setFileInfo({
               name: file.name,
-              type: file.type,
+              type: isMovFile ? 'video/quicktime' : file.type,
               size: formatFileSize(file.size),
-              data: event.target.result
+              data: event.target.result,
+              originalType: isMovFile ? 'video/quicktime' : file.type
             });
-            
-            toast.error("Usando formato original do vídeo", {
-              id: "video-processing"
-            });
-          } finally {
-            setIsUploading(false);
-          }
-        } else {
-          // Para arquivos que não são vídeos, use o comportamento padrão
+            toast.error("Ocorreu um erro no processamento", { id: toastId });
+          };
+          reader.onerror = () => {
+            toast.error("Falha ao ler o arquivo", { id: toastId });
+          };
+          reader.readAsDataURL(file);
+        })
+        .finally(() => {
+          setIsUploading(false);
+        });
+    } else {
+      // Para arquivos não-vídeo, usamos o método tradicional
+      const reader = new FileReader();
+      
+      reader.onloadstart = () => {
+        console.log("Iniciando leitura do arquivo:", file.name);
+      };
+      
+      reader.onload = (event) => {
+        console.log("ARQUIVO CARREGADO - DETALHES:", {
+          fileName: file.name,
+          fileType: file.type,
+          dataLength: event.target.result.length,
+          dataPrefix: event.target.result.substring(0, 100)
+        });
+        
+        try {
           setFileInfo({
             name: file.name,
             type: file.type,
             size: formatFileSize(file.size),
             data: event.target.result
           });
+          
+          setFilePreview(null);
+          setImagePreview(null);
+          setImageData(null);
+          setShowOptions(false);
+        } catch (error) {
+          console.error("ERRO AO DEFINIR FILEINFO:", error);
+          toast.error("Erro ao processar arquivo. Tente novamente.");
         }
-        
-        setFilePreview(previewUrl);
-        setImagePreview(null);
-        setImageData(null);
-        setShowOptions(false);
-      } catch (error) {
-        console.error("ERRO AO DEFINIR FILEINFO:", error);
-        toast.error("Erro ao processar arquivo. Tente novamente.");
-        setIsUploading(false);
-      }
-    };
-    
-    reader.onerror = (error) => {
-      console.error("ERRO AO LER ARQUIVO:", error);
-      toast.error("Erro ao carregar arquivo. Tente novamente.");
-    };
-    
-    // Use readAsDataURL for binary files
-    reader.readAsDataURL(file);
+      };
+      
+      reader.onerror = (error) => {
+        console.error("ERRO AO LER ARQUIVO:", error);
+        toast.error("Erro ao carregar arquivo. Tente novamente.");
+      };
+      
+      reader.readAsDataURL(file);
+    }
   };
 
   // Função para lidar com remoção de anexos
@@ -529,8 +531,8 @@ const MessageInput = () => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          // Aceitar todos os tipos de vídeo e remover atributo "capture" para permitir seleção da galeria
-          accept="video/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          // Aceitar explicitamente o formato MOV/QuickTime
+          accept="video/quicktime,video/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
           className="hidden"
           disabled={isUploading}
         />

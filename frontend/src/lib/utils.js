@@ -56,61 +56,18 @@ export const normalizeVideoDataURI = (dataURI, originalType) => {
 };
 
 /**
- * Tenta extrair um frame do vídeo para usar como poster
- * @param {string} videoSrc Source do vídeo (URL ou data URI)
- * @returns {Promise<string>} URI da imagem do poster
+ * Verifica se o arquivo é um vídeo QuickTime/MOV
+ * @param {File} file O arquivo a ser verificado
+ * @returns {boolean} True se for um vídeo MOV/QuickTime
  */
-export const extractVideoPoster = (videoSrc) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const video = document.createElement('video');
-      video.autoplay = false;
-      video.muted = true;
-      video.src = videoSrc;
-      video.currentTime = 1; // Tenta pegar o frame em 1 segundo
-      
-      video.onloadeddata = () => {
-        try {
-          // Tenta capturar o frame quando os dados forem carregados
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          const posterUrl = canvas.toDataURL('image/jpeg', 0.5);
-          resolve(posterUrl);
-          
-          // Limpa recursos
-          video.src = '';
-          video.load();
-        } catch (e) {
-          console.error("Erro ao extrair poster:", e);
-          resolve(null);
-        }
-      };
-      
-      video.onerror = () => {
-        console.error("Erro ao carregar vídeo para extração de poster");
-        resolve(null);
-      };
-      
-      // Se demorar muito, resolve com null
-      setTimeout(() => {
-        if (video.src) {
-          console.log("Timeout na extração de poster");
-          video.src = '';
-          video.load();
-          resolve(null);
-        }
-      }, 5000);
-      
-    } catch (error) {
-      console.error("Erro na preparação para extração de poster:", error);
-      resolve(null);
-    }
-  });
+export const isQuickTimeVideo = (file) => {
+  if (!file) return false;
+  
+  return (
+    file.type === 'video/quicktime' || 
+    file.name.toLowerCase().endsWith('.mov') || 
+    file.type === 'video/mov'
+  );
 };
 
 /**
@@ -135,4 +92,13 @@ export const isMobileDevice = () => {
   }
   
   return false;
+};
+
+/**
+ * Verifica se o dispositivo é iOS
+ * @returns {boolean} True se for um dispositivo iOS
+ */
+export const isIOSDevice = () => {
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+  return /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
 };
