@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X, Plus, FileText, FilePlus, Video } from "lucide-react";
+import { Image, Send, X, Plus, FileText, FilePlus, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
@@ -384,8 +384,8 @@ const MessageInput = () => {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
-                <Video size={20} className="text-base-content opacity-70" />
-                <span>Enviar vídeo</span>
+                <FileText size={20} className="text-base-content opacity-70" />
+                <span>Enviar qualquer ficheiro</span>
               </button>
             </div>
           )}
