@@ -41,7 +41,7 @@ const MessageInput = () => {
                     file.name.toLowerCase().endsWith('.mov') || 
                     file.name.toLowerCase().endsWith('.mp4');
     
-    // Limite para vídeos: 10MB para iOS (devido a problemas de memória)
+    // Limite para vídeos no iOS: 10MB para iOS (devido a problemas de memória)
     if (isVideo && isIOS && file.size > 10 * 1024 * 1024) {
       return true;
     }

@@ -358,7 +358,7 @@ const ChatContainer = () => {
                           />
                         ) : (
                           <div className="video-container relative">
-                            {/* Video Player com abordagem simplificada */}
+                            {/* Player de vídeo com melhor compatibilidade */}
                             <video 
                               controls 
                               controlsList="nodownload"
@@ -367,11 +367,15 @@ const ChatContainer = () => {
                                 console.error("Erro ao carregar vídeo:", e);
                                 handleVideoError(message._id);
                               }}
-                              src={fileData.data}
                               preload="metadata"
                               playsInline
                             >
-                              Seu navegador não suporta reprodução de vídeo.
+                              {/* Use múltiplas fontes para melhorar compatibilidade */}
+                              <source src={fileData.data} type="video/mp4" />
+                              <source src={fileData.data} type="video/quicktime" />
+                              <source src={fileData.data} type="video/webm" />
+                              {/* Adicione uma mensagem para feedback */}
+                              Seu navegador não suporta reprodução deste vídeo.
                             </video>
                           </div>
                         )}
