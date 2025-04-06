@@ -57,6 +57,7 @@ const ChatContainer = () => {
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState({});
   const [videoErrors, setVideoErrors] = useState({});
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
 
   // Função para rolar para a última mensagem
   const scrollToLatestMessage = () => {
@@ -78,6 +79,7 @@ const ChatContainer = () => {
     setInitialScrollDone(false);
     setActiveMessageMenu(null);
     setVideoErrors({});
+    setHighlightedMessageId(null);
     
     return () => unsubscribeFromMessages();
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
@@ -110,6 +112,33 @@ const ChatContainer = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [activeMessageMenu]);
+
+  // Efeito para destacar e rolar para mensagens de pesquisa
+  useEffect(() => {
+    // Função global para destacar mensagens
+    window.highlightAndScrollToMessage = (messageId) => {
+      const messageElement = document.getElementById(`message-${messageId}`);
+      if (messageElement) {
+        setHighlightedMessageId(messageId);
+        
+        // Rolar para a mensagem
+        messageElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+        // Remover destaque após 3 segundos
+        setTimeout(() => {
+          setHighlightedMessageId(null);
+        }, 3000);
+      }
+    };
+
+    // Adicionar evento global
+    return () => {
+      delete window.highlightAndScrollToMessage;
+    };
+  }, []);
 
   // Registra função global para download de fallback
   useEffect(() => {
@@ -272,7 +301,10 @@ const ChatContainer = () => {
           return (
             <div
               key={message._id}
-              className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
+              id={`message-${message._id}`}
+              className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"} ${
+                highlightedMessageId === message._id ? "bg-yellow-100 transition-colors duration-500" : ""
+              }`}
             >
               <div className="chat-image avatar">
                 <div className="size-10 rounded-full border">
