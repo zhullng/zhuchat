@@ -40,17 +40,26 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    // Validate input
+    console.log("Recebendo mensagem com:", { 
+      hasText: !!text, 
+      hasImage: !!image, 
+      hasFile: !!file,
+      receiverId 
+    });
+
+    // Validar entrada (pelo menos um dos três campos deve estar presente)
     if (!text && !image && !file) {
       return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
     }
 
-    // Prepare image upload if present
+    // Preparar upload de imagem se presente
     let imageUrl = null;
     if (image) {
       try {
+        console.log("Iniciando upload de imagem para Cloudinary");
         const uploadResult = await uploadToCloudinary(image, "chat_images");
         imageUrl = uploadResult.url;
+        console.log("Upload de imagem concluído:", imageUrl);
       } catch (uploadError) {
         console.error("Erro ao fazer upload da imagem:", uploadError);
         return res.status(500).json({ 
@@ -60,15 +69,30 @@ export const sendMessage = async (req, res) => {
       }
     }
 
-    // Prepare file upload if present
+    // Preparar upload de arquivo se presente
     let fileInfo = null;
     if (file && file.data) {
       try {
+        console.log("Iniciando upload de arquivo para Cloudinary:", {
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size
+        });
+
+        // Determinar pasta apropriada com base no tipo de arquivo
         const fileFolder = file.type.startsWith('image/') ? "chat_images" : "chat_files";
+        
+        // Criar um nome de arquivo seguro
+        const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const publicId = `${Date.now()}_${safeFileName}`;
+        
+        // Fazer upload para o Cloudinary
         const uploadResult = await uploadToCloudinary(file.data, fileFolder, {
           resource_type: "auto",
-          public_id: `${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
+          public_id: publicId,
         });
+        
+        console.log("Upload de arquivo concluído:", uploadResult);
         
         fileInfo = {
           name: file.name,
@@ -77,7 +101,7 @@ export const sendMessage = async (req, res) => {
           url: uploadResult.url
         };
       } catch (uploadError) {
-        console.error("Erro ao fazer upload do arquivo:", uploadError);
+        console.error("Erro detalhado ao fazer upload do arquivo:", uploadError);
         return res.status(500).json({ 
           error: "Falha ao processar arquivo", 
           details: uploadError.message 
@@ -85,7 +109,7 @@ export const sendMessage = async (req, res) => {
       }
     }
 
-    // Create new message
+    // Criar nova mensagem
     const newMessage = new Message({
       senderId,
       receiverId,
@@ -94,18 +118,21 @@ export const sendMessage = async (req, res) => {
       file: fileInfo
     });
 
+    console.log("Salvando mensagem com:", { 
+      text: text ? "presente" : "ausente", 
+      image: imageUrl ? "presente" : "ausente", 
+      file: fileInfo ? "presente" : "ausente" 
+    });
+
     await newMessage.save();
 
-    // Prepare response message
-    const responseMessage = {
-      ...newMessage.toObject(),
-      image: imageUrl,
-      file: fileInfo
-    };
+    // Preparar mensagem de resposta
+    const responseMessage = newMessage.toObject();
 
-    // Send via socket if receiver is online
+    // Enviar via socket se o receptor estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
+      console.log("Enviando mensagem via socket para:", receiverId);
       io.to(receiverSocketId).emit("newMessage", responseMessage);
     }
 
@@ -129,25 +156,32 @@ export const getFileForMessage = async (req, res) => {
     const { id: messageId } = req.params;
     const userId = req.user._id;
     
-    // Verificar se a mensagem existe e se o usuário tem permissão para acessá-la
+    console.log("Solicitação para baixar arquivo da mensagem:", messageId);
+    
+    // Verificar se a mensagem existe
     const message = await Message.findById(messageId);
     
     if (!message) {
+      console.log("Arquivo não encontrado: mensagem inexistente");
       return res.status(404).json({ error: "Arquivo não encontrado" });
     }
     
     // Verificar se o usuário tem permissão (é o remetente ou o destinatário)
     if (message.senderId.toString() !== userId.toString() && 
         message.receiverId.toString() !== userId.toString()) {
+      console.log("Acesso negado: usuário não tem permissão");
       return res.status(403).json({ error: "Sem permissão para acessar este arquivo" });
     }
     
     // Verificar se a mensagem contém um arquivo
     if (!message.file || !message.file.url) {
+      console.log("Arquivo não encontrado na mensagem");
       return res.status(404).json({ error: "Esta mensagem não contém um arquivo" });
     }
     
-    // Redirecionar para a URL do arquivo
+    console.log("Redirecionando para URL do arquivo:", message.file.url);
+    
+    // Redirecionar para a URL do arquivo no Cloudinary
     res.redirect(message.file.url);
   } catch (error) {
     console.error("Erro ao obter arquivo:", error);
