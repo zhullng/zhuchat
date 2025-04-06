@@ -34,20 +34,11 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função ultra-simplificada para processar vídeos
-  const processVideoFile = (file) => {
+  // Função ultra-simplificada para ler arquivos
+  const readFile = (file) => {
     return new Promise((resolve, reject) => {
       if (!file) {
         reject(new Error("Arquivo não fornecido"));
-        return;
-      }
-
-      const isVideoFile = file.type.startsWith('video/') || 
-                          file.name.toLowerCase().endsWith('.mov') || 
-                          file.name.toLowerCase().endsWith('.mp4');
-      
-      if (!isVideoFile) {
-        resolve(file); 
         return;
       }
       
@@ -55,16 +46,8 @@ const MessageInput = () => {
       const reader = new FileReader();
       
       reader.onload = (event) => {
-        // Apenas mantenha os dados do arquivo como estão, sem qualquer processamento
-        const result = {
-          name: file.name,
-          type: file.type || 'video/mp4', // Fallback para MP4 se não tiver tipo
-          size: formatFileSize(file.size),
-          originalType: file.type || 'video/mp4',
-          data: event.target.result
-        };
-        
-        resolve(result);
+        // Retorna os dados do arquivo sem qualquer processamento
+        resolve(event.target.result);
       };
       
       reader.onerror = (error) => {
@@ -172,7 +155,7 @@ const MessageInput = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     
     if (!file) return;
@@ -239,87 +222,39 @@ const MessageInput = () => {
     }
 
     // Processo de leitura do arquivo
-    if (file.type.startsWith('video/') || isMovFile) {
-      // Para vídeos, usamos o processamento especial
+    try {
       setIsUploading(true);
       
-      // Criar preview do vídeo
-      const previewUrl = URL.createObjectURL(file);
-      setFilePreview(previewUrl);
+      // Criar preview do vídeo para arquivos de vídeo
+      if (file.type.startsWith('video/') || isMovFile) {
+        const previewUrl = URL.createObjectURL(file);
+        setFilePreview(previewUrl);
+      }
       
-      // Processar o vídeo com nossa função ultra-simplificada
-      processVideoFile(file)
-        .then(processedFile => {
-          setFileInfo({
-            name: processedFile.name,
-            type: processedFile.type,
-            size: processedFile.size,
-            data: processedFile.data,
-            originalType: processedFile.originalType
-          });
-          
-          setImagePreview(null);
-          setImageData(null);
-          setShowOptions(false);
-        })
-        .catch(error => {
-          console.error("Erro ao processar vídeo:", error);
-          
-          // Se falhar, usar método tradicional como fallback
-          const directReader = new FileReader();
-          directReader.onload = (evt) => {
-            setFileInfo({
-              name: file.name,
-              type: file.type || 'video/mp4',
-              size: formatFileSize(file.size),
-              data: evt.target.result
-            });
-          };
-          directReader.readAsDataURL(file);
-        })
-        .finally(() => {
-          setIsUploading(false);
-        });
-    } else {
-      // Para arquivos não-vídeo, usamos o método tradicional
-      const reader = new FileReader();
+      // Simplificação: apenas leia o arquivo como está
+      const fileData = await readFile(file);
       
-      reader.onloadstart = () => {
-        console.log("Iniciando leitura do arquivo:", file.name);
-      };
+      // Determinar o tipo para armazenamento
+      const fileType = (file.type.startsWith('video/') || isMovFile) 
+                       ? 'video/mp4'  // Simplificar para MP4
+                       : file.type;
       
-      reader.onload = (event) => {
-        console.log("ARQUIVO CARREGADO - DETALHES:", {
-          fileName: file.name,
-          fileType: file.type,
-          dataLength: event.target.result.length,
-          dataPrefix: event.target.result.substring(0, 100)
-        });
-        
-        try {
-          setFileInfo({
-            name: file.name,
-            type: file.type,
-            size: formatFileSize(file.size),
-            data: event.target.result
-          });
-          
-          setFilePreview(null);
-          setImagePreview(null);
-          setImageData(null);
-          setShowOptions(false);
-        } catch (error) {
-          console.error("ERRO AO DEFINIR FILEINFO:", error);
-          toast.error("Erro ao processar arquivo. Tente novamente.");
-        }
-      };
+      setFileInfo({
+        name: file.name,
+        type: fileType,
+        size: formatFileSize(file.size),
+        data: fileData,
+        originalType: file.type
+      });
       
-      reader.onerror = (error) => {
-        console.error("ERRO AO LER ARQUIVO:", error);
-        toast.error("Erro ao carregar arquivo. Tente novamente.");
-      };
-      
-      reader.readAsDataURL(file);
+      setImagePreview(null);
+      setImageData(null);
+      setShowOptions(false);
+    } catch (error) {
+      console.error("Erro ao ler arquivo:", error);
+      toast.error("Erro ao carregar arquivo. Tente novamente.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -339,7 +274,7 @@ const MessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Função para enviar mensagem simplificada
+  // Função para enviar mensagem simplificada e corrigida
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
@@ -359,31 +294,74 @@ const MessageInput = () => {
         messageData.image = imageData;
       }
 
-      // Adicionar arquivo se existir
+      // Modificação - simplificação extrema de como enviamos arquivos de vídeo
       if (fileInfo) {
-        messageData.file = {
-          name: fileInfo.name,
-          type: fileInfo.type,
-          size: fileInfo.size,
-          data: fileInfo.data,
-          originalType: fileInfo.originalType // Preserva o tipo original para referência
-        };
+        // Se for um vídeo, garante que estamos enviando de forma consistente
+        if (fileInfo.type && fileInfo.type.startsWith('video/')) {
+          messageData.file = {
+            name: fileInfo.name,
+            type: 'video/mp4', // Simplifique para MP4 independente do tipo real
+            size: fileInfo.size,
+            data: fileInfo.data // Envie os dados exatamente como estão
+          };
+        } else {
+          // Para arquivos não-vídeo, mantenha o comportamento tradicional
+          messageData.file = {
+            name: fileInfo.name,
+            type: fileInfo.type,
+            size: fileInfo.size,
+            data: fileInfo.data
+          };
+        }
       }
 
-      // Enviar mensagem com todos os dados de uma vez
-      await sendMessage(messageData);
-      
-      // Limpar após envio bem-sucedido
-      setText("");
-      handleRemoveAttachment();
-      setLineCount(1);
-      
-      // Resetar altura do textarea
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "40px";
+      // Tentativa com tratamento de erro mais detalhado
+      try {
+        // Enviar mensagem com todos os dados de uma vez
+        await sendMessage(messageData);
+        
+        // Limpar após envio bem-sucedido
+        setText("");
+        handleRemoveAttachment();
+        setLineCount(1);
+        
+        // Resetar altura do textarea
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "40px";
+        }
+      } catch (error) {
+        console.error("Erro ao enviar mensagem:", error);
+        
+        // Tente uma segunda vez com menos detalhes se falhar
+        if (fileInfo && fileInfo.type && fileInfo.type.startsWith('video/')) {
+          const simplifiedMessage = {
+            text: messageData.text,
+            file: {
+              name: fileInfo.name,
+              type: 'video/mp4',
+              size: fileInfo.size,
+              data: fileInfo.data
+            }
+          };
+          
+          try {
+            await sendMessage(simplifiedMessage);
+            setText("");
+            handleRemoveAttachment();
+            setLineCount(1);
+            if (textareaRef.current) {
+              textareaRef.current.style.height = "40px";
+            }
+          } catch (secondError) {
+            console.error("Erro na segunda tentativa:", secondError);
+            toast.error("Erro ao enviar mensagem. Tente novamente.");
+          }
+        } else {
+          toast.error("Erro ao enviar mensagem. Tente novamente.");
+        }
       }
-    } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
+    } catch (outerError) {
+      console.error("Erro global:", outerError);
       toast.error("Erro ao enviar mensagem. Tente novamente.");
     } finally {
       setIsUploading(false);
