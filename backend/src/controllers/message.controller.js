@@ -53,7 +53,7 @@ export const sendMessage = async (req, res) => {
       text: text || ""
     };
 
-    // Processar imagem (se houver)
+    // Processar imagem (se houver) - usando Cloudinary para imagens normais
     if (image) {
       try {
         const uploadResult = await uploadToCloudinary(image, "chat_images");
@@ -64,54 +64,19 @@ export const sendMessage = async (req, res) => {
       }
     }
 
-    // Processar arquivo (se houver)
-if (file && file.data) {
-  try {
-    // Verificar se os dados do arquivo estão no formato correto
-    if (!file.data.startsWith('data:')) {
-      return res.status(400).json({ 
-        error: "Formato de dados do arquivo inválido" 
-      });
+    // Processar arquivo (se houver) - armazenando diretamente como JSON
+    if (file) {
+      // Armazenar informações do arquivo com dados base64 diretamente
+      const fileInfo = {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: file.data // Dados base64 do arquivo
+      };
+      
+      // Converter para JSON e armazenar
+      messageData.fileData = JSON.stringify(fileInfo);
     }
-
-    // Criar nome de arquivo único usando timestamp e nome original do arquivo
-    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const uniqueFileName = `file_${Date.now()}_${safeFileName}`;
-    
-    // Tipos de arquivo que o Cloudinary pode processar como imagens
-    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-    
-    // Determinar resource_type baseado no tipo MIME do arquivo
-    const resourceType = imageTypes.includes(file.type) ? 'image' : 'raw';
-    
-    console.log(`Tentando upload com resource_type: ${resourceType}`);
-    
-    // Fazer upload do arquivo para o Cloudinary com configurações específicas
-    const uploadResult = await uploadToCloudinary(file.data, "chat_files", {
-      resource_type: resourceType,
-      public_id: uniqueFileName,
-      overwrite: true
-    });
-    
-    console.log("Upload para Cloudinary bem-sucedido:", uploadResult);
-    
-    // Adicionar informações do arquivo à mensagem
-    messageData.file = {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      url: uploadResult.url
-    };
-    
-  } catch (error) {
-    console.error("Erro detalhado ao fazer upload do arquivo:", error);
-    // Responder com erro sem encerrar o processamento do servidor
-    return res.status(500).json({ 
-      error: "Falha ao processar arquivo", 
-      details: error.message 
-    });
-  }
-}
 
     // Criar e salvar a mensagem
     const newMessage = new Message(messageData);
@@ -131,37 +96,6 @@ if (file && file.data) {
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
-  }
-};
-
-export const getFileForMessage = async (req, res) => {
-  try {
-    const { id: messageId } = req.params;
-    const userId = req.user._id;
-    
-    // Verificar se a mensagem existe
-    const message = await Message.findById(messageId);
-    
-    if (!message) {
-      return res.status(404).json({ error: "Arquivo não encontrado" });
-    }
-    
-    // Verificar se o usuário tem permissão (é o remetente ou o destinatário)
-    if (message.senderId.toString() !== userId.toString() && 
-        message.receiverId.toString() !== userId.toString()) {
-      return res.status(403).json({ error: "Sem permissão para acessar este arquivo" });
-    }
-    
-    // Verificar se a mensagem contém um arquivo
-    if (!message.file || !message.file.url) {
-      return res.status(404).json({ error: "Esta mensagem não contém um arquivo" });
-    }
-    
-    // Redirecionar para a URL do arquivo
-    res.redirect(message.file.url);
-  } catch (error) {
-    console.error("Erro ao obter arquivo:", error);
-    res.status(500).json({ error: "Erro ao obter arquivo" });
   }
 };
 

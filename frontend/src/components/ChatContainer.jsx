@@ -90,72 +90,6 @@ const ChatContainer = () => {
     }
   };
 
-  // Função otimizada para baixar qualquer tipo de ficheiro
-  const downloadFile = async (messageId, fileName) => {
-    try {
-      if (!messageId || !fileName) {
-        toast.error("Informações do ficheiro inválidas");
-        return;
-      }
-
-      // Marcamos este ficheiro como sendo baixado
-      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
-
-      // Mostrar toast de progresso
-      const toastId = toast.loading("A iniciar download...");
-
-      try {
-        console.log("Iniciando download do ficheiro para mensagem:", messageId);
-
-        // Fetch do ficheiro a partir do endpoint específico
-        const response = await axiosInstance.get(`/messages/file/${messageId}`, {
-          responseType: 'blob',
-          timeout: 300000, // 5 minutos
-        });
-        
-        if (!response || !response.data) {
-          throw new Error(`Erro ao obter o ficheiro: Resposta vazia`);
-        }
-        
-        // Obter o blob diretamente da resposta
-        const blob = response.data;
-        
-        // Criar URL temporária para o blob
-        const blobUrl = URL.createObjectURL(blob);
-        
-        // Criar link e acionar download
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        // Limpar
-        setTimeout(() => {
-          URL.revokeObjectURL(blobUrl);
-          document.body.removeChild(link);
-        }, 100);
-        
-        // Atualizar toast para sucesso
-        toast.success("Download concluído", { id: toastId });
-      } catch (error) {
-        console.error("Erro ao fazer download:", error);
-        toast.error(`Erro ao baixar ficheiro: ${error.message}`, { id: toastId });
-      } finally {
-        // Marcamos este ficheiro como não sendo mais baixado
-        setDownloadingFiles(prev => {
-          const newState = { ...prev };
-          delete newState[messageId];
-          return newState;
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao processar download:", error);
-      toast.error("Erro ao processar download");
-    }
-  };
-
   // Função para determinar ícone apropriado para o tipo de ficheiro
   const getFileIcon = (fileType) => {
     if (!fileType) return <File size={22} />;
@@ -169,17 +103,26 @@ const ChatContainer = () => {
     
     return <FileText size={22} />;
   };
-
-  // Função para baixar arquivo base64
-  const downloadBase64File = (base64Data, fileName, fileType) => {
+  
+  // Função para baixar arquivo armazenado como base64 diretamente
+  const downloadFileFromBase64 = (fileData) => {
     try {
       // Mostrar toast de progresso
       const toastId = toast.loading("Preparando download...");
       
-      // Extrair dados base64 (remover o prefixo "data:...")
+      // Verificar se os dados são válidos
+      if (!fileData || !fileData.data || !fileData.name) {
+        toast.error("Dados do arquivo inválidos", { id: toastId });
+        return;
+      }
+      
+      // Já temos os dados base64 diretamente
+      const base64Data = fileData.data;
+      
+      // Extrair a parte de dados do base64
       const base64Content = base64Data.split(';base64,').pop();
       
-      // Converter base64 para Blob
+      // Converter para blob
       const byteCharacters = atob(base64Content);
       const byteArrays = [];
       
@@ -195,7 +138,7 @@ const ChatContainer = () => {
         byteArrays.push(byteArray);
       }
       
-      const blob = new Blob(byteArrays, { type: fileType });
+      const blob = new Blob(byteArrays, { type: fileData.type });
       
       // Criar URL do Blob
       const blobUrl = URL.createObjectURL(blob);
@@ -203,7 +146,7 @@ const ChatContainer = () => {
       // Criar link e acionar download
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = fileName;
+      link.download = fileData.name;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
@@ -217,7 +160,7 @@ const ChatContainer = () => {
       // Atualizar toast para sucesso
       toast.success("Download concluído", { id: toastId });
     } catch (error) {
-      console.error("Erro ao fazer download do arquivo:", error);
+      console.error("Erro ao baixar arquivo:", error);
       toast.error("Erro ao baixar arquivo. Tente novamente.");
     }
   };
@@ -243,16 +186,13 @@ const ChatContainer = () => {
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
         {messages.map((message) => {
-          // Verifique se a mensagem contém um arquivo (que foi enviado como imagem)
-          let fileMetadata = null;
-          if (message.text) {
+          // Verificar se há dados de arquivo
+          let fileData = null;
+          if (message.fileData) {
             try {
-              const parsedText = JSON.parse(message.text);
-              if (parsedText && parsedText.isFile) {
-                fileMetadata = parsedText;
-              }
+              fileData = JSON.parse(message.fileData);
             } catch (e) {
-              // Não é um JSON válido, então é uma mensagem de texto normal
+              console.error("Erro ao analisar dados do arquivo:", e);
             }
           }
 
@@ -323,32 +263,8 @@ const ChatContainer = () => {
               </div>
 
               <div className="chat-bubble flex flex-col relative">
-                {/* Renderizar arquivo (enviado como imagem) */}
-                {message.image && fileMetadata && (
-                  <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
-                    <div className="p-2 bg-base-100 rounded-md">
-                      {getFileIcon(fileMetadata.fileType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{fileMetadata.fileName}</p>
-                      <p className="text-xs opacity-70">{fileMetadata.fileSize}</p>
-                    </div>
-                    <button
-                      onClick={() => downloadBase64File(message.image, fileMetadata.fileName, fileMetadata.fileType)}
-                      className="btn btn-sm btn-circle"
-                      disabled={downloadingFiles[message._id]}
-                    >
-                      {downloadingFiles[message._id] ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <Download size={16} />
-                      )}
-                    </button>
-                  </div>
-                )}
-                
-                {/* Renderizar imagem (não arquivo) */}
-                {message.image && !fileMetadata && (
+                {/* Renderizar imagem */}
+                {message.image && (
                   <img
                     src={message.image}
                     alt="Attachment"
@@ -356,18 +272,18 @@ const ChatContainer = () => {
                   />
                 )}
                 
-                {/* Renderizar arquivo normal */}
-                {message.file && (
+                {/* Renderizar arquivo armazenado como JSON */}
+                {fileData && (
                   <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
                     <div className="p-2 bg-base-100 rounded-md">
-                      {getFileIcon(message.file.type)}
+                      {getFileIcon(fileData.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{message.file.name}</p>
-                      <p className="text-xs opacity-70">{message.file.size || ''}</p>
+                      <p className="text-sm font-medium truncate">{fileData.name}</p>
+                      <p className="text-xs opacity-70">{fileData.size}</p>
                     </div>
                     <button
-                      onClick={() => downloadFile(message._id, message.file.name)}
+                      onClick={() => downloadFileFromBase64(fileData)}
                       className="btn btn-sm btn-circle"
                       disabled={downloadingFiles[message._id]}
                     >
@@ -380,8 +296,8 @@ const ChatContainer = () => {
                   </div>
                 )}
                 
-                {/* Renderizar texto apenas se não for um JSON de arquivo */}
-                {message.text && !fileMetadata && (
+                {/* Renderizar texto */}
+                {message.text && (
                   <p className="break-words whitespace-pre-wrap">{message.text}</p>
                 )}
               </div>

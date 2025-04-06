@@ -119,15 +119,15 @@ const MessageInput = () => {
 
 const handleFileChange = (e) => {
   const file = e.target.files[0];
+  
+  if (!file) return;
+  
   console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
     name: file.name,
     type: file.type,
     size: file.size,
-    lastModified: file.lastModified,
-    fullFile: file
+    lastModified: file.lastModified
   });
-
-  if (!file) return;
 
   // Lista de tipos de arquivo permitidos
   const allowedFileTypes = [
@@ -156,8 +156,8 @@ const handleFileChange = (e) => {
   }
 
   // Limite de tamanho de arquivo 
-  if (file.size > 50 * 1024 * 1024) { // 50MB
-    toast.error("O arquivo não pode ser maior que 50MB");
+  if (file.size > 5 * 1024 * 1024) { // 5MB para evitar problemas com armazenamento
+    toast.error("O arquivo não pode ser maior que 5MB");
     return;
   }
 
@@ -211,7 +211,7 @@ const handleFileChange = (e) => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Função para enviar mensagem com mais detalhes de debug
+  // Função para enviar mensagem simplificada
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
@@ -222,37 +222,27 @@ const handleFileChange = (e) => {
     try {
       setIsUploading(true);
       
-      // Primeiro, envie apenas mensagem de texto
-      if (text.trim()) {
-        const textOnlyMessage = {
-          text: text.trim()
-        };
-        
-        await sendMessage(textOnlyMessage);
-      }
-      
-      // Depois, envie apenas imagem (se houver)
+      const messageData = {
+        text: text.trim() || ""
+      };
+
+      // Adicionar imagem se existir
       if (imageData) {
-        const imageOnlyMessage = {
-          image: imageData
-        };
-        
-        await sendMessage(imageOnlyMessage);
+        messageData.image = imageData;
       }
-      
-      // Por último, envie apenas arquivo (se houver)
+
+      // Adicionar arquivo se existir
       if (fileInfo) {
-        const fileOnlyMessage = {
-          file: {
-            data: fileInfo.data,
-            type: fileInfo.type,
-            name: fileInfo.name,
-            size: fileInfo.size
-          }
+        messageData.file = {
+          name: fileInfo.name,
+          type: fileInfo.type,
+          size: fileInfo.size,
+          data: fileInfo.data
         };
-        
-        await sendMessage(fileOnlyMessage);
       }
+
+      // Enviar mensagem com todos os dados de uma vez
+      await sendMessage(messageData);
       
       // Limpar após envio bem-sucedido
       setText("");

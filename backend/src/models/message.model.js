@@ -22,17 +22,14 @@ const messageSchema = new mongoose.Schema(
       default: "",
     },
     
-    // URL da imagem
+    // URL da imagem (para uploads via Cloudinary)
     image: {
       type: String,
     },
     
-    // Informações do arquivo
-    file: {
-      name: String,
-      type: String,
-      size: String,
-      url: String
+    // Informações de arquivo codificadas como JSON
+    fileData: {
+      type: String, // Armazena o JSON do arquivo
     },
     
     // Status de leitura

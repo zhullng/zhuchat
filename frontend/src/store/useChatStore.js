@@ -264,25 +264,25 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      // Verificar o tipo de conteúdo (apenas um por vez)
-      const isSendingText = !!messageData.text && !messageData.image && !messageData.file;
-      const isSendingImage = !!messageData.image && !messageData.text && !messageData.file;
-      const isSendingFile = !!messageData.file && !messageData.text && !messageData.image;
-      
-      console.log("Enviando mensagem:", { 
-        isSendingText, 
-        isSendingImage, 
-        isSendingFile 
+      console.log("Enviando mensagem com dados:", {
+        temTexto: !!messageData.text,
+        temImagem: !!messageData.image,
+        temArquivo: !!messageData.file
       });
+      
+      // Se estiver enviando arquivo, processar de forma especial
+      if (messageData.file) {
+        // Enviando a mensagem com o arquivo incluído
+        console.log("Enviando arquivo:", messageData.file.name);
+      }
       
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`, 
         messageData,
         { 
-          timeout: 600000,
+          timeout: 600000, // 10 minutos
           headers: {
-            'Content-Type': 'application/json',
-            'X-Message-Type': isSendingText ? 'text' : isSendingImage ? 'image' : 'file'
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -292,6 +292,36 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         messages: [...state.messages, newMessage],
       }));
+      
+      // Atualizar a conversa com a nova mensagem
+      set(state => {
+        const updatedConversations = [...state.conversations];
+        
+        const existingConvIndex = updatedConversations.findIndex(
+          c => c.participants && c.participants.includes(selectedUser._id)
+        );
+        
+        if (existingConvIndex >= 0) {
+          updatedConversations[existingConvIndex] = {
+            ...updatedConversations[existingConvIndex],
+            latestMessage: newMessage,
+            unreadCount: 0
+          };
+          
+          // Mover para o topo
+          const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+          updatedConversations.unshift(updatedConv);
+        } else {
+          // Criar nova conversa
+          updatedConversations.unshift({
+            participants: [selectedUser._id, newMessage.senderId],
+            latestMessage: newMessage,
+            unreadCount: 0
+          });
+        }
+        
+        return { conversations: updatedConversations };
+      });
       
       return newMessage;
     } catch (error) {
