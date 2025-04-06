@@ -276,14 +276,16 @@ const ChatContainer = () => {
                 {fileData && (
                   <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
                     {fileData.type.startsWith('video/') ? (
-                      // Renderização de vídeo inline
-                      <video 
-                        controls 
-                        className="sm:max-w-[300px] max-w-[200px] rounded-md"
-                        src={fileData.data}
-                      >
-                        Seu navegador não suporta reprodução de vídeo.
-                      </video>
+                      // Renderização de vídeo inline com ajustes de estilo
+                      <div className="w-full max-w-[300px]">
+                        <video 
+                          controls 
+                          className="w-full rounded-md cursor-pointer"
+                          src={fileData.data}
+                        >
+                          Seu navegador não suporta reprodução de vídeo.
+                        </video>
+                      </div>
                     ) : (
                       // Layout existente para outros tipos de arquivo
                       <>
