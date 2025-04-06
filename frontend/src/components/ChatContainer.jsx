@@ -275,24 +275,38 @@ const ChatContainer = () => {
                 {/* Renderizar arquivo armazenado como JSON */}
                 {fileData && (
                   <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
-                    <div className="p-2 bg-base-100 rounded-md">
-                      {getFileIcon(fileData.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{fileData.name}</p>
-                      <p className="text-xs opacity-70">{fileData.size}</p>
-                    </div>
-                    <button
-                      onClick={() => downloadFileFromBase64(fileData)}
-                      className="btn btn-sm btn-circle"
-                      disabled={downloadingFiles[message._id]}
-                    >
-                      {downloadingFiles[message._id] ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <Download size={16} />
-                      )}
-                    </button>
+                    {fileData.type.startsWith('video/') ? (
+                      // Renderização de vídeo inline
+                      <video 
+                        controls 
+                        className="sm:max-w-[300px] max-w-[200px] rounded-md"
+                        src={fileData.data}
+                      >
+                        Seu navegador não suporta reprodução de vídeo.
+                      </video>
+                    ) : (
+                      // Layout existente para outros tipos de arquivo
+                      <>
+                        <div className="p-2 bg-base-100 rounded-md">
+                          {getFileIcon(fileData.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{fileData.name}</p>
+                          <p className="text-xs opacity-70">{fileData.size}</p>
+                        </div>
+                        <button
+                          onClick={() => downloadFileFromBase64(fileData)}
+                          className="btn btn-sm btn-circle"
+                          disabled={downloadingFiles[message._id]}
+                        >
+                          {downloadingFiles[message._id] ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : (
+                            <Download size={16} />
+                          )}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 

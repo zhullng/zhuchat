@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
+import { Image, Send, X, Plus, FileText, FilePlus, Video } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
@@ -11,6 +11,7 @@ const MessageInput = () => {
   const [showOptions, setShowOptions] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [lineCount, setLineCount] = useState(1);
+  const [filePreview, setFilePreview] = useState(null);
 
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -26,13 +27,14 @@ const MessageInput = () => {
   };
 
   // Debug de estados mais detalhado
-  useEffect(() => {
+  useEffect(() =>{
     console.log("Estado de upload:", {
       imagePreview: imagePreview ? `Imagem (${imagePreview.length} bytes)` : 'Sem imagem',
       imageData: imageData ? `Dados da imagem (${imageData.length} bytes)` : 'Sem dados de imagem',
-      fileInfo: fileInfo ? `Arquivo: ${fileInfo.name} (${fileInfo.size})` : 'Sem arquivo'
+      fileInfo: fileInfo ? `Arquivo: ${fileInfo.name} (${fileInfo.size})` : 'Sem arquivo',
+      filePreview: filePreview ? 'Com preview' : 'Sem preview'
     });
-  }, [imagePreview, imageData, fileInfo]);
+  }, [imagePreview, imageData, fileInfo, filePreview]);
 
   // Função para ajustar altura do textarea
   const autoResizeTextarea = () => {
@@ -106,6 +108,7 @@ const MessageInput = () => {
       setImagePreview(event.target.result);
       setImageData(event.target.result);
       setFileInfo(null);
+      setFilePreview(null);
       setShowOptions(false);
     };
     
@@ -192,6 +195,12 @@ const MessageInput = () => {
       });
       
       try {
+        // Criar preview para vídeos
+        let previewUrl = null;
+        if (file.type.startsWith('video/')) {
+          previewUrl = URL.createObjectURL(file);
+        }
+
         setFileInfo({
           name: file.name,
           type: file.type,
@@ -199,6 +208,7 @@ const MessageInput = () => {
           data: event.target.result
         });
         
+        setFilePreview(previewUrl);
         setImagePreview(null);
         setImageData(null);
         setShowOptions(false);
@@ -222,6 +232,12 @@ const MessageInput = () => {
     setImagePreview(null);
     setImageData(null);
     setFileInfo(null);
+    
+    // Limpar objeto URL para vídeos
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+      setFilePreview(null);
+    }
     
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -304,9 +320,20 @@ const MessageInput = () => {
             
             {fileInfo && (
               <div className="flex items-center">
-                <div className="p-2 bg-base-100 rounded-lg">
-                  <FileText size={24} />
-                </div>
+                {filePreview && fileInfo.type.startsWith('video/') ? (
+                  <div className="flex items-center">
+                    <video
+                      src={filePreview}
+                      className="w-20 h-20 object-cover rounded-lg"
+                      preload="metadata"
+                    />
+                    <span className="ml-2 text-sm">Vídeo anexado</span>
+                  </div>
+                ) : (
+                  <div className="p-2 bg-base-100 rounded-lg">
+                    <FileText size={24} />
+                  </div>
+                )}
                 <div className="ml-2">
                   <p className="text-sm font-medium truncate max-w-[150px]">
                     {fileInfo.name}
@@ -357,8 +384,8 @@ const MessageInput = () => {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
-                <FileText size={20} className="text-base-content opacity-70" />
-                <span>Enviar qualquer ficheiro</span>
+                <Video size={20} className="text-base-content opacity-70" />
+                <span>Enviar vídeo</span>
               </button>
             </div>
           )}
@@ -376,6 +403,7 @@ const MessageInput = () => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
+          accept="video/*"
           className="hidden"
           disabled={isUploading}
         />
@@ -406,15 +434,15 @@ const MessageInput = () => {
           className="btn btn-circle btn-sm"
           disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
         >
-        {isUploading ? (
-                    <span className="loading loading-spinner loading-xs"></span>
-                  ) : (
-                    <Send size={22} />
-                  )}
-                </button>
-              </form>
-            </div>
-          );
-        };
+          {isUploading ? (
+            <span className="loading loading-spinner loading-xs"></span>
+          ) : (
+            <Send size={22} />
+          )}
+        </button>
+      </form>
+    </div>
+  );
+};
 
-        export default MessageInput;
+export default MessageInput;
