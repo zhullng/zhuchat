@@ -358,34 +358,20 @@ const ChatContainer = () => {
                           />
                         ) : (
                           <div className="video-container relative">
-                            {/* Video Player com múltiplas camadas de fallback */}
+                            {/* Video Player com abordagem simplificada */}
                             <video 
                               controls 
                               controlsList="nodownload"
                               className="w-full h-auto rounded-md cursor-pointer object-contain"
                               onError={(e) => {
                                 console.error("Erro ao carregar vídeo:", e);
-                                console.log("Dados do vídeo (início):", fileData.data.substring(0, 100));
                                 handleVideoError(message._id);
                               }}
-                              // Tentativa de melhorar o carregamento
+                              src={fileData.data}
                               preload="metadata"
                               playsInline
                             >
-                              {/* Tenta com MIME type original */}
-                              <source src={fileData.data} type={fileData.type} />
-                              
-                              {/* Tenta com MP4 */}
-                              <source src={fileData.data} type="video/mp4" />
-                              
-                              {/* Tenta com WebM */}
-                              <source src={fileData.data.replace('video/mp4', 'video/webm')} type="video/webm" />
-                              
-                              {/* Tentativa final com tipo genérico */}
-                              <source src={fileData.data} type="video/*" />
-                              
-                              {/* Mensagem para o usuário */}
-                              <p>Seu navegador não suporta reprodução deste vídeo.</p>
+                              Seu navegador não suporta reprodução de vídeo.
                             </video>
                           </div>
                         )}

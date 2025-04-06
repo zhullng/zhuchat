@@ -34,7 +34,7 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função melhorada para processar vídeos
+  // Função ultra-simplificada para processar vídeos
   const processVideoFile = (file) => {
     return new Promise((resolve, reject) => {
       if (!file) {
@@ -42,53 +42,28 @@ const MessageInput = () => {
         return;
       }
 
-      // Verifique se é um tipo de vídeo
       const isVideoFile = file.type.startsWith('video/') || 
                           file.name.toLowerCase().endsWith('.mov') || 
                           file.name.toLowerCase().endsWith('.mp4');
       
       if (!isVideoFile) {
-        // Não é vídeo, retorna o arquivo original
         resolve(file); 
         return;
       }
       
-      // Mostra aviso para o usuário
-      toast.info("Processando vídeo...", {
-        duration: 3000
-      });
-      
-      // Abordagem simplificada: apenas leia o arquivo como DataURL
+      // Simplificação extrema - apenas leia o arquivo como DataURL diretamente
       const reader = new FileReader();
       
       reader.onload = (event) => {
-        // Obtenha o resultado da leitura (DataURL)
-        const dataUrl = event.target.result;
-        
-        // Em vez de tentar converter, apenas normalize o formato de saída
-        let fileType = 'video/mp4';
-        
-        // Se o MIME type original for indefinido ou vazio, use o tipo de arquivo detectado
-        if (!file.type || file.type === '') {
-          if (file.name.toLowerCase().endsWith('.mov')) {
-            fileType = 'video/quicktime';
-          } else if (file.name.toLowerCase().endsWith('.mp4')) {
-            fileType = 'video/mp4';
-          }
-        } else {
-          fileType = file.type;
-        }
-        
-        // Crie o objeto de resultado
+        // Apenas mantenha os dados do arquivo como estão, sem qualquer processamento
         const result = {
           name: file.name,
-          type: fileType,
+          type: file.type || 'video/mp4', // Fallback para MP4 se não tiver tipo
           size: formatFileSize(file.size),
-          originalType: file.type || fileType,
-          data: dataUrl
+          originalType: file.type || 'video/mp4',
+          data: event.target.result
         };
         
-        // Resolva a promessa com os dados
         resolve(result);
       };
       
@@ -97,6 +72,7 @@ const MessageInput = () => {
         reject(error);
       };
       
+      // Simplesmente leia o arquivo como está
       reader.readAsDataURL(file);
     });
   };
@@ -266,13 +242,12 @@ const MessageInput = () => {
     if (file.type.startsWith('video/') || isMovFile) {
       // Para vídeos, usamos o processamento especial
       setIsUploading(true);
-      const toastId = toast.loading("Preparando vídeo...");
       
       // Criar preview do vídeo
       const previewUrl = URL.createObjectURL(file);
       setFilePreview(previewUrl);
       
-      // Processar o vídeo com nossa função dedicada
+      // Processar o vídeo com nossa função ultra-simplificada
       processVideoFile(file)
         .then(processedFile => {
           setFileInfo({
@@ -283,7 +258,6 @@ const MessageInput = () => {
             originalType: processedFile.originalType
           });
           
-          toast.success("Vídeo pronto para envio", { id: toastId });
           setImagePreview(null);
           setImageData(null);
           setShowOptions(false);
@@ -292,21 +266,16 @@ const MessageInput = () => {
           console.error("Erro ao processar vídeo:", error);
           
           // Se falhar, usar método tradicional como fallback
-          const reader = new FileReader();
-          reader.onload = (event) => {
+          const directReader = new FileReader();
+          directReader.onload = (evt) => {
             setFileInfo({
               name: file.name,
-              type: isMovFile ? 'video/quicktime' : file.type,
+              type: file.type || 'video/mp4',
               size: formatFileSize(file.size),
-              data: event.target.result,
-              originalType: isMovFile ? 'video/quicktime' : file.type
+              data: evt.target.result
             });
-            toast.error("Ocorreu um erro no processamento", { id: toastId });
           };
-          reader.onerror = () => {
-            toast.error("Falha ao ler o arquivo", { id: toastId });
-          };
-          reader.readAsDataURL(file);
+          directReader.readAsDataURL(file);
         })
         .finally(() => {
           setIsUploading(false);
