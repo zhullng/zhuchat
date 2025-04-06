@@ -16,26 +16,18 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     
-    // Texto da mensagem (opcional se houver imagem ou arquivo)
+    // Texto da mensagem (opcional se houver imagem)
     text: {
       type: String,
       required: function() {
-        // Texto obrigatório apenas se não houver imagem ou arquivo
-        return !this.image && !this.file;
+        // Texto obrigatório apenas se não houver imagem
+        return !this.image;
       }
     },
     
     // URL da imagem (se houver imagens)
     image: {
       type: String,
-    },
-    
-    // Informações do arquivo (se houver arquivo)
-    file: {
-      name: String,        // Nome original do arquivo
-      type: String,        // Tipo MIME do arquivo
-      size: String,        // Tamanho formatado do arquivo
-      path: String         // Caminho do arquivo no servidor
     },
     
     // Status de leitura

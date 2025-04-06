@@ -6,8 +6,7 @@ import {
     sendMessage,
     getConversations,
     markConversationAsRead,
-    deleteMessage,
-    getMessageFile
+    deleteMessage
   } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -16,9 +15,6 @@ const router = express.Router();
 router.get("/users", protectRoute, getUsersForSidebar);
 router.get("/conversations", protectRoute, getConversations);
 router.patch("/read/:id", protectRoute, markConversationAsRead);
-
-// Rota para obter arquivos de mensagens
-router.get("/file/:id", protectRoute, getMessageFile);
 
 // Rota para excluir mensagem
 router.delete("/:id", protectRoute, deleteMessage);

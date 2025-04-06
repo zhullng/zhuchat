@@ -254,7 +254,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Enviar mensagem com suporte a arquivos
+  // Enviar mensagem
   sendMessage: async (messageData) => {
     const { selectedUser } = get();
     
@@ -268,9 +268,6 @@ export const useChatStore = create((set, get) => ({
       const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
       
       try {
-        // Mostrar toast de progresso para arquivos
-        const toastId = messageData.file ? toast.loading("Enviando arquivo...") : null;
-        
         const res = await axiosInstance.post(
           `/messages/send/${selectedUser._id}`, 
           messageData,
@@ -288,11 +285,6 @@ export const useChatStore = create((set, get) => ({
         clearTimeout(timeoutId);
         
         const newMessage = res.data;
-        
-        // Atualizar toast para arquivos
-        if (toastId) {
-          toast.success("Arquivo enviado com sucesso", { id: toastId });
-        }
         
         set((state) => ({
           messages: [...state.messages, newMessage],
