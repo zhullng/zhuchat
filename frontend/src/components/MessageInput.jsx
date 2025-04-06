@@ -26,6 +26,45 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
+  // Função para converter vídeos para formato compatível
+  const convertToCompatibleFormat = async (file) => {
+    return new Promise((resolve) => {
+      // Se não for um vídeo QuickTime, retorna o arquivo original
+      if (file.type !== 'video/quicktime') {
+        resolve(file);
+        return;
+      }
+      
+      // Mostra aviso para o usuário
+      toast.info("Convertendo vídeo para formato compatível...", {
+        duration: 3000
+      });
+      
+      // Tenta transformar para MP4 através da manipulação do MIME type
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target.result;
+        // Altera o MIME type para MP4
+        const mp4Base64 = base64Data.replace('data:video/quicktime', 'data:video/mp4');
+        
+        // Cria um objeto com os dados convertidos
+        resolve({
+          name: file.name.replace('.mov', '.mp4'),
+          type: 'video/mp4',
+          size: formatFileSize(file.size),
+          data: mp4Base64
+        });
+      };
+      
+      reader.onerror = () => {
+        toast.error("Erro ao converter vídeo");
+        resolve(file); // Volta para o arquivo original em caso de erro
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Debug de estados mais detalhado
   useEffect(() =>{
     console.log("Estado de upload:", {
@@ -186,7 +225,7 @@ const MessageInput = () => {
       console.log("Iniciando leitura do arquivo:", file.name);
     };
 
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       console.log("ARQUIVO CARREGADO - DETALHES:", {
         fileName: file.name,
         fileType: file.type,
@@ -201,13 +240,22 @@ const MessageInput = () => {
           previewUrl = URL.createObjectURL(file);
         }
 
-        setFileInfo({
+        let fileInfoData = {
           name: file.name,
           type: file.type,
           size: formatFileSize(file.size),
           data: event.target.result
-        });
+        };
         
+        // Se for um vídeo QuickTime, tenta converter para um formato mais compatível
+        if (file.type === 'video/quicktime') {
+          fileInfoData = await convertToCompatibleFormat({
+            ...fileInfoData,
+            size: file.size
+          });
+        }
+
+        setFileInfo(fileInfoData);
         setFilePreview(previewUrl);
         setImagePreview(null);
         setImageData(null);

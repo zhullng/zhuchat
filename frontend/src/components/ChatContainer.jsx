@@ -10,6 +10,33 @@ import { formatMessageTime } from "../lib/utils";
 import { Trash2, MoreVertical, FileText, Download, Image, FileVideo, FileAudio, FileBadge, File } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Função para detectar dispositivo móvel
+const isMobileDevice = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Componente de fallback para vídeos que não reproduzem
+const VideoFallback = ({ fileData, onDownload }) => {
+  return (
+    <div className="flex flex-col items-center gap-3 p-4 border border-base-300 rounded-lg bg-base-200">
+      <div className="flex items-center justify-center bg-base-100 p-6 rounded-lg">
+        <FileVideo size={48} />
+      </div>
+      <p className="text-center">
+        <span className="font-medium">Não foi possível reproduzir o vídeo.</span><br />
+        <span className="text-sm opacity-70">Formato não suportado por este navegador.</span>
+      </p>
+      <button 
+        onClick={onDownload}
+        className="btn btn-sm btn-primary"
+      >
+        <Download size={16} />
+        <span>Baixar Vídeo</span>
+      </button>
+    </div>
+  );
+};
+
 const ChatContainer = () => {
   const {
     messages,
@@ -26,6 +53,7 @@ const ChatContainer = () => {
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState({});
+  const [videoErrors, setVideoErrors] = useState({});
 
   // Função para rolar para a última mensagem
   const scrollToLatestMessage = () => {
@@ -46,6 +74,7 @@ const ChatContainer = () => {
     // Resetar estado de scroll inicial quando mudar de conversa
     setInitialScrollDone(false);
     setActiveMessageMenu(null);
+    setVideoErrors({});
     
     return () => unsubscribeFromMessages();
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
@@ -78,6 +107,34 @@ const ChatContainer = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [activeMessageMenu]);
+
+  // Registra função global para download de fallback
+  useEffect(() => {
+    window.downloadVideoFallback = (messageId) => {
+      const message = messages.find(m => m._id === messageId);
+      if (message && message.fileData) {
+        try {
+          const fileData = JSON.parse(message.fileData);
+          downloadFileFromBase64(fileData);
+        } catch (e) {
+          console.error("Erro ao processar dados para download:", e);
+          toast.error("Erro ao preparar download");
+        }
+      }
+    };
+    
+    return () => {
+      delete window.downloadVideoFallback;
+    };
+  }, [messages]);
+
+  // Função para lidar com erros de vídeo
+  const handleVideoError = (messageId) => {
+    setVideoErrors(prev => ({
+      ...prev,
+      [messageId]: true
+    }));
+  };
 
   // Função para eliminar uma mensagem com tratamento de erros
   const handleDeleteMessage = async (messageId) => {
@@ -277,18 +334,34 @@ const ChatContainer = () => {
                   <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
                     {fileData.type.startsWith('video/') ? (
                       <div className="w-full max-w-[500px]">
-                        <video 
-                          controls 
-                          controlsList="nodownload"
-                          className="w-full h-auto rounded-md cursor-pointer object-contain"
-                          src={fileData.data}
-                          onError={(e) => {
-                            console.error("Erro ao carregar vídeo:", e);
-                            console.log("Dados do vídeo (início):", fileData.data.substring(0, 100));
-                          }}
-                        >
-                          Seu navegador não suporta reprodução de vídeo.
-                        </video>
+                        {videoErrors[message._id] ? (
+                          <VideoFallback 
+                            fileData={fileData} 
+                            onDownload={() => downloadFileFromBase64(fileData)}
+                          />
+                        ) : (
+                          isMobileDevice() || ['video/mp4', 'video/webm'].includes(fileData.type) ? (
+                            <video 
+                              controls 
+                              controlsList="nodownload"
+                              className="w-full h-auto rounded-md cursor-pointer object-contain"
+                              onError={(e) => {
+                                console.error("Erro ao carregar vídeo:", e);
+                                console.log("Dados do vídeo (início):", fileData.data.substring(0, 100));
+                                handleVideoError(message._id);
+                              }}
+                            >
+                              <source src={fileData.data} type={fileData.type} />
+                              <source src={fileData.data} type="video/mp4" />
+                              <p>Seu navegador não suporta reprodução de vídeo.</p>
+                            </video>
+                          ) : (
+                            <VideoFallback 
+                              fileData={fileData} 
+                              onDownload={() => downloadFileFromBase64(fileData)}
+                            />
+                          )
+                        )}
                       </div>
                     ) : (
                       // Layout existente para outros tipos de arquivo
