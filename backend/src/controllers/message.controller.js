@@ -36,7 +36,11 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, file } = req.body;
+    // Extrair dados da requisição com tratamento de log detalhado
+    console.log("Headers da requisição:", req.headers);
+    console.log("Tamanho da requisição:", req.headers['content-length']);
+    
+    let { text, image, file } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
@@ -44,21 +48,37 @@ export const sendMessage = async (req, res) => {
       hasText: !!text, 
       hasImage: !!image, 
       hasFile: !!file,
+      textLength: text ? text.length : 0,
+      imageLength: image ? image.length : 0,
+      fileInfo: file ? {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataLength: file.data ? file.data.length : 0
+      } : null,
       receiverId 
     });
 
-    // Validar entrada (pelo menos um dos três campos deve estar presente)
+    // Validar entrada
     if (!text && !image && !file) {
       return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
     }
+
+    // Início: criar a mensagem sem arquivos primeiro
+    const messageData = {
+      senderId,
+      receiverId,
+      text: text || ""
+    };
 
     // Preparar upload de imagem se presente
     let imageUrl = null;
     if (image) {
       try {
-        console.log("Iniciando upload de imagem para Cloudinary");
+        console.log("Iniciando upload de imagem");
         const uploadResult = await uploadToCloudinary(image, "chat_images");
         imageUrl = uploadResult.url;
+        messageData.image = imageUrl;
         console.log("Upload de imagem concluído:", imageUrl);
       } catch (uploadError) {
         console.error("Erro ao fazer upload da imagem:", uploadError);
@@ -73,14 +93,10 @@ export const sendMessage = async (req, res) => {
     let fileInfo = null;
     if (file && file.data) {
       try {
-        console.log("Iniciando upload de arquivo para Cloudinary:", {
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size
-        });
-
-        // Determinar pasta apropriada com base no tipo de arquivo
-        const fileFolder = file.type.startsWith('image/') ? "chat_images" : "chat_files";
+        console.log("Iniciando upload de arquivo:", file.name);
+        
+        // Determinar pasta apropriada
+        const fileFolder = "chat_files";
         
         // Criar um nome de arquivo seguro
         const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -92,14 +108,15 @@ export const sendMessage = async (req, res) => {
           public_id: publicId,
         });
         
-        console.log("Upload de arquivo concluído:", uploadResult);
-        
         fileInfo = {
           name: file.name,
           type: file.type,
           size: file.size,
           url: uploadResult.url
         };
+        
+        messageData.file = fileInfo;
+        console.log("Upload de arquivo concluído:", fileInfo);
       } catch (uploadError) {
         console.error("Erro detalhado ao fazer upload do arquivo:", uploadError);
         return res.status(500).json({ 
@@ -110,21 +127,11 @@ export const sendMessage = async (req, res) => {
     }
 
     // Criar nova mensagem
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      text: text || "",
-      image: imageUrl,
-      file: fileInfo
-    });
-
-    console.log("Salvando mensagem com:", { 
-      text: text ? "presente" : "ausente", 
-      image: imageUrl ? "presente" : "ausente", 
-      file: fileInfo ? "presente" : "ausente" 
-    });
+    const newMessage = new Message(messageData);
+    console.log("Salvando mensagem no banco de dados:", messageData);
 
     await newMessage.save();
+    console.log("Mensagem salva com sucesso, ID:", newMessage._id);
 
     // Preparar mensagem de resposta
     const responseMessage = newMessage.toObject();
@@ -132,7 +139,6 @@ export const sendMessage = async (req, res) => {
     // Enviar via socket se o receptor estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      console.log("Enviando mensagem via socket para:", receiverId);
       io.to(receiverSocketId).emit("newMessage", responseMessage);
     }
 
@@ -141,7 +147,8 @@ export const sendMessage = async (req, res) => {
     console.error("ERRO CRÍTICO NO CONTROLADOR:", {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      code: error.code
     });
 
     res.status(500).json({ 
