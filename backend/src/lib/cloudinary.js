@@ -18,27 +18,38 @@ const uploadToCloudinary = async (fileData, folder = "chat_uploads", options = {
       throw new Error("Dados de arquivo vazios");
     }
 
-    // Configurações padrão
+    // Verificação básica de formato
+    if (typeof fileData !== 'string' || !fileData.startsWith('data:')) {
+      throw new Error("Formato de dados inválido");
+    }
+
+    // Configurações de upload com valores padrão mais seguros
     const uploadOptions = {
       folder,
       resource_type: options.resource_type || "auto",
+      timeout: 120000, // 2 minutos
       ...options
     };
 
-    // Fazer o upload
-    const result = await cloudinary.uploader.upload(fileData, uploadOptions);
-    
-    return {
-      url: result.secure_url,
-      public_id: result.public_id,
-      resource_type: result.resource_type
-    };
+    console.log(`Iniciando upload para Cloudinary (${uploadOptions.resource_type})`);
+
+    // Fazer upload com captura explícita de erros
+    try {
+      const result = await cloudinary.uploader.upload(fileData, uploadOptions);
+      return {
+        url: result.secure_url,
+        public_id: result.public_id,
+        resource_type: result.resource_type
+      };
+    } catch (cloudinaryError) {
+      console.error("Erro específico do Cloudinary:", cloudinaryError);
+      throw new Error(`Erro do Cloudinary: ${cloudinaryError.message}`);
+    }
   } catch (error) {
-    console.error("Erro no upload para Cloudinary:", error);
+    console.error("Erro ao fazer upload:", error);
     throw error;
   }
 };
-
 // Função para excluir um arquivo do Cloudinary
 const deleteFromCloudinary = async (publicId, resourceType = "image") => {
   try {

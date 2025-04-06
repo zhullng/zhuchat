@@ -65,28 +65,53 @@ export const sendMessage = async (req, res) => {
     }
 
     // Processar arquivo (se houver)
-    if (file && file.data) {
-      try {
-        // Processar arquivo como uma "imagem" para o Cloudinary
-        // O resource_type será determinado automaticamente
-        const uploadResult = await uploadToCloudinary(file.data, "chat_files", {
-          resource_type: "auto",
-          use_filename: true,
-          unique_filename: true,
-          public_id: `file_${Date.now()}`
-        });
-        
-        messageData.file = {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          url: uploadResult.url
-        };
-      } catch (error) {
-        console.error("Erro ao fazer upload do arquivo:", error);
-        return res.status(500).json({ error: "Falha ao processar arquivo" });
-      }
+if (file && file.data) {
+  try {
+    // Verificar se os dados do arquivo estão no formato correto
+    if (!file.data.startsWith('data:')) {
+      return res.status(400).json({ 
+        error: "Formato de dados do arquivo inválido" 
+      });
     }
+
+    // Criar nome de arquivo único usando timestamp e nome original do arquivo
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const uniqueFileName = `file_${Date.now()}_${safeFileName}`;
+    
+    // Tipos de arquivo que o Cloudinary pode processar como imagens
+    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    
+    // Determinar resource_type baseado no tipo MIME do arquivo
+    const resourceType = imageTypes.includes(file.type) ? 'image' : 'raw';
+    
+    console.log(`Tentando upload com resource_type: ${resourceType}`);
+    
+    // Fazer upload do arquivo para o Cloudinary com configurações específicas
+    const uploadResult = await uploadToCloudinary(file.data, "chat_files", {
+      resource_type: resourceType,
+      public_id: uniqueFileName,
+      overwrite: true
+    });
+    
+    console.log("Upload para Cloudinary bem-sucedido:", uploadResult);
+    
+    // Adicionar informações do arquivo à mensagem
+    messageData.file = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      url: uploadResult.url
+    };
+    
+  } catch (error) {
+    console.error("Erro detalhado ao fazer upload do arquivo:", error);
+    // Responder com erro sem encerrar o processamento do servidor
+    return res.status(500).json({ 
+      error: "Falha ao processar arquivo", 
+      details: error.message 
+    });
+  }
+}
 
     // Criar e salvar a mensagem
     const newMessage = new Message(messageData);
