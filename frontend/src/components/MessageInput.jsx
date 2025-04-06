@@ -486,7 +486,7 @@ const MessageInput = () => {
                 disabled={isUploading}
               >
                 <FileText size={20} className="text-base-content opacity-70" />
-                <span>Enviar qualquer ficheiro</span>
+                <span>Enviar qualquer ficheiro ou vídeo</span>
               </button>
             </div>
           )}
