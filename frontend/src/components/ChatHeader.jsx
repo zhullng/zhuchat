@@ -13,16 +13,8 @@ const ChatHeader = () => {
 
   return (
     <div className="p-2.5 border-b border-base-300 bg-base-100">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setSelectedUser(null)} 
-            className="btn btn-ghost btn-sm btn-circle mr-2"
-            title="Fechar chat"
-          >
-            <X size={18} />
-          </button>
-
           <div className="avatar">
             <div className="size-10 rounded-full relative">
               {isAI ? (
@@ -47,8 +39,17 @@ const ChatHeader = () => {
           </div>
         </div>
 
-        {/* Área de pesquisa global */}
-        <GlobalSearch />
+        {/* Área de pesquisa global com botão de fechar */}
+        <div className="flex items-center gap-2 flex-1 justify-end">
+          <GlobalSearch />
+          <button 
+            onClick={() => setSelectedUser(null)} 
+            className="btn btn-ghost btn-sm btn-circle"
+            title="Fechar chat"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );

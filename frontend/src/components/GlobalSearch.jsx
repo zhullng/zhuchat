@@ -7,7 +7,7 @@ import { useAuthStore } from "../store/useAuthStore";
 const SearchResult = ({ 
   message, 
   searchTerm, 
-  onSelectConversation,
+  onSelectMessage,
   isSelected 
 }) => {
   // Função para destacar o termo de pesquisa no texto
@@ -16,7 +16,7 @@ const SearchResult = ({
     
     const parts = text.split(new RegExp(`(${term})`, 'gi'));
     return parts.map((part, index) => 
-      part.toLowerCase() === term.toLowerCase() ? 
+      part.toLowerCase().includes(term.toLowerCase()) ? 
       <mark key={index} className="bg-yellow-200">{part}</mark> : 
       part
     );
@@ -24,96 +24,40 @@ const SearchResult = ({
 
   return (
     <div 
-      onClick={() => onSelectConversation(message)}
+      onClick={() => onSelectMessage(message)}
       className={`p-2 hover:bg-base-200 cursor-pointer ${isSelected ? 'bg-base-200' : ''}`}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <img 
-          src={message.senderProfilePic || "/avatar.png"} 
-          alt="Profile" 
-          className="w-8 h-8 rounded-full"
-        />
-        <div className="flex-1">
-          <div className="font-medium text-sm">
-            {message.senderName}
-          </div>
-          <div className="text-xs text-base-content/70">
-            {new Date(message.createdAt).toLocaleString()}
-          </div>
-        </div>
-      </div>
-      <div className="text-sm">
+      <div className="text-sm break-words">
         {highlightText(message.text, searchTerm)}
+      </div>
+      <div className="text-xs text-base-content/70 mt-1">
+        {new Date(message.createdAt).toLocaleString()}
       </div>
     </div>
   );
-};
-
-// Hook personalizado para pesquisa global
-const useGlobalSearch = (searchTerm) => {
-  const { conversations, messages } = useChatStore();
-  const { authUser } = useAuthStore();
-  const [searchResults, setSearchResults] = useState([]);
-
-  useEffect(() => {
-    if (!searchTerm) {
-      setSearchResults([]);
-      return;
-    }
-
-    // Pesquisa em todas as conversas e mensagens
-    const globalResults = messages.filter(message => 
-      message.text && 
-      message.text.toLowerCase().includes(searchTerm.toLowerCase())
-    ).map(message => ({
-      ...message,
-      senderName: message.senderId === authUser._id ? 
-        authUser.fullName : 
-        conversations.find(conv => 
-          conv.participants.includes(message.senderId)
-        )?.otherUserName || 'Utilizador',
-      senderProfilePic: message.senderId === authUser._id ? 
-        authUser.profilePic : 
-        conversations.find(conv => 
-          conv.participants.includes(message.senderId)
-        )?.otherUserProfilePic
-    })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    setSearchResults(globalResults);
-  }, [searchTerm, messages, conversations, authUser]);
-
-  return searchResults;
 };
 
 // Componente de pesquisa global
 export const GlobalSearch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedResult, setSelectedResult] = useState(null);
-  const { setSelectedUser, getMessages } = useChatStore();
+  const { messages } = useChatStore();
+  const { selectedUser } = useChatStore();
 
-  const searchResults = useGlobalSearch(searchTerm);
+  // Filtrar mensagens apenas do usuário selecionado e que contêm o termo de busca
+  const searchResults = messages.filter(message => 
+    message.text && 
+    (message.senderId === selectedUser._id || message.receiverId === selectedUser._id) &&
+    message.text.toLowerCase().includes(searchTerm.toLowerCase())
+  ).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-      const handleSelectConversation = (message) => {
-    const otherUserId = message.senderId === useAuthStore.getState().authUser._id 
-      ? message.receiverId 
-      : message.senderId;
-    
-    const selectedUserData = {
-      _id: otherUserId,
-      fullName: message.senderName
-    };
-
-    // Primeiro, seleciona o usuário e carrega as mensagens
-    setSelectedUser(selectedUserData);
-    getMessages(otherUserId);
+  const handleSelectMessage = (message) => {
     setSelectedResult(message);
 
-    // Depois, destaca a mensagem (precisa ser feito após carregar as mensagens)
-    setTimeout(() => {
-      if (window.highlightAndScrollToMessage) {
-        window.highlightAndScrollToMessage(message._id);
-      }
-    }, 300);
+    // Usar a função global para destacar e rolar para a mensagem
+    if (window.highlightAndScrollToMessage) {
+      window.highlightAndScrollToMessage(message._id);
+    }
   };
 
   const clearSearch = () => {
@@ -148,12 +92,15 @@ export const GlobalSearch = () => {
 
       {searchTerm && searchResults.length > 0 && (
         <div className="absolute z-10 mt-1 w-full bg-base-100 border border-base-300 rounded-md shadow-lg max-h-96 overflow-y-auto">
-          {searchResults.map((result, index) => (
+          <div className="text-xs p-2 text-base-content/70">
+            {searchResults.length} resultado{searchResults.length !== 1 ? 's' : ''}
+          </div>
+          {searchResults.map((result) => (
             <SearchResult 
               key={result._id} 
               message={result}
               searchTerm={searchTerm}
-              onSelectConversation={handleSelectConversation}
+              onSelectMessage={handleSelectMessage}
               isSelected={selectedResult?._id === result._id}
             />
           ))}
