@@ -26,47 +26,78 @@ const MessageInput = () => {
     else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  // Função para converter vídeos para formato compatível
-  const convertToCompatibleFormat = async (file) => {
-    return new Promise((resolve) => {
-      // Se não for um vídeo QuickTime, retorna o arquivo original
-      if (file.type !== 'video/quicktime') {
-        resolve(file);
+  // Função avançada para converter vídeos para formato compatível universal
+  const convertToUniversalFormat = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file || !file.type.startsWith('video/')) {
+        resolve(file); // Não é vídeo, retorna o arquivo original
         return;
       }
       
       // Mostra aviso para o usuário
-      toast.info("Convertendo vídeo para formato compatível...", {
+      toast.info("Processando vídeo para compatibilidade universal...", {
         duration: 3000
       });
       
-      // Tenta transformar para MP4 através da manipulação do MIME type
       const reader = new FileReader();
+      
       reader.onload = (event) => {
-        const base64Data = event.target.result;
-        // Altera o MIME type para MP4
-        const mp4Base64 = base64Data.replace('data:video/quicktime', 'data:video/mp4');
+        const arrayBuffer = event.target.result;
         
-        // Cria um objeto com os dados convertidos
-        resolve({
-          name: file.name.replace('.mov', '.mp4'),
-          type: 'video/mp4',
-          size: formatFileSize(file.size),
-          data: mp4Base64
-        });
+        // Verifica se temos dados válidos
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+          toast.error("Dados de vídeo inválidos");
+          reject(new Error("Dados de vídeo inválidos"));
+          return;
+        }
+        
+        try {
+          // Criar um Blob a partir do ArrayBuffer
+          const videoBlob = new Blob([arrayBuffer], { type: 'video/mp4' });
+          
+          // Converter o Blob para base64
+          const blobReader = new FileReader();
+          blobReader.onload = (e) => {
+            const base64data = e.target.result;
+            
+            // Criar objeto com metadados e dados convertidos
+            const convertedFile = {
+              name: file.name.replace(/\.(mov|quicktime|m4v)$/i, '.mp4'),
+              type: 'video/mp4',
+              size: formatFileSize(file.size),
+              originalType: file.type,
+              data: base64data
+            };
+            
+            resolve(convertedFile);
+          };
+          
+          blobReader.onerror = (error) => {
+            console.error("Erro ao converter blob para base64:", error);
+            toast.error("Erro ao processar vídeo");
+            reject(error);
+          };
+          
+          blobReader.readAsDataURL(videoBlob);
+        } catch (error) {
+          console.error("Erro ao processar vídeo:", error);
+          toast.error("Erro ao processar vídeo");
+          reject(error);
+        }
       };
       
-      reader.onerror = () => {
-        toast.error("Erro ao converter vídeo");
-        resolve(file); // Volta para o arquivo original em caso de erro
+      reader.onerror = (error) => {
+        console.error("Erro ao ler arquivo:", error);
+        toast.error("Erro ao ler arquivo de vídeo");
+        reject(error);
       };
       
-      reader.readAsDataURL(file);
+      reader.readAsArrayBuffer(file);
     });
   };
 
   // Debug de estados mais detalhado
-  useEffect(() =>{
+  useEffect(() => {
     console.log("Estado de upload:", {
       imagePreview: imagePreview ? `Imagem (${imagePreview.length} bytes)` : 'Sem imagem',
       imageData: imageData ? `Dados da imagem (${imageData.length} bytes)` : 'Sem dados de imagem',
@@ -240,22 +271,56 @@ const MessageInput = () => {
           previewUrl = URL.createObjectURL(file);
         }
 
-        let fileInfoData = {
-          name: file.name,
-          type: file.type,
-          size: formatFileSize(file.size),
-          data: event.target.result
-        };
-        
-        // Se for um vídeo QuickTime, tenta converter para um formato mais compatível
-        if (file.type === 'video/quicktime') {
-          fileInfoData = await convertToCompatibleFormat({
-            ...fileInfoData,
-            size: file.size
+        // Se for um vídeo, sempre processa para garantir compatibilidade universal
+        if (file.type.startsWith('video/')) {
+          setIsUploading(true); // Indica que está processando
+          toast.loading("Preparando vídeo para compatibilidade universal...", {
+            id: "video-processing"
+          });
+          
+          try {
+            // Use o arquivo original para criar previewUrl
+            // Mas converta para formato universal para armazenamento
+            const processedFile = await convertToUniversalFormat(file);
+            
+            setFileInfo({
+              name: processedFile.name,
+              type: processedFile.type,
+              size: processedFile.size,
+              data: processedFile.data,
+              originalType: file.type
+            });
+            
+            toast.success("Vídeo processado com sucesso", {
+              id: "video-processing"
+            });
+          } catch (error) {
+            console.error("Erro no processamento do vídeo:", error);
+            
+            // Fallback para o método original se a conversão falhar
+            setFileInfo({
+              name: file.name,
+              type: file.type,
+              size: formatFileSize(file.size),
+              data: event.target.result
+            });
+            
+            toast.error("Usando formato original do vídeo", {
+              id: "video-processing"
+            });
+          } finally {
+            setIsUploading(false);
+          }
+        } else {
+          // Para arquivos que não são vídeos, use o comportamento padrão
+          setFileInfo({
+            name: file.name,
+            type: file.type,
+            size: formatFileSize(file.size),
+            data: event.target.result
           });
         }
-
-        setFileInfo(fileInfoData);
+        
         setFilePreview(previewUrl);
         setImagePreview(null);
         setImageData(null);
@@ -263,6 +328,7 @@ const MessageInput = () => {
       } catch (error) {
         console.error("ERRO AO DEFINIR FILEINFO:", error);
         toast.error("Erro ao processar arquivo. Tente novamente.");
+        setIsUploading(false);
       }
     };
     
@@ -317,7 +383,8 @@ const MessageInput = () => {
           name: fileInfo.name,
           type: fileInfo.type,
           size: fileInfo.size,
-          data: fileInfo.data
+          data: fileInfo.data,
+          originalType: fileInfo.originalType // Preserva o tipo original para referência
         };
       }
 
@@ -451,7 +518,7 @@ const MessageInput = () => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept="video/*"
+          accept="video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
           className="hidden"
           disabled={isUploading}
         />

@@ -6,14 +6,9 @@ import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
-import { formatMessageTime } from "../lib/utils";
+import { formatMessageTime, isMobileDevice, normalizeVideoDataURI } from "../lib/utils";
 import { Trash2, MoreVertical, FileText, Download, Image, FileVideo, FileAudio, FileBadge, File } from "lucide-react";
 import toast from "react-hot-toast";
-
-// Função para detectar dispositivo móvel
-const isMobileDevice = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
 
 // Componente de fallback para vídeos que não reproduzem
 const VideoFallback = ({ fileData, onDownload }) => {
@@ -248,6 +243,11 @@ const ChatContainer = () => {
           if (message.fileData) {
             try {
               fileData = JSON.parse(message.fileData);
+              
+              // Normaliza URLs de vídeo se necessário
+              if (fileData.type.startsWith('video/') && fileData.data) {
+                fileData.data = normalizeVideoDataURI(fileData.data, fileData.originalType || fileData.type);
+              }
             } catch (e) {
               console.error("Erro ao analisar dados do arquivo:", e);
             }
@@ -332,38 +332,87 @@ const ChatContainer = () => {
                 {/* Renderizar arquivo armazenado como JSON */}
                 {fileData && (
                   <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
-                    {fileData.type.startsWith('video/') ? (
+                    {fileData.type.startsWith('video/') && (
                       <div className="w-full max-w-[500px]">
-                        {videoErrors[message._id] ? (
-                          <VideoFallback 
-                            fileData={fileData} 
-                            onDownload={() => downloadFileFromBase64(fileData)}
-                          />
-                        ) : (
-                          isMobileDevice() || ['video/mp4', 'video/webm'].includes(fileData.type) ? (
-                            <video 
-                              controls 
-                              controlsList="nodownload"
-                              className="w-full h-auto rounded-md cursor-pointer object-contain"
-                              onError={(e) => {
-                                console.error("Erro ao carregar vídeo:", e);
-                                console.log("Dados do vídeo (início):", fileData.data.substring(0, 100));
-                                handleVideoError(message._id);
-                              }}
-                            >
-                              <source src={fileData.data} type={fileData.type} />
-                              <source src={fileData.data} type="video/mp4" />
-                              <p>Seu navegador não suporta reprodução de vídeo.</p>
-                            </video>
-                          ) : (
-                            <VideoFallback 
-                              fileData={fileData} 
-                              onDownload={() => downloadFileFromBase64(fileData)}
-                            />
-                          )
-                        )}
+                        <div className="video-container relative">
+                          {/* Video Player com múltiplas camadas de fallback */}
+                          <video 
+                            controls 
+                            controlsList="nodownload"
+                            className="w-full h-auto rounded-md cursor-pointer object-contain"
+                            onError={(e) => {
+                              console.error("Erro ao carregar vídeo:", e);
+                              handleVideoError(message._id);
+                            }}
+                            // Adicionar poster (imagem de preview) quando disponível
+                            poster={fileData.poster || ""}
+                            // Tentativa de melhorar o carregamento
+                            preload="metadata"
+                            playsInline
+                          >
+                            {/* Tenta com MIME type original */}
+                            <source src={fileData.data} type={fileData.type} />
+                            
+                            {/* Tenta com MP4 */}
+                            <source src={fileData.data} type="video/mp4" />
+                            
+                            {/* Tenta com WebM */}
+                            <source src={fileData.data.replace('video/mp4', 'video/webm')} type="video/webm" />
+                            
+                            {/* Tentativa final com tipo genérico */}
+                            <source src={fileData.data} type="video/*" />
+                            
+                            {/* Mensagem para o usuário */}
+                            <p>Seu navegador não suporta reprodução deste vídeo.</p>
+                          </video>
+                          
+                          {/* Overlay de fallback que aparece quando o vídeo falha */}
+                          {videoErrors[message._id] && (
+                            <div className="absolute inset-0 bg-base-200 rounded-md p-4 flex flex-col items-center justify-center">
+                              <div className="flex items-center justify-center bg-base-100 p-6 rounded-lg mb-4">
+                                <FileVideo size={48} />
+                              </div>
+                              <p className="text-center mb-4">
+                                <span className="font-medium">Não foi possível reproduzir o vídeo.</span><br />
+                                <span className="text-sm opacity-70">Formato não suportado por este navegador.</span>
+                              </p>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => downloadFileFromBase64(fileData)}
+                                  className="btn btn-sm btn-primary"
+                                >
+                                  <Download size={16} />
+                                  <span>Baixar Vídeo</span>
+                                </button>
+                                <button
+                                  onClick={() => setVideoErrors({...videoErrors, [message._id]: false})}
+                                  className="btn btn-sm btn-outline"
+                                >
+                                  <span>Tentar novamente</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Exibir informações do arquivo de vídeo */}
+                        <div className="mt-2 flex items-center justify-between px-2">
+                          <div className="flex items-center">
+                            <FileVideo size={16} className="mr-2" />
+                            <span className="text-xs">{fileData.name}</span>
+                          </div>
+                          <button
+                            onClick={() => downloadFileFromBase64(fileData)}
+                            className="btn btn-xs btn-ghost"
+                            title="Baixar vídeo"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </div>
                       </div>
-                    ) : (
+                    )}
+                    
+                    {!fileData.type.startsWith('video/') && (
                       // Layout existente para outros tipos de arquivo
                       <>
                         <div className="p-2 bg-base-100 rounded-md">
