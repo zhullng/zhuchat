@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import cors from "cors"; 
 import path from "path"; 
-import mongoose from "mongoose";
+import { fileURLToPath } from "url";
 import { connectDB } from "./lib/db.js"; // Conexão com o MongoDB
 
 import groupRoutes from "./routes/group.route.js";
@@ -18,11 +18,12 @@ import { app, server } from "./lib/socket.js"; // Inicializa app e server de soc
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-const __dirname = path.resolve();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Aumentar limites para permitir uploads de imagens
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// Aumentar limites para permitir uploads de arquivos grandes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Middlewares básicos
 app.use(cookieParser());
@@ -37,18 +38,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configurar cabeçalhos HTTP para uploads de imagens
+// Configurar cabeçalhos HTTP para uploads de arquivos
 app.use((req, res, next) => {
-  // Aumentar o timeout da conexão HTTP para uploads de imagens
+  // Aumentar o timeout da conexão HTTP para uploads de arquivos
   if (req.url.includes('/api/messages/send')) {
-    req.setTimeout(300000); // 5 minutos para rotas de envio de mensagens
+    req.setTimeout(600000); // 10 minutos para rotas de envio de mensagens
   }
   
   next();
 });
 
-// Aumentar o timeout do servidor para uploads de imagens
-server.timeout = 300000; // 5 minutos
+// Aumentar o timeout do servidor para uploads de arquivos
+server.timeout = 600000; // 10 minutos
 
 // Rotas da API
 app.use("/api/auth", authRoutes);

@@ -87,7 +87,7 @@ const MessageInput = () => {
       return;
     }
 
-    // Limite de tamanho de imagem (opcional)
+    // Limite de tamanho de imagem
     if (file.size > 10 * 1024 * 1024) { // 10MB
       toast.error("A imagem não pode ser maior que 10MB");
       return;
@@ -117,89 +117,69 @@ const MessageInput = () => {
     reader.readAsDataURL(file);
   };
 
-const handleFileChange = (e) => {
-  const file = e.target.files[0];
-  console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    lastModified: file.lastModified,
-    fullFile: file
-  });
-
-  if (!file) return;
-
-  // Lista de tipos de arquivo permitidos
-  const allowedFileTypes = [
-    'text/plain', 
-    'application/pdf', 
-    'application/msword', 
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'image/jpeg', 
-    'image/png', 
-    'image/gif'
-  ];
-
-  // Validar tipo de arquivo
-  if (!allowedFileTypes.includes(file.type)) {
-    console.error("TIPO DE ARQUIVO NÃO PERMITIDO:", file.type);
-    toast.error(`Tipo de arquivo não permitido: ${file.type}`);
-    return;
-  }
-
-  // Validações de arquivo
-  if (file.size === 0) {
-    toast.error("Não é possível selecionar um arquivo vazio");
-    return;
-  }
-
-  // Limite de tamanho de arquivo 
-  if (file.size > 50 * 1024 * 1024) { // 50MB
-    toast.error("O arquivo não pode ser maior que 50MB");
-    return;
-  }
-
-  const reader = new FileReader();
-  
-  reader.onloadstart = () => {
-    console.log("Iniciando leitura do arquivo:", file.name);
-  };
-
-  reader.onload = (event) => {
-    console.log("ARQUIVO CARREGADO - DETALHES:", {
-      fileName: file.name,
-      fileType: file.type,
-      dataLength: event.target.result.length,
-      dataPrefix: event.target.result.substring(0, 100)
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    console.log("ARQUIVO SELECIONADO - DETALHES COMPLETOS:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified,
+      fullFile: file
     });
+
+    if (!file) return;
+
+    // Validações de arquivo
+    if (file.size === 0) {
+      toast.error("Não é possível selecionar um arquivo vazio");
+      return;
+    }
+
+    // Limite de tamanho de arquivo mais generoso
+    if (file.size > 100 * 1024 * 1024) { // 100MB
+      toast.error("O arquivo não pode ser maior que 100MB");
+      return;
+    }
+
+    const reader = new FileReader();
     
-    try {
-      setFileInfo({
-        name: file.name,
-        type: file.type,
-        size: formatFileSize(file.size),
-        data: event.target.result
+    reader.onloadstart = () => {
+      console.log("Iniciando leitura do arquivo:", file.name);
+    };
+
+    reader.onload = (event) => {
+      console.log("ARQUIVO CARREGADO - DETALHES:", {
+        fileName: file.name,
+        fileType: file.type,
+        dataLength: event.target.result.length,
+        dataPrefix: event.target.result.substring(0, 100)
       });
       
-      setImagePreview(null);
-      setImageData(null);
-      setShowOptions(false);
-    } catch (error) {
-      console.error("ERRO AO DEFINIR FILEINFO:", error);
-      toast.error("Erro ao processar arquivo. Tente novamente.");
-    }
+      try {
+        setFileInfo({
+          name: file.name,
+          type: file.type,
+          size: formatFileSize(file.size),
+          data: event.target.result
+        });
+        
+        setImagePreview(null);
+        setImageData(null);
+        setShowOptions(false);
+      } catch (error) {
+        console.error("ERRO AO DEFINIR FILEINFO:", error);
+        toast.error("Erro ao processar arquivo. Tente novamente.");
+      }
+    };
+    
+    reader.onerror = (error) => {
+      console.error("ERRO AO LER ARQUIVO:", error);
+      toast.error("Erro ao carregar arquivo. Tente novamente.");
+    };
+    
+    // Use readAsDataURL para arquivos binários
+    reader.readAsDataURL(file);
   };
-  
-  reader.onerror = (error) => {
-    console.error("ERRO AO LER ARQUIVO:", error);
-    toast.error("Erro ao carregar arquivo. Tente novamente.");
-  };
-  
-  // Use readAsDataURL para arquivos binários
-  reader.readAsDataURL(file);
-};
 
   // Função para lidar com remoção de anexos
   const handleRemoveAttachment = () => {
@@ -211,7 +191,7 @@ const handleFileChange = (e) => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Função para enviar mensagem com mais detalhes de debug
+  // Função para enviar mensagem com suporte a arquivos
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
@@ -228,6 +208,9 @@ const handleFileChange = (e) => {
     
     try {
       setIsUploading(true);
+      
+      // Toast de progresso para uploads grandes
+      const toastId = fileInfo ? toast.loading("Enviando arquivo...") : null;
       
       const messageData = {
         text: text.trim() || ""
@@ -264,6 +247,11 @@ const handleFileChange = (e) => {
         textareaRef.current.style.height = "40px";
       }
 
+      // Atualizar toast para sucesso
+      if (toastId) {
+        toast.success("Arquivo enviado com sucesso", { id: toastId });
+      }
+
       console.log("Mensagem enviada com sucesso");
     } catch (error) {
       console.error("Erro detalhado ao enviar mensagem:", {
@@ -284,6 +272,9 @@ const handleFileChange = (e) => {
       handleSendMessage(e);
     }
   };
+
+  // Determinar se o botão enviar deve estar desativado
+  const isSendButtonDisabled = (!text.trim() && !imageData && !fileInfo) || isUploading;
 
   return (
     <div className="p-4 w-full bg-base-100">
@@ -404,7 +395,7 @@ const handleFileChange = (e) => {
         <button 
           type="submit" 
           className="btn btn-circle btn-sm"
-          disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
+          disabled={isSendButtonDisabled}
         >
           {isUploading ? (
             <span className="loading loading-spinner loading-xs"></span>
