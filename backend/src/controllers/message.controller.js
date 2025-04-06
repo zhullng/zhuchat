@@ -36,12 +36,12 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, image, file } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
     // Validate input
-    if (!text && !image) {
+    if (!text && !image && !file) {
       return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
     }
 
@@ -60,12 +60,38 @@ export const sendMessage = async (req, res) => {
       }
     }
 
+    // Prepare file upload if present
+    let fileInfo = null;
+    if (file && file.data) {
+      try {
+        const fileFolder = file.type.startsWith('image/') ? "chat_images" : "chat_files";
+        const uploadResult = await uploadToCloudinary(file.data, fileFolder, {
+          resource_type: "auto",
+          public_id: `${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
+        });
+        
+        fileInfo = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: uploadResult.url
+        };
+      } catch (uploadError) {
+        console.error("Erro ao fazer upload do arquivo:", uploadError);
+        return res.status(500).json({ 
+          error: "Falha ao processar arquivo", 
+          details: uploadError.message 
+        });
+      }
+    }
+
     // Create new message
     const newMessage = new Message({
       senderId,
       receiverId,
       text: text || "",
-      image: imageUrl
+      image: imageUrl,
+      file: fileInfo
     });
 
     await newMessage.save();
@@ -73,7 +99,8 @@ export const sendMessage = async (req, res) => {
     // Prepare response message
     const responseMessage = {
       ...newMessage.toObject(),
-      image: imageUrl
+      image: imageUrl,
+      file: fileInfo
     };
 
     // Send via socket if receiver is online
@@ -94,6 +121,37 @@ export const sendMessage = async (req, res) => {
       error: "Erro interno do servidor", 
       details: error.message
     });
+  }
+};
+
+export const getFileForMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const userId = req.user._id;
+    
+    // Verificar se a mensagem existe e se o usuário tem permissão para acessá-la
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Arquivo não encontrado" });
+    }
+    
+    // Verificar se o usuário tem permissão (é o remetente ou o destinatário)
+    if (message.senderId.toString() !== userId.toString() && 
+        message.receiverId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Sem permissão para acessar este arquivo" });
+    }
+    
+    // Verificar se a mensagem contém um arquivo
+    if (!message.file || !message.file.url) {
+      return res.status(404).json({ error: "Esta mensagem não contém um arquivo" });
+    }
+    
+    // Redirecionar para a URL do arquivo
+    res.redirect(message.file.url);
+  } catch (error) {
+    console.error("Erro ao obter arquivo:", error);
+    res.status(500).json({ error: "Erro ao obter arquivo" });
   }
 };
 

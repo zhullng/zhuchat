@@ -24,10 +24,11 @@ const CLOUDINARY_OPTIONS = {
   resource_type: "auto",       // Detecta automaticamente o tipo de ficheiro
   chunk_size: 6000000,         // 6MB por chunk (reduzido para maior estabilidade)
   timeout: 600000,             // 10 minutos de timeout
-  use_filename: true,          // Usar nome originalunique_filename: true,       // Adicionar sufixo único
+  use_filename: true,          // Usar nome original
+  unique_filename: true,       // Adicionar sufixo único
   overwrite: false,            // Não sobrescrever ficheiros
-  folder: "chat_images",       // Pasta padrão para imagens
-  max_file_size: 10000000,     // Limite de 10MB para imagens
+  folder: "chat_uploads",      // Pasta padrão para uploads
+  max_file_size: 50000000,     // Limite de 50MB para arquivos
 };
 
 // Extrai o tipo MIME da string base64 se disponível
@@ -42,8 +43,19 @@ function getMimeTypeFromBase64(base64String) {
   }
 }
 
+// Determina o resource_type baseado no MIME type
+function getResourceType(mimeType) {
+  if (!mimeType) return "auto";
+  
+  if (mimeType.startsWith('image/')) return "image";
+  if (mimeType.startsWith('video/')) return "video";
+  if (mimeType === 'application/pdf') return "image"; // PDFs podem ser visualizados como imagens
+  
+  return "raw"; // Para outros tipos de arquivos
+}
+
 // Função auxiliar para realizar upload no Cloudinary com retentativas
-const uploadToCloudinary = async (fileData, folder = "chat_images", options = {}) => {
+const uploadToCloudinary = async (fileData, folder = "chat_uploads", options = {}) => {
   try {
     console.log("Iniciando upload para Cloudinary:", {
       folder,
@@ -70,8 +82,9 @@ const uploadToCloudinary = async (fileData, folder = "chat_images", options = {}
     const mimeType = getMimeTypeFromBase64(fileData);
     console.log("Tipo MIME detectado:", mimeType);
 
-    // Ajustar resource_type para imagens
-    const resourceType = "image";
+    // Determinar resource_type baseado no MIME
+    const resourceType = getResourceType(mimeType);
+    console.log("Resource type selecionado:", resourceType);
 
     // Personalizar opções para o upload específico
     const uploadOptions = {
@@ -143,7 +156,7 @@ const deleteFromCloudinary = async (publicId, resourceType = "image") => {
   
   try {
     // Verificar se o publicId já contém o nome da pasta
-    const id = publicId.includes('/') ? publicId : `chat_images/${publicId}`;
+    const id = publicId.includes('/') ? publicId : `chat_uploads/${publicId}`;
     
     console.log(`Excluindo recurso do Cloudinary: ${id} (tipo: ${resourceType})`);
     
