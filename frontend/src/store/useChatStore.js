@@ -264,73 +264,38 @@ export const useChatStore = create((set, get) => ({
     }
     
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutos
+      // Verificar o tipo de conteúdo (apenas um por vez)
+      const isSendingText = !!messageData.text && !messageData.image && !messageData.file;
+      const isSendingImage = !!messageData.image && !messageData.text && !messageData.file;
+      const isSendingFile = !!messageData.file && !messageData.text && !messageData.image;
       
-      try {
-        const res = await axiosInstance.post(
-          `/messages/send/${selectedUser._id}`, 
-          messageData,
-          { 
-            signal: controller.signal,
-            timeout: 600000,
-            maxBodyLength: Infinity,
-            maxContentLength: Infinity,
-            headers: {
-              'Content-Type': 'application/json',
-            }
+      console.log("Enviando mensagem:", { 
+        isSendingText, 
+        isSendingImage, 
+        isSendingFile 
+      });
+      
+      const res = await axiosInstance.post(
+        `/messages/send/${selectedUser._id}`, 
+        messageData,
+        { 
+          timeout: 600000,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Message-Type': isSendingText ? 'text' : isSendingImage ? 'image' : 'file'
           }
-        );
-        
-        clearTimeout(timeoutId);
-        
-        const newMessage = res.data;
-        
-        set((state) => ({
-          messages: [...state.messages, newMessage],
-        }));
-
-        set(state => {
-          const updatedConversations = [...state.conversations];
-          
-          const existingConvIndex = updatedConversations.findIndex(
-            c => c.participants && c.participants.includes(selectedUser._id)
-          );
-          
-          if (existingConvIndex >= 0) {
-            updatedConversations[existingConvIndex] = {
-              ...updatedConversations[existingConvIndex],
-              latestMessage: newMessage,
-              unreadCount: 0
-            };
-          } else {
-            updatedConversations.unshift({
-              participants: [selectedUser._id, newMessage.senderId],
-              latestMessage: newMessage,
-              unreadCount: 0
-            });
-          }
-          
-          return { conversations: updatedConversations };
-        });
-        
-        await get().markConversationAsRead(selectedUser._id);
-
-        return newMessage;
-        
-      } catch (axiosError) {
-        console.error("ERRO DETALHADO DO AXIOS:", {
-          name: axiosError.name,
-          message: axiosError.message,
-          response: axiosError.response?.data
-        });
-
-        throw axiosError;
-      }
+        }
+      );
+      
+      const newMessage = res.data;
+      
+      set((state) => ({
+        messages: [...state.messages, newMessage],
+      }));
+      
+      return newMessage;
     } catch (error) {
-      console.error("ERRO FINAL AO ENVIAR MENSAGEM:", error);
-      
-      toast.error(error.response?.data?.error || "Erro ao enviar mensagem. Tente novamente.");
+      console.error("Erro ao enviar mensagem:", error);
       throw error;
     }
   },

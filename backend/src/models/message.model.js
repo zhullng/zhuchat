@@ -16,26 +16,23 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     
-    // Texto da mensagem (opcional se houver imagem ou arquivo)
+    // Texto da mensagem
     text: {
       type: String,
-      required: function() {
-        // Texto obrigatório apenas se não houver imagem ou arquivo
-        return !this.image && !this.file;
-      }
+      default: "",
     },
     
-    // URL da imagem (se houver imagens)
+    // URL da imagem
     image: {
       type: String,
     },
     
-    // Informações do arquivo (se houver)
+    // Informações do arquivo
     file: {
-      name: String,      // Nome original do arquivo
-      type: String,      // Tipo MIME do arquivo
-      size: String,      // Tamanho formatado
-      url: String        // URL do arquivo no Cloudinary ou outro storage
+      name: String,
+      type: String,
+      size: String,
+      url: String
     },
     
     // Status de leitura
@@ -47,7 +44,7 @@ const messageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Índices para melhorar a performance nas consultas
+// Índices para melhorar a performance
 messageSchema.index({ senderId: 1, receiverId: 1 });
 messageSchema.index({ createdAt: -1 });
 

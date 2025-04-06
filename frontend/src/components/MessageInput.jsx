@@ -215,44 +215,44 @@ const handleFileChange = (e) => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    console.log("Tentativa de envio de mensagem:", {
-      texto: text ? `Com texto (${text.length} caracteres)` : 'Sem texto',
-      imagem: imageData ? `Imagem carregada (${imageData.length} bytes)` : 'Sem imagem',
-      arquivo: fileInfo ? `Arquivo: ${fileInfo.name}` : 'Sem arquivo'
-    });
-
     if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
-      console.warn("Envio cancelado: conteúdo vazio ou já enviando");
       return;
     }
     
     try {
       setIsUploading(true);
       
-      const messageData = {
-        text: text.trim() || ""
-      };
-
-      if (imageData) {
-        messageData.image = imageData;
-      }
-
-      if (fileInfo) {
-        messageData.file = {
-          data: fileInfo.data,
-          type: fileInfo.type,
-          name: fileInfo.name,
-          size: fileInfo.size
+      // Primeiro, envie apenas mensagem de texto
+      if (text.trim()) {
+        const textOnlyMessage = {
+          text: text.trim()
         };
+        
+        await sendMessage(textOnlyMessage);
       }
-
-      console.log("Enviando dados da mensagem:", {
-        temTexto: !!messageData.text,
-        temImagem: !!messageData.image,
-        temArquivo: !!messageData.file
-      });
-
-      const result = await sendMessage(messageData);
+      
+      // Depois, envie apenas imagem (se houver)
+      if (imageData) {
+        const imageOnlyMessage = {
+          image: imageData
+        };
+        
+        await sendMessage(imageOnlyMessage);
+      }
+      
+      // Por último, envie apenas arquivo (se houver)
+      if (fileInfo) {
+        const fileOnlyMessage = {
+          file: {
+            data: fileInfo.data,
+            type: fileInfo.type,
+            name: fileInfo.name,
+            size: fileInfo.size
+          }
+        };
+        
+        await sendMessage(fileOnlyMessage);
+      }
       
       // Limpar após envio bem-sucedido
       setText("");
@@ -263,14 +263,8 @@ const handleFileChange = (e) => {
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
       }
-
-      console.log("Mensagem enviada com sucesso");
     } catch (error) {
-      console.error("Erro detalhado ao enviar mensagem:", {
-        nome: error.name,
-        mensagem: error.message,
-        pilha: error.stack
-      });
+      console.error("Erro ao enviar mensagem:", error);
       toast.error("Erro ao enviar mensagem. Tente novamente.");
     } finally {
       setIsUploading(false);
