@@ -3,80 +3,93 @@ import http from "http";
 import express from "express";
 import Group from "../models/group.model.js";
 
+// Cria a aplicação Express
 const app = express();
+
+// Cria o servidor HTTP a partir da aplicação Express
 const server = http.createServer(app);
 
-// Configuração do Socket.IO com opções avançadas
+// Cria uma instância do Server do Socket.IO, associada ao servidor HTTP com configurações otimizadas
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || ["http://localhost:5173"],
-    methods: ["GET", "POST"],
+    origin: process.env.CLIENT_URL || ["http://localhost:5173"],
     credentials: true
   },
-  pingTimeout: 60000,
-  pingInterval: 25000,
+  // Aumentar o tamanho máximo do pacote para suportar imagens
   maxHttpBufferSize: 10 * 1024 * 1024, // 10MB
-  transports: ['websocket', 'polling']
+  // Aumentar o timeout para evitar desconexões durante uploads
+  pingTimeout: 300000, // 5 minutos
+  // Priorizar WebSocket para melhor desempenho
+  transports: ["websocket", "polling"],
+  // Configurações adicionais para otimização
+  perMessageDeflate: {
+    threshold: 1024, // Comprimir mensagens maiores que 1KB
+    zlibDeflateOptions: {
+      level: 6, // Nível de compressão (0-9, onde 9 é máxima compressão)
+      memLevel: 8 // Nível de memória (1-9, onde 9 usa mais memória)
+    }
+  },
+  // Retry connection
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
 });
 
-// Mapa de usuários online
-const userSocketMap = {};
+// Função que retorna o Socket ID do recetor dado o userId
+export function getReceiverSocketId(userId) {
+  return userSocketMap[userId]; 
+}
 
-// Função para obter socket de um usuário
-export const getReceiverSocketId = (userId) => userSocketMap[userId];
-
-// Função para emitir para um grupo específico
-export const emitToGroup = (groupId, event, data) => {
-  const roomName = `group-${groupId}`;
-  io.to(roomName).emit(event, data);
-};
+// Mapa para armazenar os users online
+const userSocketMap = {}; // Exemplo: {userId: socketId}
 
 io.on("connection", (socket) => {
-  console.log("Novo usuário conectado", socket.id);
+  console.log("Um utilizador conectou-se", socket.id); 
 
+  // Obtém o userId a partir dos dados da handshake
   const userId = socket.handshake.query.userId;
-  
-  if (userId) {
-    // Mapear socket do usuário
-    userSocketMap[userId] = socket.id;
-    
-    // Notificar todos usuários online
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  if (userId) userSocketMap[userId] = socket.id;
 
-    // Entrar automaticamente em salas de grupos
-    try {
-      Group.find({ members: userId })
-        .then(groups => {
-          groups.forEach(group => {
-            const roomName = `group-${group._id}`;
-            socket.join(roomName);
-            console.log(`Usuário ${userId} entrou na sala ${roomName}`);
-          });
-        })
-        .catch(err => console.error("Erro ao entrar em salas de grupo:", err));
-    } catch (error) {
-      console.error("Erro inesperado ao processar salas:", error);
-    }
+  // Emite um evento para todos os users conectados
+  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+  // Juntar-se a salas de grupo
+  if (userId) {
+    // Buscar grupos do usuário e entrar nas salas correspondentes
+    Group.find({ members: userId })
+      .then(groups => {
+        groups.forEach(group => {
+          socket.join(`group-${group._id}`);
+        });
+      })
+      .catch(err => console.error("Erro ao entrar em salas de grupo:", err));
   }
 
-  // Eventos de grupo
-  socket.on("joinGroup", (groupId) => {
-    const roomName = `group-${groupId}`;
-    socket.join(roomName);
-    console.log(`Usuário ${userId} juntou-se ao grupo ${groupId}`);
+  // Evento específico para indicar "digitando"
+  socket.on("typing", (data) => {
+    if (data.to) {
+      const receiverSocketId = userSocketMap[data.to];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("typing", { from: data.from || userId });
+      }
+    }
   });
 
-  socket.on("leaveGroup", (groupId) => {
-    const roomName = `group-${groupId}`;
-    socket.leave(roomName);
-    console.log(`Usuário ${userId} saiu do grupo ${groupId}`);
+  // Evento específico para indicar "parou de digitar"
+  socket.on("stopTyping", (data) => {
+    if (data.to) {
+      const receiverSocketId = userSocketMap[data.to];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("stopTyping", { from: data.from || userId });
+      }
+    }
   });
 
-  // Desconexão
+  // Evento de desconexão do Socket.IO
   socket.on("disconnect", () => {
-    console.log("Usuário desconectado", socket.id);
+    console.log("Um utilizador desconectou-se", socket.id);
     
-    // Remover mapeamento de socket
+    // Remover o usuário do mapa e notificar outros
     for (const [key, value] of Object.entries(userSocketMap)) {
       if (value === socket.id) {
         delete userSocketMap[key];
@@ -84,9 +97,19 @@ io.on("connection", (socket) => {
       }
     }
     
-    // Notificar usuários online
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  });
+
+  // Eventos específicos para grupos
+  socket.on("joinGroup", (groupId) => {
+    socket.join(`group-${groupId}`);
+    console.log(`Usuário ${userId} entrou no grupo ${groupId}`);
+  });
+
+  socket.on("leaveGroup", (groupId) => {
+    socket.leave(`group-${groupId}`);
+    console.log(`Usuário ${userId} saiu do grupo ${groupId}`);
   });
 });
 
-export { io, app, server, userSocketMap };
+export { io, app, server };
