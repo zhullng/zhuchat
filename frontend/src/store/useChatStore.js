@@ -551,5 +551,60 @@ export const useChatStore = create((set, get) => ({
       socket.off("newMessage");
       socket.off("messageDeleted");
     }
+  },
+  addContact: async (email) => {
+    try {
+      const res = await axiosInstance.post("/contacts/add", { email });
+      toast.success("Pedido de contacto enviado com sucesso");
+      return res.data;
+    } catch (error) {
+      console.error("Erro ao adicionar contacto:", error);
+      toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
+      throw error;
+    }
+  },
+  
+  // Obter pedidos de contacto pendentes
+  getPendingRequests: async () => {
+    try {
+      const res = await axiosInstance.get("/contacts/pending");
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (error) {
+      console.error("Erro ao obter pedidos pendentes:", error);
+      return [];
+    }
+  },
+  
+  // Responder a um pedido de contacto
+  respondToRequest: async (contactId, status) => {
+    try {
+      const res = await axiosInstance.patch(`/contacts/${contactId}/respond`, { status });
+      toast.success(status === "accepted" 
+        ? "Pedido de contacto aceite" 
+        : "Pedido de contacto rejeitado"
+      );
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    } catch (error) {
+      console.error("Erro ao processar pedido:", error);
+      toast.error("Erro ao processar o pedido de contacto");
+      throw error;
+    }
+  },
+  
+  // Remover contacto
+  removeContact: async (contactId) => {
+    try {
+      const res = await axiosInstance.delete(`/contacts/${contactId}`);
+      toast.success("Contacto removido com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    } catch (error) {
+      console.error("Erro ao remover contacto:", error);
+      toast.error("Erro ao remover contacto");
+      throw error;
+    }
   }
 }));
