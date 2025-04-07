@@ -92,135 +92,117 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
-        {groupMessages.length > 0 ? (
-          groupMessages.map((message) => {
-            // Validar se message.senderId está disponível
-            if (!message || !message.senderId) {
-              return null;
-            }
-            
-            // Determinar o ID do remetente independente do formato
-            const senderId = typeof message.senderId === 'object' && message.senderId !== null
-              ? message.senderId._id
-              : message.senderId;
-            
-            // Verificar se a mensagem é do usuário atual
-            const isMyMessage = senderId === authUser._id;
-            
-            // Determinar nome e foto do remetente
-            let senderName, senderPic;
-            
-            if (typeof message.senderId === 'object' && message.senderId !== null) {
-              // O objeto senderId já está populado
-              senderName = isMyMessage 
-                ? authUser.fullName || 'Você'
-                : message.senderId.fullName || 'Membro do grupo';
-              senderPic = message.senderId.profilePic || '/avatar.png';
+        {groupMessages.map((message) => {
+          // Validação robusta para verificar se message.senderId é um objeto ou string
+          let senderId, isMyMessage, senderName, senderPic;
+          
+          // Determinar o ID do remetente independente do formato
+          if (typeof message.senderId === 'object' && message.senderId !== null) {
+            senderId = message.senderId._id;
+          } else {
+            senderId = message.senderId;
+          }
+          
+          // Verificar se a mensagem é do usuário atual
+          isMyMessage = senderId === authUser._id;
+          
+          // Determinar nome do remetente
+          if (isMyMessage) {
+            // Se for minha mensagem, uso meu nome
+            senderName = authUser.fullName || 'Você';
+            senderPic = authUser.profilePic || '/avatar.png';
+          } else if (typeof message.senderId === 'object' && message.senderId !== null && message.senderId.fullName) {
+            // Se for objeto de outro usuário com nome, uso os dados fornecidos
+            senderName = message.senderId.fullName;
+            senderPic = message.senderId.profilePic || '/avatar.png';
+          } else {
+            // Se for string de ID ou objeto sem nome, tento encontrar o membro no grupo
+            const sender = selectedGroup?.members?.find(member => member._id === senderId);
+            if (sender) {
+              senderName = sender.fullName || 'Membro do grupo';
+              senderPic = sender.profilePic || '/avatar.png';
             } else {
-              // senderId é uma string, tenta encontrar o membro no grupo
-              if (isMyMessage) {
-                senderName = authUser.fullName || 'Você';
-                senderPic = authUser.profilePic || '/avatar.png';
-              } else {
-                const sender = selectedGroup?.members?.find(member => 
-                  (typeof member === 'object' ? member._id : member) === senderId
-                );
-                senderName = sender?.fullName || 'Membro do grupo';
-                senderPic = sender?.profilePic || '/avatar.png';
-              }
+              senderName = 'Membro do grupo';
+              senderPic = '/avatar.png';
             }
-            
-            return (
-              <div
-                key={message._id}
-                className={`chat ${isMyMessage ? "chat-end" : "chat-start"}`}
-              >
-                <div className="chat-image avatar">
-                  <div className="size-10 rounded-full border">
-                    <img
-                      src={senderPic}
-                      alt="profile pic"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-
-                <div className={`chat-header mb-1 flex items-center ${isMyMessage ? "justify-end" : "justify-start"}`}>
-                  {isMyMessage ? (
-                    <>
-                      <time className="text-xs opacity-50">
-                        {formatMessageTime(message.createdAt)}
-                      </time>
-                      <span className="font-semibold text-sm ml-2 flex items-center">
-                        {senderName}
-                        
-                        {/* Opções de mensagem */}
-                        <div className="message-menu-container ml-1 relative">
-                          <button 
-                            onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
-                            className="p-1 rounded-full hover:bg-base-300 transition-colors"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-                          
-                          {activeMessageMenu === message._id && (
-                            <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
-                              <button
-                                onClick={() => handleDeleteMessage(message._id)}
-                                className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
-                              >
-                                <Trash2 size={16} />
-                                <span>Eliminar</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-semibold text-sm">
-                        {senderName}
-                      </span>
-                      <time className="text-xs opacity-50 ml-2">
-                        {formatMessageTime(message.createdAt)}
-                      </time>
-                    </>
-                  )}
-                </div>
-
-                <div className="chat-bubble flex flex-col relative">
-                  {message.image && (
-                    <img
-                      src={message.image}
-                      alt="Attachment"
-                      className="sm:max-w-[200px] rounded-md mb-2"
-                    />
-                  )}
-                  {message.file && message.file.url && (
-                    <a 
-                      href={message.file.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-2 bg-base-300 bg-opacity-50 rounded-md mb-2 hover:bg-base-300"
-                    >
-                      <div className="text-primary">
-                        <i className="fas fa-file"></i>
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-medium truncate">{message.file.name || "Arquivo"}</p>
-                        <p className="text-xs opacity-70">Clique para abrir</p>
-                      </div>
-                    </a>
-                  )}
-                  {message.text && (
-                    <p className="break-words whitespace-pre-wrap">{message.text}</p>
-                  )}
+          }
+          
+          return (
+            <div
+              key={message._id}
+              className={`chat ${isMyMessage ? "chat-end" : "chat-start"}`}
+            >
+              <div className="chat-image avatar">
+                <div className="size-10 rounded-full border">
+                  <img
+                    src={senderPic}
+                    alt="profile pic"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               </div>
-            );
-          })
-        ) : (
+
+              <div className={`chat-header mb-1 flex items-center ${isMyMessage ? "justify-end" : "justify-start"}`}>
+                {isMyMessage ? (
+                  <>
+                    <time className="text-xs opacity-50">
+                      {formatMessageTime(message.createdAt)}
+                    </time>
+                    <span className="font-semibold text-sm ml-2 flex items-center">
+                      {senderName}
+                      
+                      {/* Opções de mensagem */}
+                      <div className="message-menu-container ml-1 relative">
+                        <button 
+                          onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
+                          className="p-1 rounded-full hover:bg-base-300 transition-colors"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                        
+                        {activeMessageMenu === message._id && (
+                          <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
+                            <button
+                              onClick={() => handleDeleteMessage(message._id)}
+                              className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
+                            >
+                              <Trash2 size={16} />
+                              <span>Eliminar</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-sm">
+                      {senderName}
+                    </span>
+                    <time className="text-xs opacity-50 ml-2">
+                      {formatMessageTime(message.createdAt)}
+                    </time>
+                  </>
+                )}
+              </div>
+
+              <div className="chat-bubble flex flex-col relative">
+                {message.image && (
+                  <img
+                    src={message.image}
+                    alt="Attachment"
+                    className="sm:max-w-[200px] rounded-md mb-2"
+                  />
+                )}
+                {message.text && (
+                  <p className="break-words whitespace-pre-wrap">{message.text}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        
+        {groupMessages.length === 0 && (
           <div className="flex items-center justify-center h-full text-base-content/60">
             <div className="text-center">
               <div className="mb-2">

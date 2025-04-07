@@ -1,4 +1,4 @@
-// components/GroupTab.jsx
+// components/GroupTab.jsx - versão atualizada
 import { Users, UserPlus } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
@@ -21,7 +21,7 @@ const GroupTab = ({ searchQuery, onCreateGroup }) => {
     if (hasUnreadA && !hasUnreadB) return -1;
     if (!hasUnreadA && hasUnreadB) return 1;
     
-    return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
+    return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
   // Função para lidar com a seleção de grupo

@@ -130,7 +130,8 @@ const GroupMessageInput = () => {
         };
       }
 
-      // Enviar mensagem
+      // Importante: Não recarregamos as mensagens inteiras após o envio
+      // para evitar resets na interface
       await sendGroupMessage(selectedGroup._id, messageData);
 
       // Remover toast de carregamento se existir

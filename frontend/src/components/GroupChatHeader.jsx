@@ -1,4 +1,3 @@
-// components/GroupChatHeader.jsx
 import { useState } from "react";
 import { X, Users, Info, Settings, UserPlus } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
@@ -6,7 +5,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import GroupInfoModal from "./GroupInfoModal";
 import AddGroupMembersModal from "./AddGroupMembersModal";
 
-const GroupChatHeader = ({ isMobile = false, onBack }) => {
+const GroupChatHeader = () => {
   const { selectedGroup, selectGroup } = useGroupStore();
   const { authUser } = useAuthStore();
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -15,27 +14,11 @@ const GroupChatHeader = ({ isMobile = false, onBack }) => {
   const isCreator = selectedGroup?.createdBy === authUser._id;
   const memberCount = selectedGroup?.members?.length || 0;
 
-  const handleBack = () => {
-    if (isMobile && onBack) {
-      onBack();
-    } else {
-      selectGroup(null);
-    }
-  };
-
   return (
     <>
       <div className="p-2.5 border-b border-base-300 bg-base-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {isMobile && (
-              <button 
-                onClick={handleBack}
-                className="btn btn-ghost btn-sm btn-circle mr-1"
-              >
-                <X size={18} />
-              </button>
-            )}
             <div className="avatar">
               <div className="size-10 rounded-full relative">
                 {selectedGroup?.profilePic ? (
@@ -87,15 +70,13 @@ const GroupChatHeader = ({ isMobile = false, onBack }) => {
               </>
             )}
             
-            {!isMobile && (
-              <button 
-                onClick={() => selectGroup(null)} 
-                className="btn btn-ghost btn-sm btn-circle"
-                title="Fechar"
-              >
-                <X size={18} />
-              </button>
-            )}
+            <button 
+              onClick={() => selectGroup(null)} 
+              className="btn btn-ghost btn-sm btn-circle"
+              title="Fechar"
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
       </div>

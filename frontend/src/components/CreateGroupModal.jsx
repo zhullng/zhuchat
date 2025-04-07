@@ -1,5 +1,5 @@
 // components/CreateGroupModal.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
 import { X, Upload, Check, Users, Search } from "lucide-react";
@@ -16,7 +16,6 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
   const [profilePic, setProfilePic] = useState(null);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const modalRef = useRef(null);
 
   // Filtrar usuários com base na pesquisa
   const filteredUsers = users.filter(user => 
@@ -85,7 +84,6 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
       onClose();
     } catch (error) {
       console.error("Erro ao criar grupo:", error);
-      toast.error("Erro ao criar grupo. Tente novamente.");
     } finally {
       setIsLoading(false);
     }
@@ -107,29 +105,12 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
       resetForm();
     }
   }, [isOpen]);
-  
-  // Fechar o modal ao clicar fora dele
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (modalRef.current && !modalRef.current.contains(e.target) && !isLoading) {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose, isLoading]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
-      <div ref={modalRef} className="bg-base-100 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+      <div className="bg-base-100 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="p-4 border-b border-base-300 flex justify-between items-center">
           <h2 className="text-lg font-medium flex items-center gap-2">
             <Users size={20} />
@@ -138,7 +119,6 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
           <button 
             onClick={onClose}
             className="btn btn-ghost btn-sm btn-circle"
-            disabled={isLoading}
           >
             <X size={20} />
           </button>
