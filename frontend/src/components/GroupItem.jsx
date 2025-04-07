@@ -30,15 +30,25 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
     }
   };
 
-  // Manipular saída do grupo
-  const handleLeaveGroup = async (e) => {
-    e.stopPropagation();
-    setShowMenu(false);
-    
+// Manipular saída do grupo no GroupItem.jsx
+const handleLeaveGroup = async (e) => {
+  e.stopPropagation(); // Impedir que o clique propague para o item do grupo
+  setShowMenu(false); // Fechar o menu dropdown
+  
+  try {
     if (confirm(`Tem certeza que deseja sair do grupo "${group.name}"?`)) {
+      const loadingToast = toast.loading("Saindo do grupo...");
+      
       await leaveGroup(group._id);
+      
+      // Toast de sucesso já é mostrado na função leaveGroup
+      toast.dismiss(loadingToast);
     }
-  };
+  } catch (error) {
+    console.error("Erro ao sair do grupo:", error);
+    toast.error("Não foi possível sair do grupo. Tente novamente.");
+  }
+};
 
   // Manipular exclusão do grupo
   const handleDeleteGroup = async (e) => {
