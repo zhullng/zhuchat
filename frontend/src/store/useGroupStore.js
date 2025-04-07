@@ -159,7 +159,6 @@ export const useGroupStore = create((set, get) => ({
         },
         createdAt: new Date().toISOString(),
         groupId: groupId,
-        // Outros campos que podem ser necessários com valores padrão
         read: []
       };
       
@@ -203,181 +202,6 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // Adicionar membros ao grupo
-  addGroupMembers: async (groupId, members) => {
-    try {
-      // Validação básica
-      if (!Array.isArray(members) || members.length === 0) {
-        toast.error("É necessário selecionar pelo menos um usuário");
-        return false;
-      }
-      
-      const response = await axiosInstance.post(`/groups/${groupId}/members`, { members });
-      
-      // Verificar se temos um grupo atualizado na resposta
-      const updatedGroup = response.data?.group;
-      
-      // Atualizar estado local
-      set(state => {
-        // Preparar o novo estado
-        const newState = { ...state };
-        
-        if (updatedGroup) {
-          // Atualizar na lista de grupos
-          newState.groups = state.groups.map(g => 
-            g._id === groupId ? updatedGroup : g
-          );
-          
-          // Atualizar selectedGroup se for o mesmo
-          if (state.selectedGroup?._id === groupId) {
-            newState.selectedGroup = updatedGroup;
-          }
-        }
-        
-        return newState;
-      });
-      
-      toast.success(response.data?.message || "Membros adicionados com sucesso");
-      
-      return true;
-    } catch (error) {
-      console.error("Erro ao adicionar membros:", error);
-      toast.error(error.response?.data?.error || "Erro ao adicionar membros");
-      throw error;
-    }
-  },
-  
-  // Remover membro do grupo
-  removeGroupMember: async (groupId, memberId) => {
-    try {
-      const response = await axiosInstance.delete(`/groups/${groupId}/members/${memberId}`);
-      
-      // Se o servidor retorna o grupo atualizado, use-o
-      const updatedGroup = response.data?.updatedGroup;
-      
-      // Atualizar grupo na lista e selectedGroup se necessário
-      set(state => {
-        // Preparar o novo estado
-        const newState = { ...state };
-        
-        // Se temos o grupo atualizado do servidor
-        if (updatedGroup) {
-          // Atualizar na lista de grupos
-          newState.groups = state.groups.map(g => 
-            g._id === groupId ? updatedGroup : g
-          );
-          
-          // Atualizar selectedGroup se for o mesmo
-          if (state.selectedGroup?._id === groupId) {
-            newState.selectedGroup = updatedGroup;
-          }
-        } else {
-          // Caso contrário, remover o membro localmente
-          
-          // Atualizar na lista de grupos
-          newState.groups = state.groups.map(g => {
-            if (g._id === groupId) {
-              return {
-                ...g,
-                members: g.members.filter(m => 
-                  typeof m === 'object'
-                    ? m._id !== memberId
-                    : m.toString() !== memberId
-                )
-              };
-            }
-            return g;
-          });
-          
-          // Atualizar selectedGroup se for o mesmo
-          if (state.selectedGroup?._id === groupId) {
-            newState.selectedGroup = {
-              ...state.selectedGroup,
-              members: state.selectedGroup.members.filter(m => 
-                typeof m === 'object'
-                  ? m._id !== memberId
-                  : m.toString() !== memberId
-              )
-            };
-          }
-        }
-        
-        return newState;
-      });
-      
-      toast.success("Membro removido com sucesso");
-      
-      return true;
-    } catch (error) {
-      console.error("Erro ao remover membro:", error);
-      toast.error(error.response?.data?.error || "Erro ao remover membro");
-      throw error;
-    }
-  },
-
-  // Sair de um grupo
-  leaveGroup: async (groupId) => {
-    try {
-      const loadingToast = toast.loading("Saindo do grupo...");
-      
-      try {
-        await axiosInstance.delete(`/groups/${groupId}/leave`);
-      } catch (apiError) {
-        console.error("Erro na API ao sair do grupo:", apiError);
-        // Continuamos mesmo se houver erro na API
-      }
-      
-      // Atualizamos a UI independentemente do resultado da API
-      set(state => ({
-        groups: state.groups.filter(g => g._id !== groupId),
-        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
-        unreadGroupCounts: {
-          ...state.unreadGroupCounts,
-          [groupId]: undefined // Remove contadores para este grupo
-        }
-      }));
-      
-      toast.dismiss(loadingToast);
-      toast.success("Você saiu do grupo com sucesso");
-      
-      return true;
-    } catch (error) {
-      console.error("Erro ao sair do grupo:", error);
-      toast.error("Ocorreu um erro inesperado. Tente novamente.");
-      return false;
-    }
-  },
-  
-  // Deletar um grupo
-  deleteGroup: async (groupId) => {
-    try {
-      // Mostrar toast de carregamento
-      const loadingToast = toast.loading("Excluindo grupo...");
-      
-      await axiosInstance.delete(`/groups/${groupId}`);
-      
-      // Atualizar estado local
-      set(state => ({
-        groups: state.groups.filter(g => g._id !== groupId),
-        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
-        unreadGroupCounts: {
-          ...state.unreadGroupCounts,
-          [groupId]: undefined // Remove contadores para este grupo
-        }
-      }));
-      
-      // Fechar toast de carregamento e mostrar sucesso
-      toast.dismiss(loadingToast);
-      toast.success("Grupo excluído com sucesso");
-      
-      return true;
-    } catch (error) {
-      console.error("Erro ao excluir grupo:", error);
-      toast.error(error.response?.data?.error || "Erro ao excluir grupo");
-      throw error;
-    }
-  },
-  
   // Subscrever a eventos de grupo via WebSocket
   subscribeToGroupEvents: () => {
     const socket = useAuthStore.getState().socket;
@@ -406,194 +230,225 @@ export const useGroupStore = create((set, get) => ({
     
     // Nova mensagem no grupo
     socket.on("newGroupMessage", ({ message, group }) => {
+      console.log("Socket: Nova mensagem de grupo recebida", message);
+      
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
-      // Se o grupo da mensagem é o grupo atualmente selecionado
+      // Validar mensagem e remetente
+      if (!message || !message.senderId) {
+        console.warn("Mensagem inválida recebida", message);
+        return;
+      }
+      
+      // Determinar ID do remetente
+      const senderId = typeof message.senderId === 'object' 
+        ? message.senderId._id 
+        : message.senderId;
+      
+      // Ignorar mensagens enviadas pelo usuário atual
+      if (senderId === authUser._id) {
+        console.log("Ignorando mensagem enviada pelo usuário atual");
+        return;
+      }
+      
+      // Verificar se a mensagem já existe para evitar duplicação
+      const isDuplicateMessage = get().groupMessages.some(
+        existingMsg => existingMsg._id === message._id
+      );
+      
+      if (isDuplicateMessage) {
+        console.log("Mensagem já existe, ignorando duplicata");
+        return;
+      }
+      
+      // Verificar se a mensagem é para o grupo atualmente selecionado
       if (currentGroup && currentGroup._id === message.groupId) {
-        // Adicionar mensagem à lista e marcar como lida
+        // Adicionar mensagem às mensagens do grupo
         set(state => ({
           groupMessages: [...state.groupMessages, message]
         }));
+        
+        // Marcar grupo como lido
         get().markGroupAsRead(message.groupId);
         
-        // Garantir que o scroll se mova para a nova mensagem
+        // Garantir rolagem para o final
         setTimeout(() => {
           const messageEnd = document.getElementById('message-end-ref');
           if (messageEnd) {
             messageEnd.scrollIntoView({ behavior: 'smooth' });
           }
-        }, 50);} else {
-          // Caso contrário, incrementar contador de não lidas
-          set(state => ({
-            unreadGroupCounts: {
-              ...state.unreadGroupCounts,
-              [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
-            }
-          }));
-          
-          // Tocar som de notificação
-          try {
-            const notificationSound = new Audio('/notification.mp3');
-            notificationSound.volume = 0.5;
-            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-          } catch (err) {
-            console.log('Erro ao criar áudio:', err);
-          }
-          
-          // Exibir notificação toast
-          toast.success(`Nova mensagem no grupo ${group.name}`);
-        }
-      });
-      
-      // Adicionado a um grupo
-      socket.on("addedToGroup", ({ group, message }) => {
-        // Verificar se o grupo já existe na lista
-        const existingGroup = get().groups.find(g => g._id === group._id);
-        
-        if (!existingGroup) {
-          set(state => ({
-            groups: [group, ...state.groups],
-            unreadGroupCounts: {
-              ...state.unreadGroupCounts,
-              [group._id]: 0
-            }
-          }));
-        }
-        
-        toast.success(message || `Você foi adicionado ao grupo ${group.name}`);
-      });
-      
-      // Removido de um grupo
-      socket.on("removedFromGroup", ({ groupId, groupName, message }) => {
+        }, 50);
+      } else {
+        // Atualizar contador de não lidos para outros grupos
         set(state => ({
-          groups: state.groups.filter(g => g._id !== groupId),
-          selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
           unreadGroupCounts: {
             ...state.unreadGroupCounts,
-            [groupId]: undefined // Remove contadores
+            [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
           }
         }));
-        toast.info(message || "Você foi removido de um grupo");
-      });
+        
+        // Som de notificação
+        try {
+          const notificationSound = new Audio('/notification.mp3');
+          notificationSound.volume = 0.5;
+          notificationSound.play().catch(err => console.log('Erro ao reproduzir som:', err));
+        } catch (err) {
+          console.log('Erro na criação de áudio:', err);
+        }
+        
+        // Notificação toast
+        toast.success(`Nova mensagem no grupo ${group.name}`);
+      }
+    });
+    
+    // Adicionado a um grupo
+    socket.on("addedToGroup", ({ group, message }) => {
+      // Verificar se o grupo já existe na lista
+      const existingGroup = get().groups.find(g => g._id === group._id);
       
-      // Grupo excluído
-      socket.on("groupDeleted", ({ groupId, groupName, message }) => {
+      if (!existingGroup) {
         set(state => ({
-          groups: state.groups.filter(g => g._id !== groupId),
-          selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
+          groups: [group, ...state.groups],
           unreadGroupCounts: {
             ...state.unreadGroupCounts,
-            [groupId]: undefined // Remove contadores
+            [group._id]: 0
           }
         }));
-        toast.info(message || `O grupo "${groupName || 'selecionado'}" foi excluído`);
-      });
+      }
       
-      // Membro saiu do grupo
-      socket.on("groupMemberLeft", ({ groupId, userId, userName, groupName }) => {
-        const currentGroup = get().selectedGroup;
-        
-        // Atualizar o grupo localmente
-        if (currentGroup && currentGroup._id === groupId) {
-          // Atualizar o grupo no estado, removendo o membro
-          set(state => ({
-            selectedGroup: {
-              ...state.selectedGroup,
-              members: state.selectedGroup.members.filter(m => 
+      toast.success(message || `Você foi adicionado ao grupo ${group.name}`);
+    });
+    
+    // Removido de um grupo
+    socket.on("removedFromGroup", ({ groupId, groupName, message }) => {
+      set(state => ({
+        groups: state.groups.filter(g => g._id !== groupId),
+        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
+        unreadGroupCounts: {
+          ...state.unreadGroupCounts,
+          [groupId]: undefined // Remove contadores
+        }
+      }));
+      toast.info(message || "Você foi removido de um grupo");
+    });
+    
+    // Grupo excluído
+    socket.on("groupDeleted", ({ groupId, groupName, message }) => {
+      set(state => ({
+        groups: state.groups.filter(g => g._id !== groupId),
+        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
+        unreadGroupCounts: {
+          ...state.unreadGroupCounts,
+          [groupId]: undefined // Remove contadores
+        }
+      }));
+      toast.info(message || `O grupo "${groupName || 'selecionado'}" foi excluído`);
+    });
+    
+    // Membro saiu do grupo
+    socket.on("groupMemberLeft", ({ groupId, userId, userName, groupName }) => {
+      const currentGroup = get().selectedGroup;
+      
+      // Atualizar o grupo localmente
+      if (currentGroup && currentGroup._id === groupId) {
+        // Atualizar o grupo no estado, removendo o membro
+        set(state => ({
+          selectedGroup: {
+            ...state.selectedGroup,
+            members: state.selectedGroup.members.filter(m => 
+              typeof m === 'object' 
+                ? m._id !== userId 
+                : m.toString() !== userId.toString()
+            )
+          }
+        }));
+      }
+      
+      // Se necessário, também atualize a lista de grupos
+      set(state => ({
+        groups: state.groups.map(g => {
+          if (g._id === groupId) {
+            return {
+              ...g,
+              members: g.members.filter(m => 
                 typeof m === 'object' 
                   ? m._id !== userId 
                   : m.toString() !== userId.toString()
               )
-            }
-          }));
-        }
-        
-        // Se necessário, também atualize a lista de grupos
-        set(state => ({
-          groups: state.groups.map(g => {
-            if (g._id === groupId) {
-              return {
-                ...g,
-                members: g.members.filter(m => 
-                  typeof m === 'object' 
-                    ? m._id !== userId 
-                    : m.toString() !== userId.toString()
-                )
-              };
-            }
-            return g;
-          })
-        }));
-        
-        // Adicionar notificação de sistema
-        toast.info(`${userName || 'Um usuário'} saiu do grupo ${groupName || ''}`);
-      });
+            };
+          }
+          return g;
+        })
+      }));
       
-      // Membro removido do grupo pelo admin
-      socket.on("memberRemovedFromGroup", ({ groupId, removedUserId, removedUserName, message }) => {
-        const currentGroup = get().selectedGroup;
-        
-        // Atualizar o grupo localmente
-        if (currentGroup && currentGroup._id === groupId) {
-          // Atualizar o grupo no estado, removendo o membro
-          set(state => ({
-            selectedGroup: {
-              ...state.selectedGroup,
-              members: state.selectedGroup.members.filter(m => 
+      // Adicionar notificação de sistema
+      toast.info(`${userName || 'Um usuário'} saiu do grupo ${groupName || ''}`);
+    });
+    
+    // Membro removido do grupo pelo admin
+    socket.on("memberRemovedFromGroup", ({ groupId, removedUserId, removedUserName, message }) => {
+      const currentGroup = get().selectedGroup;
+      
+      // Atualizar o grupo localmente
+      if (currentGroup && currentGroup._id === groupId) {
+        // Atualizar o grupo no estado, removendo o membro
+        set(state => ({
+          selectedGroup: {
+            ...state.selectedGroup,
+            members: state.selectedGroup.members.filter(m => 
+              typeof m === 'object' 
+                ? m._id !== removedUserId 
+                : m.toString() !== removedUserId.toString()
+            )
+          }
+        }));
+      }
+      
+      // Se necessário, também atualize a lista de grupos
+      set(state => ({
+        groups: state.groups.map(g => {
+          if (g._id === groupId) {
+            return {
+              ...g,
+              members: g.members.filter(m => 
                 typeof m === 'object' 
                   ? m._id !== removedUserId 
                   : m.toString() !== removedUserId.toString()
               )
-            }
-          }));
-        }
-        
-        // Se necessário, também atualize a lista de grupos
-        set(state => ({
-          groups: state.groups.map(g => {
-            if (g._id === groupId) {
-              return {
-                ...g,
-                members: g.members.filter(m => 
-                  typeof m === 'object' 
-                    ? m._id !== removedUserId 
-                    : m.toString() !== removedUserId.toString()
-                )
-              };
-            }
-            return g;
-          })
-        }));
-        
-        // Adicionar notificação de sistema
-        toast.info(message || `${removedUserName || 'Um usuário'} foi removido do grupo`);
-      });
-    },
-    
-    // Cancelar subscrição de eventos
-    unsubscribeFromGroupEvents: () => {
-      const socket = useAuthStore.getState().socket;
-      if (!socket) return;
+            };
+          }
+          return g;
+        })
+      }));
       
-      socket.off("newGroup");
-      socket.off("newGroupMessage");
-      socket.off("addedToGroup");
-      socket.off("removedFromGroup");
-      socket.off("groupDeleted");
-      socket.off("groupMemberLeft");
-      socket.off("memberRemovedFromGroup");
-    },
+      // Adicionar notificação de sistematoast.info(message || `${removedUserName || 'Um usuário'} foi removido do grupo`);
+    });
+  },
+  
+  // Cancelar subscrição de eventos
+  unsubscribeFromGroupEvents: () => {
+    const socket = useAuthStore.getState().socket;
+    if (!socket) return;
     
-    // Resetar estado (para logout)
-    resetGroupState: () => {
-      set({
-        groups: [],
-        selectedGroup: null,
-        groupMessages: [],
-        isGroupsLoading: false,
-        isGroupMessagesLoading: false,
-        unreadGroupCounts: {}
-      });
-    }
-  }));
+    socket.off("newGroup");
+    socket.off("newGroupMessage");
+    socket.off("addedToGroup");
+    socket.off("removedFromGroup");
+    socket.off("groupDeleted");
+    socket.off("groupMemberLeft");
+    socket.off("memberRemovedFromGroup");
+  },
+  
+  // Resetar estado (para logout)
+  resetGroupState: () => {
+    set({
+      groups: [],
+      selectedGroup: null,
+      groupMessages: [],
+      isGroupsLoading: false,
+      isGroupMessagesLoading: false,
+      unreadGroupCounts: {}
+    });
+  }
+}));
