@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
-import { useChatStore } from "../store/useChatStore";
+import { axiosInstance } from "../../lib/axios";
 import toast from "react-hot-toast";
 import { Check, XCircle } from "lucide-react";
 
 const PendingRequests = ({ onRequestResponded }) => {
-  const { getPendingRequests, respondToRequest } = useChatStore();
   const [pendingRequests, setPendingRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [processingIds, setProcessingIds] = useState([]);
+  const [processingIds, setProcessingIds] = useState([]); // Para rastrear quais solicitações estão sendo processadas
 
   const fetchPendingRequests = async () => {
     setIsLoading(true);
     try {
-      const requests = await getPendingRequests();
-      setPendingRequests(Array.isArray(requests) ? requests : []);
+      const res = await axiosInstance.get("/api/contacts/pending");
+      setPendingRequests(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Erro ao obter pedidos pendentes:", error);
       setPendingRequests([]);
@@ -31,11 +30,14 @@ const PendingRequests = ({ onRequestResponded }) => {
   }, []);
 
   const handleResponse = async (contactId, status) => {
+    // Adicionar o ID da solicitação à lista de processando
     setProcessingIds(prev => [...prev, contactId]);
     
     try {
-      await respondToRequest(contactId, status);
-      fetchPendingRequests();
+      await axiosInstance.patch(`/api/contacts/${contactId}/respond`, { status });
+      
+      // Atualizar a lista de pedidos removendo o que foi processado
+      setPendingRequests(prev => prev.filter(request => request._id !== contactId));
       
       toast.success(status === "accepted" 
         ? "Pedido de contacto aceite" 
@@ -46,9 +48,9 @@ const PendingRequests = ({ onRequestResponded }) => {
         onRequestResponded();
       }
     } catch (error) {
-      console.error("Erro ao responder ao pedido:", error);
-      toast.error("Ocorreu um erro ao responder ao pedido de contacto.");
+      toast.error("Erro ao processar o pedido de contacto");
     } finally {
+      // Remover o ID da solicitação da lista de processando
       setProcessingIds(prev => prev.filter(id => id !== contactId));
     }
   };
@@ -91,7 +93,7 @@ const PendingRequests = ({ onRequestResponded }) => {
                 
                 <button 
                   onClick={() => !isProcessing && handleResponse(request._id, "rejected")}
-                  className="btn btn-xs btn-error"  
+                  className="btn btn-xs btn-error"
                   title="Rejeitar"
                   disabled={isProcessing}
                 >
