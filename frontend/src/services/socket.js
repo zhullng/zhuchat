@@ -42,7 +42,7 @@ export const initializeSocket = (authUser) => {
     }
 
     // URL do backend
-    const BACKEND_URL = "https://zhuchat.onrender.com"; 
+    const BACKEND_URL = "https://zhuchat-production.up.railway.app"; 
 
     console.log("Inicializando novo socket com URL:", BACKEND_URL);
 
