@@ -45,7 +45,7 @@ const UserItem = ({
   // Função para lidar com a remoção de contacto
   const handleRemoveContact = () => {
     setShowRemoveModal(false);
-    onRemove(user._id);
+    onRemove(user.contactId); // Usar contactId em vez de _id
   };
   
   // Função para lidar com o bloqueio do utilizador

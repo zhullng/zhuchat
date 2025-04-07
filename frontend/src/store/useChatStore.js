@@ -606,5 +606,60 @@ export const useChatStore = create((set, get) => ({
       toast.error("Erro ao remover contacto");
       throw error;
     }
+  },
+  
+  // Bloquear utilizador
+  blockUser: async (userId) => {
+    try {
+      await axiosInstance.post(`/contacts/block/${userId}`);
+      toast.success("Utilizador bloqueado com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return true;
+    } catch (error) {
+      console.error("Erro ao bloquear utilizador:", error);
+      toast.error(error.response?.data?.error || "Erro ao bloquear utilizador");
+      return false;
+    }
+  },
+
+  // Obter utilizadores bloqueados
+  getBlockedUsers: async () => {
+    try {
+      const res = await axiosInstance.get("/contacts/blocked");
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (error) {
+      console.error("Erro ao obter utilizadores bloqueados:", error);
+      toast.error("Erro ao carregar utilizadores bloqueados");
+      return [];
+    }
+  },
+
+  // Desbloquear utilizador
+  unblockUser: async (userId) => {
+    try {
+      await axiosInstance.delete(`/contacts/unblock/${userId}`);
+      toast.success("Utilizador desbloqueado com sucesso");
+      return true;
+    } catch (error) {
+      console.error("Erro ao desbloquear utilizador:", error);
+      toast.error("Erro ao desbloquear utilizador");
+      return false;
+    }
+  },
+
+  // Atualizar nota do contacto
+  updateContactNote: async (contactId, note) => {
+    try {
+      const res = await axiosInstance.patch(`/contacts/${contactId}/note`, { note });
+      toast.success("Nota atualizada com sucesso");
+      // Atualizar a lista de contactos
+      get().getUsers();
+      return res.data;
+    } catch (error) {
+      console.error("Erro ao atualizar nota:", error);
+      toast.error("Erro ao atualizar nota");
+      throw error;
+    }
   }
 }));

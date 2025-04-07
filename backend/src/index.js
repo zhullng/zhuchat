@@ -105,4 +105,4 @@ connectDB()
   })
   .catch((error) => {
     console.error("Erro ao conectar ao banco de dados:", error);
-  });
+  }); 
