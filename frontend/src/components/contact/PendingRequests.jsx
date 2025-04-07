@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { axiosInstance } from "../../lib/axios";
 import toast from "react-hot-toast";
 import { Check, XCircle } from "lucide-react";
@@ -8,33 +8,64 @@ const PendingRequests = ({ onRequestResponded }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [processingIds, setProcessingIds] = useState([]); // Para rastrear quais solicitações estão sendo processadas
 
-  const fetchPendingRequests = async () => {
+  // Use useCallback to memoize the fetch function
+  const fetchPendingRequests = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await axiosInstance.get("/api/contacts/pending");
-      setPendingRequests(Array.isArray(res.data) ? res.data : []);
+      
+      // Ensure we're handling the response correctly
+      const requestsData = res.data || [];
+      
+      // Validate the structure of the data
+      const validatedRequests = requestsData.filter(request => 
+        request && request._id && request.userId
+      );
+      
+      setPendingRequests(validatedRequests);
     } catch (error) {
-      console.error("Erro ao obter pedidos pendentes:", error);
+      console.error("Erro detalhado ao obter pedidos pendentes:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // More specific error handling
+      const errorMessage = error.response?.data?.error || 
+        "Não foi possível carregar os pedidos pendentes. Verifique sua conexão.";
+      
+      toast.error(errorMessage);
       setPendingRequests([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []); // Empty dependency array as it doesn't depend on external state
 
+  // Use useEffect with the memoized callback
   useEffect(() => {
     fetchPendingRequests();
     
     // Atualizar a cada 30 segundos
     const interval = setInterval(fetchPendingRequests, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Cleanup function
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchPendingRequests]);
 
   const handleResponse = async (contactId, status) => {
+    // Validar o ID do contacto
+    if (!contactId) {
+      toast.error("ID de contacto inválido");
+      return;
+    }
+    
     // Adicionar o ID da solicitação à lista de processando
     setProcessingIds(prev => [...prev, contactId]);
     
     try {
-      await axiosInstance.patch(`/api/contacts/${contactId}/respond`, { status });
+      const response = await axiosInstance.patch(`/api/contacts/${contactId}/respond`, { status });
       
       // Atualizar a lista de pedidos removendo o que foi processado
       setPendingRequests(prev => prev.filter(request => request._id !== contactId));
@@ -44,18 +75,37 @@ const PendingRequests = ({ onRequestResponded }) => {
         : "Pedido de contacto rejeitado"
       );
       
-      if (onRequestResponded) {
+      // Chamar o callback de resposta se fornecido
+      if (onRequestResponded && typeof onRequestResponded === 'function') {
         onRequestResponded();
       }
     } catch (error) {
-      toast.error("Erro ao processar o pedido de contacto");
+      console.error("Erro detalhado ao processar pedido:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      const errorMessage = error.response?.data?.error || 
+        "Erro ao processar o pedido de contacto";
+      
+      toast.error(errorMessage);
     } finally {
       // Remover o ID da solicitação da lista de processando
       setProcessingIds(prev => prev.filter(id => id !== contactId));
     }
   };
 
-  if (pendingRequests.length === 0 && !isLoading) {
+  // Renderização condicional com mensagens de estado
+  if (isLoading && pendingRequests.length === 0) {
+    return (
+      <div className="text-center py-2 text-base-content/70">
+        A carregar pedidos...
+      </div>
+    );
+  }
+
+  if (!isLoading && pendingRequests.length === 0) {
     return null;
   }
 
@@ -65,6 +115,11 @@ const PendingRequests = ({ onRequestResponded }) => {
       
       <div className="space-y-2 max-h-60 overflow-y-auto">
         {pendingRequests.map(request => {
+          // Verificações adicionais de segurança
+          if (!request || !request._id || !request.userId) {
+            return null;
+          }
+          
           const isProcessing = processingIds.includes(request._id);
           
           return (
@@ -103,12 +158,6 @@ const PendingRequests = ({ onRequestResponded }) => {
             </div>
           );
         })}
-        
-        {isLoading && pendingRequests.length === 0 && (
-          <div className="text-center py-2 text-base-content/70">
-            A carregar pedidos...
-          </div>
-        )}
       </div>
     </div>
   );
