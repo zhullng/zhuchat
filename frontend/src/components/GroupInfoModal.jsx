@@ -3,7 +3,6 @@ import { useState } from "react";
 import { X, Users, LogOut, Trash2 } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
-import toast from "react-hot-toast";
 import ConfirmationModal from "./ConfirmationModal";
 
 const GroupInfoModal = ({ isOpen, onClose }) => {
@@ -29,35 +28,35 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
   // Lista de membros formatada
   const members = selectedGroup?.members || [];
 
-const handleLeaveGroup = async () => {
-  try {
-    if (confirm(`Tem certeza que deseja sair do grupo "${selectedGroup.name}"?`)) {
-      const loadingToast = toast.loading("Saindo do grupo...");
-      
-      await leaveGroup(selectedGroup._id);
-      onClose(); // Fechar modal após sair
-      
-      toast.dismiss(loadingToast);
+  const handleLeaveGroup = async () => {
+    try {
+      if (showConfirmation) {
+        setShowConfirmation(false);
+        await leaveGroup(selectedGroup._id);
+        onClose(); // Fechar modal após sair
+      } else {
+        setConfirmConfig({
+          title: "Sair do grupo",
+          message: `Tem certeza que deseja sair do grupo "${selectedGroup.name}"?`,
+          confirmText: "Sair",
+          variant: "warning"
+        });
+        
+        setConfirmAction(() => () => handleLeaveGroup());
+        setShowConfirmation(true);
+      }
+    } catch (error) {
+      console.error("Erro ao sair do grupo:", error);
     }
-  } catch (error) {
-    console.error("Erro ao sair do grupo:", error);
-    toast.error("Não foi possível sair do grupo. Tente novamente.");
-  }
-};
+  };
 
   // Função para lidar com exclusão do grupo
   const handleDeleteGroup = async () => {
     try {
       if (showConfirmation) {
         setShowConfirmation(false);
-        
-        const loadingToast = toast.loading("Excluindo grupo...");
-        
         await deleteGroup(selectedGroup._id);
         onClose(); // Fechar modal após excluir
-        
-        toast.dismiss(loadingToast);
-        toast.success("Grupo excluído com sucesso");
       } else {
         setConfirmConfig({
           title: "Excluir grupo",
@@ -71,7 +70,6 @@ const handleLeaveGroup = async () => {
       }
     } catch (error) {
       console.error("Erro ao excluir grupo:", error);
-      toast.error("Não foi possível excluir o grupo. Tente novamente.");
     }
   };
 
@@ -80,13 +78,7 @@ const handleLeaveGroup = async () => {
     try {
       if (showConfirmation) {
         setShowConfirmation(false);
-        
-        const loadingToast = toast.loading("Removendo membro...");
-        
         await removeGroupMember(selectedGroup._id, currentMemberId);
-        
-        toast.dismiss(loadingToast);
-        toast.success("Membro removido com sucesso");
       } else {
         setCurrentMemberId(memberId);
         
@@ -102,7 +94,6 @@ const handleLeaveGroup = async () => {
       }
     } catch (error) {
       console.error("Erro ao remover membro:", error);
-      toast.error("Não foi possível remover o membro. Tente novamente.");
     }
   };
 

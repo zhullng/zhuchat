@@ -46,8 +46,9 @@ const ConfirmationModal = ({
           </button>
           <button 
             onClick={() => {
-              onConfirm();
-              onClose();
+              if (onConfirm) {
+                onConfirm();
+              }
             }}
             className={buttonClass}
           >

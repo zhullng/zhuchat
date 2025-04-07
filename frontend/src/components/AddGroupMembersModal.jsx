@@ -1,5 +1,5 @@
 // components/AddGroupMembersModal.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Search, Check, Users, UserPlus } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
@@ -12,6 +12,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const modalRef = useRef(null);
   
   // Resetar seleções quando o modal abre
   useEffect(() => {
@@ -20,6 +21,23 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
       setSearchQuery("");
     }
   }, [isOpen]);
+  
+  // Fechar o modal ao clicar fora dele
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target) && !isLoading) {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose, isLoading]);
   
   if (!isOpen || !selectedGroup) return null;
   
@@ -53,13 +71,8 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
     
     setIsLoading(true);
     
-    try {
-      const loadingToast = toast.loading("Adicionando membros...");
-      
+    try {      
       await addGroupMembers(selectedGroup._id, selectedUsers);
-      
-      toast.dismiss(loadingToast);
-      toast.success("Membros adicionados com sucesso");
       onClose();
     } catch (error) {
       console.error("Erro ao adicionar membros:", error);
@@ -71,7 +84,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
-      <div className="bg-base-100 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+      <div ref={modalRef} className="bg-base-100 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="p-4 border-b border-base-300 flex justify-between items-center">
           <h2 className="text-lg font-medium flex items-center gap-2">
             <UserPlus size={20} />

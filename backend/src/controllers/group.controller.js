@@ -1,6 +1,7 @@
 // controllers/group.controller.js
 import Group from "../models/group.model.js";
 import GroupMessage from "../models/groupMessage.model.js";
+import User from "../models/user.model.js"; // Added User model import
 import { io, getReceiverSocketId } from "../lib/socket.js";
 import cloudinary from "../lib/cloudinary.js";
 
@@ -34,15 +35,19 @@ export const createGroup = async (req, res) => {
     
     await newGroup.save();
     
+    // Populating members for the response
+    const populatedGroup = await Group.findById(newGroup._id)
+      .populate("members", "fullName profilePic email");
+    
     // Notificar membros sobre o novo grupo via socket
     members.forEach(memberId => {
       const memberSocketId = getReceiverSocketId(memberId);
       if (memberSocketId) {
-        io.to(memberSocketId).emit("newGroup", newGroup);
+        io.to(memberSocketId).emit("newGroup", populatedGroup);
       }
     });
     
-    res.status(201).json(newGroup);
+    res.status(201).json(populatedGroup);
   } catch (error) {
     console.error("Erro ao criar grupo:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -150,13 +155,17 @@ export const sendGroupMessage = async (req, res) => {
     
     await newMessage.save();
     
+    // Populate sender info for socket notifications
+    const populatedMessage = await GroupMessage.findById(newMessage._id)
+      .populate("senderId", "fullName profilePic email");
+    
     // Notificar membros do grupo sobre a nova mensagem via socket
     group.members.forEach(memberId => {
       if (memberId.toString() !== senderId.toString()) {
         const receiverSocketId = getReceiverSocketId(memberId);
         if (receiverSocketId) {
             io.to(receiverSocketId).emit("newGroupMessage", {
-                message: newMessage,
+                message: populatedMessage,
                 group: {
                   _id: group._id,
                   name: group.name
@@ -166,79 +175,78 @@ export const sendGroupMessage = async (req, res) => {
           }
         });
         
-        res.status(201).json(newMessage);
+        res.status(201).json(populatedMessage);
       } catch (error) {
         console.error("Erro ao enviar mensagem de grupo:", error);
         res.status(500).json({ error: "Erro interno do servidor" });
       }
     };
     
-    // Obter mensagens de um grupo
-    export const getGroupMessages = async (req, res) => {
-      try {
-        const { id: groupId } = req.params;
-        const userId = req.user._id;
-        
-        // Verificar se o usuário é membro do grupo
-        const group = await Group.findOne({
-          _id: groupId,
-          members: { $in: [userId] }
-        });
-        
-        if (!group) {
-          return res.status(403).json({ error: "Você não é membro deste grupo" });
-        }
-        
-        // Obter as mensagens do grupo
-        const messages = await GroupMessage.find({
-          groupId
-        }).sort({ createdAt: 1 })
-          .populate("senderId", "fullName profilePic");
-        
-        res.status(200).json(messages);
-      } catch (error) {
-        console.error("Erro ao obter mensagens do grupo:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
-      }
-    };
+// Obter mensagens de um grupo
+export const getGroupMessages = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const userId = req.user._id;
     
-    // Marcar mensagens como lidas
-    export const markGroupMessagesAsRead = async (req, res) => {
-      try {
-        const { id: groupId } = req.params;
-        const userId = req.user._id;
-        
-        // Verificar se o usuário é membro do grupo
-        const group = await Group.findOne({
-          _id: groupId,
-          members: { $in: [userId] }
-        });
-        
-        if (!group) {
-          return res.status(403).json({ error: "Você não é membro deste grupo" });
-        }
-        
-        // Encontrar mensagens que o usuário ainda não leu
-        const messagesToUpdate = await GroupMessage.find({
-          groupId,
-          'read.userId': { $ne: userId }
-        });
-        
-        // Adicionar o usuário à lista de leitores de cada mensagem
-        for (const message of messagesToUpdate) {
-          message.read.push({ userId, readAt: new Date() });
-          await message.save();
-        }
-        
-        res.status(200).json({ success: true, count: messagesToUpdate.length });
-      } catch (error) {
-        console.error("Erro ao marcar mensagens como lidas:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
-      }
-    };
+    // Verificar se o usuário é membro do grupo
+    const group = await Group.findOne({
+      _id: groupId,
+      members: { $in: [userId] }
+    });
     
-    // Adicionar membros a um grupo
-// Atualização da função addGroupMembers no group.controller.js
+    if (!group) {
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
+    }
+    
+    // Obter as mensagens do grupo
+    const messages = await GroupMessage.find({
+      groupId
+    }).sort({ createdAt: 1 })
+      .populate("senderId", "fullName profilePic email");
+    
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error("Erro ao obter mensagens do grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+    
+// Marcar mensagens como lidas
+export const markGroupMessagesAsRead = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const userId = req.user._id;
+    
+    // Verificar se o usuário é membro do grupo
+    const group = await Group.findOne({
+      _id: groupId,
+      members: { $in: [userId] }
+    });
+    
+    if (!group) {
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
+    }
+    
+    // Encontrar mensagens que o usuário ainda não leu
+    const messagesToUpdate = await GroupMessage.find({
+      groupId,
+      'read.userId': { $ne: userId }
+    });
+    
+    // Adicionar o usuário à lista de leitores de cada mensagem
+    for (const message of messagesToUpdate) {
+      message.read.push({ userId, readAt: new Date() });
+      await message.save();
+    }
+    
+    res.status(200).json({ success: true, count: messagesToUpdate.length });
+  } catch (error) {
+    console.error("Erro ao marcar mensagens como lidas:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+    
+// Adicionar membros a um grupo
 export const addGroupMembers = async (req, res) => {
   try {
     const { id: groupId } = req.params;
@@ -289,13 +297,7 @@ export const addGroupMembers = async (req, res) => {
       const memberSocketId = getReceiverSocketId(memberId);
       if (memberSocketId) {
         io.to(memberSocketId).emit("addedToGroup", {
-          group: {
-            _id: group._id,
-            name: group.name,
-            description: group.description,
-            createdBy: group.createdBy,
-            profilePic: group.profilePic
-          },
+          group: updatedGroup,
           message: `Você foi adicionado ao grupo "${group.name}"`
         });
       }
@@ -312,18 +314,17 @@ export const addGroupMembers = async (req, res) => {
   }
 };
     
-    // Remover membro de um grupo
-// Atualização da função removeGroupMember no group.controller.js
+// Remover membro de um grupo
 export const removeGroupMember = async (req, res) => {
   try {
-    const { groupId, memberId } = req.params;
+    const { id: groupId, memberId } = req.params;
     const userId = req.user._id;
     
     // Verificar se o usuário é o criador do grupo
     const group = await Group.findOne({
       _id: groupId,
       createdBy: userId
-    }).populate("members", "fullName email");
+    }).populate("members", "fullName email profilePic");
     
     if (!group) {
       return res.status(403).json({ error: "Acesso negado ou grupo não encontrado" });
@@ -357,6 +358,10 @@ export const removeGroupMember = async (req, res) => {
     
     await group.save();
     
+    // Buscar grupo atualizado com informações dos membros
+    const updatedGroup = await Group.findById(groupId)
+                                   .populate("members", "fullName email profilePic");
+    
     // Notificar o membro removido
     const memberSocketId = getReceiverSocketId(memberId);
     if (memberSocketId) {
@@ -386,7 +391,7 @@ export const removeGroupMember = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       message: "Membro removido com sucesso",
-      updatedGroup: group
+      updatedGroup: updatedGroup
     });
   } catch (error) {
     console.error("Erro ao remover membro:", error);
@@ -394,67 +399,58 @@ export const removeGroupMember = async (req, res) => {
   }
 };
     
-    // Sair de um grupo
-    // Atualização da função leaveGroup no group.controller.js
-    export const leaveGroup = async (req, res) => {
-      try {
-        console.log("Iniciando leaveGroup, params:", req.params);
-        console.log("User:", req.user._id);
-        
-        const { id: groupId } = req.params;
-        const userId = req.user._id;
-        
-        // É importante verificar se está recebendo os parâmetros esperados
-        if (!groupId || !userId) {
-          console.log("Parâmetros inválidos:", { groupId, userId });
-          return res.status(400).json({ error: "Parâmetros inválidos" });
-        }
-        
-        // Buscar grupo com string segura 
-        console.log(`Buscando grupo ${groupId}`);
-        const group = await Group.findById(String(groupId));
-        
-        if (!group) {
-          console.log("Grupo não encontrado");
-          return res.status(404).json({ error: "Grupo não encontrado" });
-        }
-        
-        console.log("Grupo encontrado:", group.name);
-        
-        // Converter IDs para string para comparação segura
-        const creatorId = String(group.createdBy);
-        const currentUserId = String(userId);
-        
-        console.log("Comparando IDs:", { creatorId, currentUserId });
-        
-        // Verificar se o usuário é o criador (comparando strings)
-        if (creatorId === currentUserId) {
-          console.log("Usuário é o criador, não pode sair");
-          return res.status(400).json({ error: "O criador não pode sair do grupo, deve deletá-lo" });
-        }
-        
-        // Verificar se o usuário é membro (usando método some e convertendo para string)
-        const isMember = group.members.some(m => String(m) === currentUserId);
-        if (!isMember) {
-          console.log("Usuário não é membro do grupo");
-          return res.status(400).json({ error: "Você não é membro deste grupo" });
-        }
-        
-        // Filtrar o usuário dos membros (usando string para comparação)
-        group.members = group.members.filter(m => String(m) !== currentUserId);
-        
-        console.log("Salvando grupo após remover membro");
-        await group.save();
-        
-        console.log("Saída do grupo bem-sucedida");
-        res.status(200).json({ success: true, message: "Você saiu do grupo com sucesso" });
-      } catch (error) {
-        console.error("Erro detalhado ao sair do grupo:", error);
-        res.status(500).json({ error: error.message || "Erro interno do servidor" });
+// Sair de um grupo
+export const leaveGroup = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const userId = req.user._id;
+    
+    // Verificar se o grupo existe
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: "Grupo não encontrado" });
+    }
+    
+    // Verificar se o usuário é o criador
+    if (group.createdBy.toString() === userId.toString()) {
+      return res.status(400).json({ error: "O criador não pode sair do grupo, deve deletá-lo" });
+    }
+    
+    // Verificar se o usuário é membro
+    const isMember = group.members.some(m => m.toString() === userId.toString());
+    if (!isMember) {
+      return res.status(400).json({ error: "Você não é membro deste grupo" });
+    }
+    
+    // Informações do membro para notificação
+    const memberInfo = await User.findById(userId).select("fullName");
+    
+    // Remover o usuário dos membros
+    group.members = group.members.filter(m => m.toString() !== userId.toString());
+    await group.save();
+    
+    // Notificar outros membros
+    group.members.forEach(memberId => {
+      const memberSocketId = getReceiverSocketId(memberId.toString());
+      if (memberSocketId) {
+        io.to(memberSocketId).emit("groupMemberLeft", {
+          groupId: group._id,
+          userId: userId,
+          userName: memberInfo?.fullName || "Um membro",
+          groupName: group.name,
+          message: `${memberInfo?.fullName || "Um membro"} saiu do grupo`
+        });
       }
-    };
+    });
+    
+    res.status(200).json({ success: true, message: "Você saiu do grupo com sucesso" });
+  } catch (error) {
+    console.error("Erro ao sair do grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
 
-// Atualização da função deleteGroup no group.controller.js
+// Excluir um grupo
 export const deleteGroup = async (req, res) => {
   try {
     const { id: groupId } = req.params;
