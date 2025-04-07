@@ -20,120 +20,90 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
     variant: "primary"
   });
   
+  // Estado para armazenar o ID do membro a ser removido
+  const [currentMemberId, setCurrentMemberId] = useState(null);
+  
   // Verificar se o usuário logado é o criador do grupo
   const isCreator = selectedGroup?.createdBy === authUser._id;
   
   // Lista de membros formatada
   const members = selectedGroup?.members || [];
 
-  // Função para lidar com saída do grupo
-  const handleLeaveGroup = () => {
-    setConfirmConfig({
-      title: "Sair do grupo",
-      message: `Tem certeza que deseja sair do grupo "${selectedGroup.name}"?`,
-      confirmText: "Sair",
-      variant: "warning"
-    });
-    
-    setConfirmAction(() => async () => {
-      try {
-        const loadingToast = toast.loading("Saindo do grupo...");
-        await leaveGroup(selectedGroup._id);
-        onClose();
-        toast.dismiss(loadingToast);
-        toast("Você saiu do grupo com sucesso", {
-          icon: null,
-          style: {
-            background: 'var(--success)',
-            color: '#fff'
-          }
-        });
-      } catch (error) {
-        console.error("Erro ao sair do grupo:", error);
-        toast("Não foi possível sair do grupo. Tente novamente.", {
-          icon: null,
-          style: {
-            background: 'var(--error)',
-            color: '#fff'
-          }
-        });
-      }
-    });
-    
-    setShowConfirmation(true);
-  };
+const handleLeaveGroup = async () => {
+  try {
+    if (confirm(`Tem certeza que deseja sair do grupo "${selectedGroup.name}"?`)) {
+      const loadingToast = toast.loading("Saindo do grupo...");
+      
+      await leaveGroup(selectedGroup._id);
+      onClose(); // Fechar modal após sair
+      
+      toast.dismiss(loadingToast);
+    }
+  } catch (error) {
+    console.error("Erro ao sair do grupo:", error);
+    toast.error("Não foi possível sair do grupo. Tente novamente.");
+  }
+};
 
   // Função para lidar com exclusão do grupo
-  const handleDeleteGroup = () => {
-    setConfirmConfig({
-      title: "Excluir grupo",
-      message: `Tem certeza que deseja excluir o grupo "${selectedGroup.name}"? Esta ação não pode ser desfeita e todas as mensagens serão perdidas.`,
-      confirmText: "Excluir",
-      variant: "error"
-    });
-    
-    setConfirmAction(() => async () => {
-      try {
+  const handleDeleteGroup = async () => {
+    try {
+      if (showConfirmation) {
+        setShowConfirmation(false);
+        
         const loadingToast = toast.loading("Excluindo grupo...");
+        
         await deleteGroup(selectedGroup._id);
-        onClose();
+        onClose(); // Fechar modal após excluir
+        
         toast.dismiss(loadingToast);
-        toast("Grupo excluído com sucesso", {
-          icon: null,
-          style: {
-            background: 'var(--success)',
-            color: '#fff'
-          }
+        toast.success("Grupo excluído com sucesso");
+      } else {
+        setConfirmConfig({
+          title: "Excluir grupo",
+          message: `Tem certeza que deseja excluir o grupo "${selectedGroup.name}"? Esta ação não pode ser desfeita e todas as mensagens serão perdidas.`,
+          confirmText: "Excluir",
+          variant: "error"
         });
-      } catch (error) {
-        console.error("Erro ao excluir grupo:", error);
-        toast("Não foi possível excluir o grupo. Tente novamente.", {
-          icon: null,
-          style: {
-            background: 'var(--error)',
-            color: '#fff'
-          }
-        });
+        
+        setConfirmAction(() => () => handleDeleteGroup());
+        setShowConfirmation(true);
       }
-    });
-    
-    setShowConfirmation(true);
+    } catch (error) {
+      console.error("Erro ao excluir grupo:", error);
+      toast.error("Não foi possível excluir o grupo. Tente novamente.");
+    }
   };
 
   // Função para remover um membro
-  const handleRemoveMember = (memberId, memberName) => {
-    setConfirmConfig({
-      title: "Remover membro",
-      message: `Tem certeza que deseja remover ${memberName || 'este membro'} do grupo?`,
-      confirmText: "Remover",
-      variant: "warning"
-    });
-    
-    setConfirmAction(() => async () => {
-      try {
+  const handleRemoveMember = async (memberId, memberName) => {
+    try {
+      if (showConfirmation) {
+        setShowConfirmation(false);
+        
         const loadingToast = toast.loading("Removendo membro...");
-        await removeGroupMember(selectedGroup._id, memberId);
+        
+        await removeGroupMember(selectedGroup._id, currentMemberId);
+        
         toast.dismiss(loadingToast);
-        toast("Membro removido com sucesso", {
-          icon: null,
-          style: {
-            background: 'var(--success)',
-            color: '#fff'
-          }
+        toast.success("Membro removido com sucesso");
+      } else {
+        setCurrentMemberId(memberId);
+        
+        setConfirmConfig({
+          title: "Remover membro",
+          message: `Tem certeza que deseja remover ${memberName || 'este membro'} do grupo?`,
+          confirmText: "Remover",
+          variant: "warning"
         });
-      } catch (error) {
-        console.error("Erro ao remover membro:", error);
-        toast("Não foi possível remover o membro. Tente novamente.", {
-          icon: null,
-          style: {
-            background: 'var(--error)',
-            color: '#fff'
-          }
-        });
+        
+        setConfirmAction(() => () => handleRemoveMember());
+        setShowConfirmation(true);
       }
-    });
-    
-    setShowConfirmation(true);
+    } catch (error) {
+      console.error("Erro ao remover membro:", error);
+      toast.error("Não foi possível remover o membro. Tente novamente.");
+    }
   };
 
   if (!isOpen || !selectedGroup) return null;

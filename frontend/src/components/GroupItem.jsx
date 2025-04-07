@@ -43,85 +43,55 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
   };
 
   // Manipular saída do grupo
-  const handleLeaveGroup = (e) => {
-    e.stopPropagation(); // Impedir que o clique propague para o item do grupo
-    setShowMenu(false); // Fechar o menu dropdown
-    
-    setConfirmConfig({
-      title: "Sair do grupo",
-      message: `Tem certeza que deseja sair do grupo "${group.name}"?`,
-      confirmText: "Sair",
-      variant: "warning"
-    });
-    
-    setConfirmAction(() => async () => {
-      try {
-        const loadingToast = toast.loading("Saindo do grupo...");
-        
-        await leaveGroup(group._id);
-        
-        toast.dismiss(loadingToast);
-        toast("Você saiu do grupo com sucesso", {
-          icon: null,
-          style: {
-            background: 'var(--success)',
-            color: '#fff'
-          }
-        });
-      } catch (error) {
-        console.error("Erro ao sair do grupo:", error);
-        toast("Não foi possível sair do grupo. Tente novamente.", {
-          icon: null,
-          style: {
-            background: 'var(--error)',
-            color: '#fff'
-          }
-        });
-      }
-    });
-    
-    setShowConfirmation(true);
-  };
+// Manipular saída do grupo
+const handleLeaveGroup = async (e) => {
+  e.stopPropagation(); // Impedir que o clique propague para o item do grupo
+  setShowMenu(false); // Fechar o menu dropdown
+  
+  try {
+    if (confirm(`Tem certeza que deseja sair do grupo "${group.name}"?`)) {
+      const loadingToast = toast.loading("Saindo do grupo...");
+      
+      await leaveGroup(group._id);
+      
+      toast.dismiss(loadingToast);
+    }
+  } catch (error) {
+    console.error("Erro ao sair do grupo:", error);
+    toast.error("Não foi possível sair do grupo. Tente novamente.");
+  }
+};
 
   // Manipular exclusão do grupo
-  const handleDeleteGroup = (e) => {
-    e.stopPropagation(); // Impedir que o clique propague
+  const handleDeleteGroup = async (e) => {
+    e?.stopPropagation(); // Impedir que o clique propague
     setShowMenu(false); // Fechar o menu dropdown
     
-    setConfirmConfig({
-      title: "Excluir grupo",
-      message: `Tem certeza que deseja excluir o grupo "${group.name}"? Esta ação não pode ser desfeita e todas as mensagens serão perdidas.`,
-      confirmText: "Excluir",
-      variant: "error"
-    });
-    
-    setConfirmAction(() => async () => {
-      try {
+    try {
+      if (showConfirmation) {
+        setShowConfirmation(false);
+        
         const loadingToast = toast.loading("Excluindo grupo...");
         
         await deleteGroup(group._id);
         
         toast.dismiss(loadingToast);
-        toast("Grupo excluído com sucesso", {
-          icon: null,
-          style: {
-            background: 'var(--success)',
-            color: '#fff'
-          }
+        toast.success("Grupo excluído com sucesso");
+      } else {
+        setConfirmConfig({
+          title: "Excluir grupo",
+          message: `Tem certeza que deseja excluir o grupo "${group.name}"? Esta ação não pode ser desfeita e todas as mensagens serão perdidas.`,
+          confirmText: "Excluir",
+          variant: "error"
         });
-      } catch (error) {
-        console.error("Erro ao excluir grupo:", error);
-        toast("Não foi possível excluir o grupo. Tente novamente.", {
-          icon: null,
-          style: {
-            background: 'var(--error)',
-            color: '#fff'
-          }
-        });
+        
+        setConfirmAction(() => () => handleDeleteGroup());
+        setShowConfirmation(true);
       }
-    });
-    
-    setShowConfirmation(true);
+    } catch (error) {
+      console.error("Erro ao excluir grupo:", error);
+      toast.error("Não foi possível excluir o grupo. Tente novamente.");
+    }
   };
 
   return (
@@ -192,7 +162,7 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
                   </button>
                   <hr className="border-base-300" />
                   <button
-                    onClick={handleDeleteGroup}
+                    onClick={(e) => handleDeleteGroup(e)}
                     className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left text-error"
                   >
                     <Trash2 size={16} />
@@ -201,7 +171,7 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
                 </>
               ) : (
                 <button
-                  onClick={handleLeaveGroup}
+                  onClick={(e) => handleLeaveGroup(e)}
                   className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left text-error"
                 >
                   <LogOut size={16} />

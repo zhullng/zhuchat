@@ -393,20 +393,33 @@ removeGroupMember: async (groupId, memberId) => {
   }
 },
   
- // Atualização da função leaveGroup no useGroupStore.js
 
-// Sair de um grupo
 leaveGroup: async (groupId) => {
-  const loadingToastId = showLoadingToast("Saindo do grupo...");
-  
   try {
+    // Mostrar toast de carregamento
+    const loadingToast = toast.loading("Saindo do grupo...");
+    
     await axiosInstance.delete(`/groups/${groupId}/leave`);
     
-    // Código existente para sucesso...
+    // Atualizar estado local
+    set(state => ({
+      groups: state.groups.filter(g => g._id !== groupId),
+      selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
+      unreadGroupCounts: {
+        ...state.unreadGroupCounts,
+        [groupId]: undefined // Remove contadores para este grupo
+      }
+    }));
+    
+    // Fechar toast de carregamento e mostrar sucesso
+    toast.dismiss(loadingToast);
+    toast.success("Você saiu do grupo com sucesso");
+    
+    return true;
   } catch (error) {
     console.error("Erro ao sair do grupo:", error);
     
-    // Mesmo que falhe no backend, atualizar a UI como se tivesse funcionado
+    // Mesmo se falhar, atualizar a UI
     set(state => ({
       groups: state.groups.filter(g => g._id !== groupId),
       selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
@@ -416,9 +429,7 @@ leaveGroup: async (groupId) => {
       }
     }));
     
-    // Mostrar mensagem de sucesso de qualquer forma
-    updateToastToSuccess(loadingToastId, "Você saiu do grupo com sucesso");
-    
+    toast.success("Você saiu do grupo com sucesso");
     return true;
   }
 },

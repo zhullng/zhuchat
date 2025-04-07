@@ -24,7 +24,9 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
   if (!isOpen || !selectedGroup) return null;
   
   // Obter IDs de membros atuais
-  const currentMemberIds = selectedGroup.members.map(member => member._id);
+  const currentMemberIds = selectedGroup.members.map(member => 
+    typeof member === 'object' ? member._id : member
+  );
   
   // Filtrar usuários que não são membros e correspondem à pesquisa
   const filteredUsers = users.filter(user => 
@@ -52,7 +54,11 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
     setIsLoading(true);
     
     try {
+      const loadingToast = toast.loading("Adicionando membros...");
+      
       await addGroupMembers(selectedGroup._id, selectedUsers);
+      
+      toast.dismiss(loadingToast);
       toast.success("Membros adicionados com sucesso");
       onClose();
     } catch (error) {
