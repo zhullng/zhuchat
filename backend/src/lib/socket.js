@@ -6,101 +6,77 @@ import Group from "../models/group.model.js";
 const app = express();
 const server = http.createServer(app);
 
+// Configuração do Socket.IO com opções avançadas
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || ["http://localhost:5173"],
+    methods: ["GET", "POST"],
     credentials: true
   },
+  pingTimeout: 60000,
+  pingInterval: 25000,
   maxHttpBufferSize: 10 * 1024 * 1024, // 10MB
-  pingTimeout: 300000, // 5 minutes
-  transports: ["websocket", "polling"],
-  perMessageDeflate: {
-    threshold: 1024,
-    zlibDeflateOptions: {
-      level: 6,
-      memLevel: 8
-    }
-  },
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000
+  transports: ['websocket', 'polling']
 });
 
-// Maps to track online users and socket rooms
-const userSocketMap = {}; // {userId: socketId}
+// Mapa de usuários online
+const userSocketMap = {};
 
-// Function to get socket ID for a user
-export function getReceiverSocketId(userId) {
-  return userSocketMap[userId]; 
-}
+// Função para obter socket de um usuário
+export const getReceiverSocketId = (userId) => userSocketMap[userId];
+
+// Função para emitir para um grupo específico
+export const emitToGroup = (groupId, event, data) => {
+  const roomName = `group-${groupId}`;
+  io.to(roomName).emit(event, data);
+};
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  console.log("Novo usuário conectado", socket.id);
 
   const userId = socket.handshake.query.userId;
   
   if (userId) {
-    // Store user's socket ID
+    // Mapear socket do usuário
     userSocketMap[userId] = socket.id;
-
-    // Emit online users list
+    
+    // Notificar todos usuários online
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-    // Automatically join group rooms for the user
+    // Entrar automaticamente em salas de grupos
     try {
       Group.find({ members: userId })
         .then(groups => {
           groups.forEach(group => {
             const roomName = `group-${group._id}`;
             socket.join(roomName);
-            console.log(`User ${userId} joined group room: ${roomName}`);
+            console.log(`Usuário ${userId} entrou na sala ${roomName}`);
           });
         })
-        .catch(err => {
-          console.error("Error joining group rooms:", err);
-        });
+        .catch(err => console.error("Erro ao entrar em salas de grupo:", err));
     } catch (error) {
-      console.error("Unexpected error in group room joining:", error);
+      console.error("Erro inesperado ao processar salas:", error);
     }
   }
 
-  // Typing indicators
-  socket.on("typing", (data) => {
-    if (data.to) {
-      const receiverSocketId = userSocketMap[data.to];
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("typing", { from: data.from || userId });
-      }
-    }
-  });
-
-  socket.on("stopTyping", (data) => {
-    if (data.to) {
-      const receiverSocketId = userSocketMap[data.to];
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("stopTyping", { from: data.from || userId });
-      }
-    }
-  });
-
-  // Manual group room management
+  // Eventos de grupo
   socket.on("joinGroup", (groupId) => {
     const roomName = `group-${groupId}`;
     socket.join(roomName);
-    console.log(`User ${userId} manually joined group room: ${roomName}`);
+    console.log(`Usuário ${userId} juntou-se ao grupo ${groupId}`);
   });
 
   socket.on("leaveGroup", (groupId) => {
     const roomName = `group-${groupId}`;
     socket.leave(roomName);
-    console.log(`User ${userId} manually left group room: ${roomName}`);
+    console.log(`Usuário ${userId} saiu do grupo ${groupId}`);
   });
 
-  // Disconnect handling
+  // Desconexão
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    console.log("Usuário desconectado", socket.id);
     
-    // Remove user from socket map
+    // Remover mapeamento de socket
     for (const [key, value] of Object.entries(userSocketMap)) {
       if (value === socket.id) {
         delete userSocketMap[key];
@@ -108,8 +84,9 @@ io.on("connection", (socket) => {
       }
     }
     
+    // Notificar usuários online
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 
-export { io, app, server };
+export { io, app, server, userSocketMap };

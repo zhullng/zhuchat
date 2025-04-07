@@ -100,82 +100,46 @@ export const sendGroupMessage = async (req, res) => {
     const { text, image, file } = req.body;
     const { id: groupId } = req.params;
     const senderId = req.user._id;
-    
-    // Verify group membership
+
+    // Verificar participação no grupo
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [senderId] }
     });
-    
+
     if (!group) {
-      return res.status(403).json({ error: "You are not a member of this group" });
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
-    
-    // Handle image upload
-    let imageUrl;
-    if (image && image.startsWith('data:')) {
-      const uploadResponse = await cloudinary.uploader.upload(image, {
-        resource_type: "auto",
-        chunk_size: 6000000,
-        timeout: 120000
-      });
-      imageUrl = uploadResponse.secure_url;
-    }
-    
-    // Handle file upload
-    let fileData = null;
-    if (file && file.data && file.data.startsWith('data:')) {
-      const uploadResponse = await cloudinary.uploader.upload(file.data, {
-        resource_type: "auto",
-        public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
-        use_filename: true,
-        unique_filename: true,
-        overwrite: false,
-        chunk_size: 6000000,
-        timeout: 150000
-      });
-      
-      fileData = {
-        url: uploadResponse.secure_url,
-        type: file.type || "application/octet-stream",
-        name: file.name || "file"
-      };
-    }
-    
-    // Create message
+
+    // Criar mensagem
     const newMessage = new GroupMessage({
       groupId,
       senderId,
       text,
-      image: imageUrl,
-      file: fileData,
-      read: [{ userId: senderId }] // Sender has read the message
+      image,
+      file,
+      read: [{ userId: senderId }]
     });
-    
+
     await newMessage.save();
-    
-    // Populate sender info
+
+    // Popular informações do remetente
     const populatedMessage = await GroupMessage.findById(newMessage._id)
-      .populate("senderId", "fullName profilePic email");
-    
-    // Group room name for socket
-    const roomName = `group-${groupId}`;
-    
-    // Emit to all members in the group room
-    io.to(roomName).emit("newGroupMessage", {
+      .populate("senderId", "fullName profilePic");
+
+    // Emitir para todos no grupo
+    emitToGroup(groupId, "newGroupMessage", {
       message: populatedMessage,
       group: {
         _id: group._id,
         name: group.name
       }
     });
-    
-    console.log(`Message sent to group room ${roomName}`);
-    
+
     res.status(201).json(populatedMessage);
   } catch (error) {
-    console.error("Error sending group message:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Erro ao enviar mensagem de grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
     
