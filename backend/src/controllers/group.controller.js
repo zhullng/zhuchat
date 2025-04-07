@@ -101,20 +101,18 @@ export const sendGroupMessage = async (req, res) => {
     const { id: groupId } = req.params;
     const senderId = req.user._id;
     
-    // Verificar se o usuário é membro do grupo
+    // Verify group membership
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [senderId] }
     });
     
     if (!group) {
-      return res.status(403).json({ error: "Você não é membro deste grupo" });
+      return res.status(403).json({ error: "You are not a member of this group" });
     }
     
+    // Handle image upload
     let imageUrl;
-    let fileData = null;
-    
-    // Upload de imagem, se fornecida
     if (image && image.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
         resource_type: "auto",
@@ -124,7 +122,8 @@ export const sendGroupMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo, se fornecido
+    // Handle file upload
+    let fileData = null;
     if (file && file.data && file.data.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(file.data, {
         resource_type: "auto",
@@ -139,48 +138,46 @@ export const sendGroupMessage = async (req, res) => {
       fileData = {
         url: uploadResponse.secure_url,
         type: file.type || "application/octet-stream",
-        name: file.name || "arquivo"
+        name: file.name || "file"
       };
     }
     
-    // Criar a mensagem
+    // Create message
     const newMessage = new GroupMessage({
       groupId,
       senderId,
       text,
       image: imageUrl,
       file: fileData,
-      read: [{ userId: senderId }] // O remetente já leu a mensagem
+      read: [{ userId: senderId }] // Sender has read the message
     });
     
     await newMessage.save();
     
-    // Populate sender info for socket notifications
+    // Populate sender info
     const populatedMessage = await GroupMessage.findById(newMessage._id)
       .populate("senderId", "fullName profilePic email");
     
-    // Notificar membros do grupo sobre a nova mensagem via socket
-    group.members.forEach(memberId => {
-      if (memberId.toString() !== senderId.toString()) {
-        const receiverSocketId = getReceiverSocketId(memberId);
-        if (receiverSocketId) {
-            io.to(receiverSocketId).emit("newGroupMessage", {
-                message: populatedMessage,
-                group: {
-                  _id: group._id,
-                  name: group.name
-                }
-              });
-            }
-          }
-        });
-        
-        res.status(201).json(populatedMessage);
-      } catch (error) {
-        console.error("Erro ao enviar mensagem de grupo:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
+    // Group room name for socket
+    const roomName = `group-${groupId}`;
+    
+    // Emit to all members in the group room
+    io.to(roomName).emit("newGroupMessage", {
+      message: populatedMessage,
+      group: {
+        _id: group._id,
+        name: group.name
       }
-    };
+    });
+    
+    console.log(`Message sent to group room ${roomName}`);
+    
+    res.status(201).json(populatedMessage);
+  } catch (error) {
+    console.error("Error sending group message:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
     
 // Obter mensagens de um grupo
 export const getGroupMessages = async (req, res) => {

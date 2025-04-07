@@ -423,178 +423,177 @@ export const useGroupStore = create((set, get) => ({
           if (messageEnd) {
             messageEnd.scrollIntoView({ behavior: 'smooth' });
           }
-        }, 50);
-      } else {
-        // Caso contrário, incrementar contador de não lidas
+        }, 50);} else {
+          // Caso contrário, incrementar contador de não lidas
+          set(state => ({
+            unreadGroupCounts: {
+              ...state.unreadGroupCounts,
+              [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
+            }
+          }));
+          
+          // Tocar som de notificação
+          try {
+            const notificationSound = new Audio('/notification.mp3');
+            notificationSound.volume = 0.5;
+            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+          } catch (err) {
+            console.log('Erro ao criar áudio:', err);
+          }
+          
+          // Exibir notificação toast
+          toast.success(`Nova mensagem no grupo ${group.name}`);
+        }
+      });
+      
+      // Adicionado a um grupo
+      socket.on("addedToGroup", ({ group, message }) => {
+        // Verificar se o grupo já existe na lista
+        const existingGroup = get().groups.find(g => g._id === group._id);
+        
+        if (!existingGroup) {
+          set(state => ({
+            groups: [group, ...state.groups],
+            unreadGroupCounts: {
+              ...state.unreadGroupCounts,
+              [group._id]: 0
+            }
+          }));
+        }
+        
+        toast.success(message || `Você foi adicionado ao grupo ${group.name}`);
+      });
+      
+      // Removido de um grupo
+      socket.on("removedFromGroup", ({ groupId, groupName, message }) => {
         set(state => ({
+          groups: state.groups.filter(g => g._id !== groupId),
+          selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
           unreadGroupCounts: {
             ...state.unreadGroupCounts,
-            [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
+            [groupId]: undefined // Remove contadores
           }
         }));
-        
-        // Tocar som de notificação
-        try {
-          const notificationSound = new Audio('/notification.mp3');
-          notificationSound.volume = 0.5;
-          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-        } catch (err) {
-          console.log('Erro ao criar áudio:', err);
-        }
-        
-        // Exibir notificação toast
-        toast.success(`Nova mensagem no grupo ${group.name}`);
-      }
-    });
-    
-    // Adicionado a um grupo
-    socket.on("addedToGroup", ({ group, message }) => {
-      // Verificar se o grupo já existe na lista
-      const existingGroup = get().groups.find(g => g._id === group._id);
+        toast.info(message || "Você foi removido de um grupo");
+      });
       
-      if (!existingGroup) {
+      // Grupo excluído
+      socket.on("groupDeleted", ({ groupId, groupName, message }) => {
         set(state => ({
-          groups: [group, ...state.groups],
+          groups: state.groups.filter(g => g._id !== groupId),
+          selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
           unreadGroupCounts: {
             ...state.unreadGroupCounts,
-            [group._id]: 0
+            [groupId]: undefined // Remove contadores
           }
         }));
-      }
+        toast.info(message || `O grupo "${groupName || 'selecionado'}" foi excluído`);
+      });
       
-      toast.success(message || `Você foi adicionado ao grupo ${group.name}`);
-    });
-    
-    // Removido de um grupo
-    socket.on("removedFromGroup", ({ groupId, groupName, message }) => {
-      set(state => ({
-        groups: state.groups.filter(g => g._id !== groupId),
-        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
-        unreadGroupCounts: {
-          ...state.unreadGroupCounts,
-          [groupId]: undefined // Remove contadores
-        }
-      }));
-      toast.info(message || "Você foi removido de um grupo");
-    });
-    
-    // Grupo excluído
-    socket.on("groupDeleted", ({ groupId, groupName, message }) => {
-      set(state => ({
-        groups: state.groups.filter(g => g._id !== groupId),
-        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
-        unreadGroupCounts: {
-          ...state.unreadGroupCounts,
-          [groupId]: undefined // Remove contadores
-        }
-      }));
-      toast.info(message || `O grupo "${groupName || 'selecionado'}" foi excluído`);
-    });
-    
-    // Membro saiu do grupo
-    socket.on("groupMemberLeft", ({ groupId, userId, userName, groupName }) => {
-      const currentGroup = get().selectedGroup;
-      
-      // Atualizar o grupo localmente
-      if (currentGroup && currentGroup._id === groupId) {
-        // Atualizar o grupo no estado, removendo o membro
-        set(state => ({
-          selectedGroup: {
-            ...state.selectedGroup,
-            members: state.selectedGroup.members.filter(m => 
-              typeof m === 'object' 
-                ? m._id !== userId 
-                : m.toString() !== userId.toString()
-            )
-          }
-        }));
-      }
-      
-      // Se necessário, também atualize a lista de grupos
-      set(state => ({
-        groups: state.groups.map(g => {
-          if (g._id === groupId) {
-            return {
-              ...g,
-              members: g.members.filter(m => 
+      // Membro saiu do grupo
+      socket.on("groupMemberLeft", ({ groupId, userId, userName, groupName }) => {
+        const currentGroup = get().selectedGroup;
+        
+        // Atualizar o grupo localmente
+        if (currentGroup && currentGroup._id === groupId) {
+          // Atualizar o grupo no estado, removendo o membro
+          set(state => ({
+            selectedGroup: {
+              ...state.selectedGroup,
+              members: state.selectedGroup.members.filter(m => 
                 typeof m === 'object' 
                   ? m._id !== userId 
                   : m.toString() !== userId.toString()
               )
-            };
-          }
-          return g;
-        })
-      }));
-      
-      // Adicionar notificação de sistema
-      toast.info(`${userName || 'Um usuário'} saiu do grupo ${groupName || ''}`);
-    });
-    
-    // Membro removido do grupo pelo admin
-    socket.on("memberRemovedFromGroup", ({ groupId, removedUserId, removedUserName, message }) => {
-      const currentGroup = get().selectedGroup;
-      
-      // Atualizar o grupo localmente
-      if (currentGroup && currentGroup._id === groupId) {
-        // Atualizar o grupo no estado, removendo o membro
+            }
+          }));
+        }
+        
+        // Se necessário, também atualize a lista de grupos
         set(state => ({
-          selectedGroup: {
-            ...state.selectedGroup,
-            members: state.selectedGroup.members.filter(m => 
-              typeof m === 'object' 
-                ? m._id !== removedUserId 
-                : m.toString() !== removedUserId.toString()
-            )
-          }
+          groups: state.groups.map(g => {
+            if (g._id === groupId) {
+              return {
+                ...g,
+                members: g.members.filter(m => 
+                  typeof m === 'object' 
+                    ? m._id !== userId 
+                    : m.toString() !== userId.toString()
+                )
+              };
+            }
+            return g;
+          })
         }));
-      }
+        
+        // Adicionar notificação de sistema
+        toast.info(`${userName || 'Um usuário'} saiu do grupo ${groupName || ''}`);
+      });
       
-      // Se necessário, também atualize a lista de grupos
-      set(state => ({
-        groups: state.groups.map(g => {
-          if (g._id === groupId) {
-            return {
-              ...g,
-              members: g.members.filter(m => 
+      // Membro removido do grupo pelo admin
+      socket.on("memberRemovedFromGroup", ({ groupId, removedUserId, removedUserName, message }) => {
+        const currentGroup = get().selectedGroup;
+        
+        // Atualizar o grupo localmente
+        if (currentGroup && currentGroup._id === groupId) {
+          // Atualizar o grupo no estado, removendo o membro
+          set(state => ({
+            selectedGroup: {
+              ...state.selectedGroup,
+              members: state.selectedGroup.members.filter(m => 
                 typeof m === 'object' 
                   ? m._id !== removedUserId 
                   : m.toString() !== removedUserId.toString()
               )
-            };
-          }
-          return g;
-        })
-      }));
-      
-      // Adicionar notificação de sistema
-      toast.info(message || `${removedUserName || 'Um usuário'} foi removido do grupo`);
-    });
-  },
-  
-  // Cancelar subscrição de eventos
-  unsubscribeFromGroupEvents: () => {
-    const socket = useAuthStore.getState().socket;
-    if (!socket) return;
+            }
+          }));
+        }
+        
+        // Se necessário, também atualize a lista de grupos
+        set(state => ({
+          groups: state.groups.map(g => {
+            if (g._id === groupId) {
+              return {
+                ...g,
+                members: g.members.filter(m => 
+                  typeof m === 'object' 
+                    ? m._id !== removedUserId 
+                    : m.toString() !== removedUserId.toString()
+                )
+              };
+            }
+            return g;
+          })
+        }));
+        
+        // Adicionar notificação de sistema
+        toast.info(message || `${removedUserName || 'Um usuário'} foi removido do grupo`);
+      });
+    },
     
-    socket.off("newGroup");
-    socket.off("newGroupMessage");
-    socket.off("addedToGroup");
-    socket.off("removedFromGroup");
-    socket.off("groupDeleted");
-    socket.off("groupMemberLeft");
-    socket.off("memberRemovedFromGroup");
-  },
-  
-  // Resetar estado (para logout)
-  resetGroupState: () => {
-    set({
-      groups: [],
-      selectedGroup: null,
-      groupMessages: [],
-      isGroupsLoading: false,
-      isGroupMessagesLoading: false,
-      unreadGroupCounts: {}
-    });
-  }
-}));
+    // Cancelar subscrição de eventos
+    unsubscribeFromGroupEvents: () => {
+      const socket = useAuthStore.getState().socket;
+      if (!socket) return;
+      
+      socket.off("newGroup");
+      socket.off("newGroupMessage");
+      socket.off("addedToGroup");
+      socket.off("removedFromGroup");
+      socket.off("groupDeleted");
+      socket.off("groupMemberLeft");
+      socket.off("memberRemovedFromGroup");
+    },
+    
+    // Resetar estado (para logout)
+    resetGroupState: () => {
+      set({
+        groups: [],
+        selectedGroup: null,
+        groupMessages: [],
+        isGroupsLoading: false,
+        isGroupMessagesLoading: false,
+        unreadGroupCounts: {}
+      });
+    }
+  }));
