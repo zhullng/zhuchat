@@ -396,52 +396,63 @@ export const removeGroupMember = async (req, res) => {
     
     // Sair de um grupo
     // Atualização da função leaveGroup no group.controller.js
-export const leaveGroup = async (req, res) => {
-  try {
-    const { id: groupId } = req.params;
-    const userId = req.user._id;
-    
-    const group = await Group.findById(groupId);
-    
-    if (!group) {
-      return res.status(404).json({ error: "Grupo não encontrado" });
-    }
-    
-    // Verificar se o usuário é o criador
-    if (group.createdBy.toString() === userId.toString()) {
-      return res.status(400).json({ error: "O criador não pode sair do grupo, deve deletá-lo" });
-    }
-    
-    // Verificar se o usuário é membro
-    if (!group.members.includes(userId)) {
-      return res.status(400).json({ error: "Você não é membro deste grupo" });
-    }
-    
-    // Remover o usuário dos membros
-    group.members = group.members.filter(m => m.toString() !== userId.toString());
-    await group.save();
-    
-    // Notificar outros membros via socket que o usuário saiu
-    const io = req.app.get('io');
-    if (io) {
-      group.members.forEach(memberId => {
-        const receiverSocketId = getReceiverSocketId(memberId.toString());
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("groupMemberLeft", { 
-            groupId: group._id,
-            userId: userId,
-            groupName: group.name
-          });
+    export const leaveGroup = async (req, res) => {
+      try {
+        console.log("Iniciando leaveGroup, params:", req.params);
+        console.log("User:", req.user._id);
+        
+        const { id: groupId } = req.params;
+        const userId = req.user._id;
+        
+        // É importante verificar se está recebendo os parâmetros esperados
+        if (!groupId || !userId) {
+          console.log("Parâmetros inválidos:", { groupId, userId });
+          return res.status(400).json({ error: "Parâmetros inválidos" });
         }
-      });
-    }
-    
-    res.status(200).json({ success: true, message: "Você saiu do grupo com sucesso" });
-  } catch (error) {
-    console.error("Erro ao sair do grupo:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
-  }
-};
+        
+        // Buscar grupo com string segura 
+        console.log(`Buscando grupo ${groupId}`);
+        const group = await Group.findById(String(groupId));
+        
+        if (!group) {
+          console.log("Grupo não encontrado");
+          return res.status(404).json({ error: "Grupo não encontrado" });
+        }
+        
+        console.log("Grupo encontrado:", group.name);
+        
+        // Converter IDs para string para comparação segura
+        const creatorId = String(group.createdBy);
+        const currentUserId = String(userId);
+        
+        console.log("Comparando IDs:", { creatorId, currentUserId });
+        
+        // Verificar se o usuário é o criador (comparando strings)
+        if (creatorId === currentUserId) {
+          console.log("Usuário é o criador, não pode sair");
+          return res.status(400).json({ error: "O criador não pode sair do grupo, deve deletá-lo" });
+        }
+        
+        // Verificar se o usuário é membro (usando método some e convertendo para string)
+        const isMember = group.members.some(m => String(m) === currentUserId);
+        if (!isMember) {
+          console.log("Usuário não é membro do grupo");
+          return res.status(400).json({ error: "Você não é membro deste grupo" });
+        }
+        
+        // Filtrar o usuário dos membros (usando string para comparação)
+        group.members = group.members.filter(m => String(m) !== currentUserId);
+        
+        console.log("Salvando grupo após remover membro");
+        await group.save();
+        
+        console.log("Saída do grupo bem-sucedida");
+        res.status(200).json({ success: true, message: "Você saiu do grupo com sucesso" });
+      } catch (error) {
+        console.error("Erro detalhado ao sair do grupo:", error);
+        res.status(500).json({ error: error.message || "Erro interno do servidor" });
+      }
+    };
 
 // Atualização da função deleteGroup no group.controller.js
 export const deleteGroup = async (req, res) => {
