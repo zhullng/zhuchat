@@ -838,6 +838,43 @@ subscribeToGroupEvents: () => {
     }));
     toast.info("Um grupo foi excluído");
   });
+
+  socket.on("groupUpdated", (updatedGroup) => {
+    set(state => ({
+      groups: state.groups.map(g => 
+        g._id === updatedGroup._id ? updatedGroup : g
+      ),
+      selectedGroup: state.selectedGroup?._id === updatedGroup._id ? updatedGroup : state.selectedGroup
+    }));
+    
+    toast.info(`O grupo "${updatedGroup.name}" foi atualizado`);
+  });
+},
+
+updateGroupInfo: async (groupId, updateData) => {
+  try {
+    const loadingToast = toast.loading("Atualizando grupo...");
+    
+    // Fazer solicitação para atualizar o grupo
+    const res = await axiosInstance.patch(`/groups/${groupId}/update`, updateData);
+    
+    // Atualizar o grupo no estado
+    set(state => ({
+      groups: state.groups.map(g => 
+        g._id === groupId ? res.data : g
+      ),
+      selectedGroup: state.selectedGroup?._id === groupId ? res.data : state.selectedGroup
+    }));
+    
+    toast.dismiss(loadingToast);
+    toast.success("Grupo atualizado com sucesso!");
+    
+    return res.data;
+  } catch (error) {
+    console.error("Erro ao atualizar grupo:", error);
+    toast.error(error.response?.data?.error || "Erro ao atualizar grupo");
+    throw error;
+  }
 },
 
 // Cancelar subscrição de eventos

@@ -1,11 +1,11 @@
-// components/GroupInfoModal.jsx
+// Modificar GroupInfoModal.jsx
 import { useState } from "react";
-import { X, Users, LogOut, Trash2 } from "lucide-react";
+import { X, Users, LogOut, Trash2, Edit } from "lucide-react"; // Adicionar Edit
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import toast from "react-hot-toast";
 
-const GroupInfoModal = ({ isOpen, onClose }) => {
+const GroupInfoModal = ({ isOpen, onClose, onEdit }) => { // Adicionar onEdit prop
   const { selectedGroup, leaveGroup, deleteGroup, removeGroupMember } = useGroupStore();
   const { authUser } = useAuthStore();
   
@@ -68,7 +68,7 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
         
         <div className="flex-1 overflow-y-auto p-4">
           {/* Avatar e nome do grupo */}
-          <div className="flex flex-col items-center mb-6">
+          <div className="flex flex-col items-center mb-6 relative">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-base-200 flex items-center justify-center">
               {selectedGroup.profilePic ? (
                 <img
@@ -83,6 +83,17 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
             <h3 className="text-xl font-medium mt-3">{selectedGroup.name}</h3>
             {selectedGroup.description && (
               <p className="text-base-content/70 text-center mt-1">{selectedGroup.description}</p>
+            )}
+            
+            {/* Botão de edição para o criador */}
+            {isCreator && onEdit && (
+              <button
+                onClick={onEdit}
+                className="absolute top-0 right-0 btn btn-ghost btn-sm btn-circle"
+                title="Editar informações do grupo"
+              >
+                <Edit size={16} />
+              </button>
             )}
           </div>
           

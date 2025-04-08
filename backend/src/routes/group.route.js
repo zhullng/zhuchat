@@ -13,7 +13,8 @@ import {
   removeGroupMember,
   leaveGroup,
   deleteGroup,
-  deleteEmptyGroup
+  deleteEmptyGroup,
+  updateGroupInfo
 } from "../controllers/group.controller.js";
 
 const router = express.Router();
@@ -30,5 +31,6 @@ router.delete("/:id/members/:memberId", protectRoute, removeGroupMember);
 router.delete("/:id/leave", protectRoute, leaveGroup);
 router.delete("/:id", protectRoute, deleteGroup);
 router.delete("/:id/empty-delete", protectRoute, deleteEmptyGroup);
+router.patch("/:id/update", protectRoute, updateGroupInfo);
 
 export default router;

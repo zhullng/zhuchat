@@ -209,6 +209,67 @@ export const sendGroupMessage = async (req, res) => {
   }
 };
 
+// Adicionar esta função ao controllers/group.controller.js
+
+// Atualizar informações do grupo
+export const updateGroupInfo = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const { name, description } = req.body;
+    const userId = req.user._id;
+    
+    // Verificar se o grupo existe
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ error: "Grupo não encontrado" });
+    }
+    
+    // Verificar se o usuário é o criador
+    if (group.createdBy.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Apenas o criador pode editar informações do grupo" });
+    }
+    
+    // Atualizar campos fornecidos
+    if (name) group.name = name;
+    if (description !== undefined) group.description = description;
+    
+    // Atualizar foto de perfil, se fornecida
+    if (req.body.profilePic) {
+      if (req.body.profilePic.startsWith('data:')) {
+        const uploadResponse = await cloudinary.uploader.upload(req.body.profilePic, {
+          resource_type: "auto"
+        });
+        group.profilePic = uploadResponse.secure_url;
+      } else if (req.body.profilePic === "") {
+        // Remover a foto de perfil
+        group.profilePic = "";
+      }
+    }
+    
+    await group.save();
+    
+    // Retornar o grupo atualizado
+    const updatedGroup = await Group.findById(groupId)
+      .populate("members", "fullName profilePic email");
+    
+    // Notificar membros sobre a atualização do grupo
+    group.members.forEach(memberId => {
+      if (memberId.toString() !== userId.toString()) {
+        const memberSocketId = getReceiverSocketId(memberId);
+        if (memberSocketId) {
+          io.to(memberSocketId).emit("groupUpdated", updatedGroup);
+        }
+      }
+    });
+    
+    res.status(200).json(updatedGroup);
+  } catch (error) {
+    console.error("Erro ao atualizar informações do grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
 // Obter mensagens de um grupo
 export const getGroupMessages = async (req, res) => {
   try {

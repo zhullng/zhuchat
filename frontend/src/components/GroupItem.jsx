@@ -1,6 +1,6 @@
-// components/GroupItem.jsx - versão atualizada
+// components/GroupItem.jsx - versão simplificada
 import { useState } from "react";
-import { Users, MoreVertical, Settings, LogOut, Trash2 } from "lucide-react";
+import { Users, MoreVertical, LogOut, Trash2 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useGroupStore } from "../store/useGroupStore";
 import { useChatStore } from "../store/useChatStore";
@@ -88,7 +88,7 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
         </div>
       </div>
 
-      {/* Menu de opções */}
+      {/* Menu de opções simplificado */}
       <div className="relative">
         <button
           onClick={(e) => {
@@ -103,27 +103,13 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
         {showMenu && (
           <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border z-10 whitespace-nowrap">
             {isCreator ? (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    // Aqui você pode implementar uma função para ir para configurações do grupo
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left"
-                >
-                  <Settings size={16} />
-                  <span>Configurações</span>
-                </button>
-                <hr className="border-base-300" />
-                <button
-                  onClick={handleDeleteGroup}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left text-error"
-                >
-                  <Trash2 size={16} />
-                  <span>Excluir grupo</span>
-                </button>
-              </>
+              <button
+                onClick={handleDeleteGroup}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left text-error"
+              >
+                <Trash2 size={16} />
+                <span>Excluir grupo</span>
+              </button>
             ) : (
               <button
                 onClick={handleLeaveGroup}
