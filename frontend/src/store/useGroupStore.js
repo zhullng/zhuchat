@@ -334,24 +334,74 @@ sendGroupMessage: async (groupId, messageData) => {
     }
   },
   
-  // Deletar um grupo
-  deleteGroup: async (groupId) => {
-    try {
-      await axiosInstance.delete(`/groups/${groupId}`);
-      
-      // Remover o grupo da lista
-      set(state => ({
-        groups: state.groups.filter(g => g._id !== groupId),
-        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
-      }));
-      
-      toast.success("Grupo excluído com sucesso");
-    } catch (error) {
-      console.error("Erro ao excluir grupo:", error);
-      toast.error(error.response?.data?.error || "Erro ao excluir grupo");
-      throw error;
+// Deletar um grupo - versão robusta com mais tratamento de erros
+deleteGroup: async (groupId) => {
+  try {
+    // Verificar se groupId é válido
+    if (!groupId) {
+      toast.error("ID do grupo inválido");
+      return;
     }
-  },
+    
+    // Mostrar toast de loading para feedback visual
+    const loadingToast = toast.loading("Excluindo grupo...");
+    
+    try {
+      const response = await axiosInstance.delete(`/groups/${groupId}`);
+      
+      // Verificar se a resposta foi bem-sucedida
+      if (response && response.status === 200) {
+        // Remover o grupo da lista com segurança
+        set(state => ({
+          groups: state.groups.filter(g => g._id !== groupId),
+          selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
+        }));
+        
+        toast.dismiss(loadingToast);
+        toast.success("Grupo excluído com sucesso");
+      } else {
+        // Se a resposta não for 200, ainda pode ser um erro
+        toast.dismiss(loadingToast);
+        toast.error("Resposta inesperada ao excluir grupo");
+        console.warn("Resposta inesperada ao excluir grupo:", response);
+      }
+    } catch (error) {
+      // Tratamento detalhado de erro
+      toast.dismiss(loadingToast);
+      
+      // Verificar se há uma mensagem de erro específica do servidor
+      const errorMessage = error.response?.data?.error || "Erro ao excluir grupo";
+      
+      if (error.response) {
+        // Erros específicos baseados no código de status
+        if (error.response.status === 403) {
+          toast.error("Você não tem permissão para excluir este grupo");
+        } else if (error.response.status === 404) {
+          toast.error("Grupo não encontrado");
+          // Remover o grupo da lista local se ele não existe no servidor
+          set(state => ({
+            groups: state.groups.filter(g => g._id !== groupId),
+            selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
+          }));
+        } else {
+          toast.error(errorMessage);
+        }
+      } else if (error.request) {
+        // Erro de rede - sem resposta do servidor
+        toast.error("Erro de conexão. Verifique sua internet e tente novamente.");
+      } else {
+        // Erro na configuração da requisição
+        toast.error("Erro ao configurar a solicitação");
+      }
+      
+      console.error("Erro detalhado ao excluir grupo:", error);
+    }
+  } catch (unexpectedError) {
+    // Captura erros inesperados no próprio código da função
+    console.error("Erro inesperado ao processar exclusão do grupo:", unexpectedError);
+    toast.error("Erro inesperado ao processar a solicitação");
+  }
+},
   
   // Subscrever a eventos de grupo via WebSocket
   subscribeToGroupEvents: () => {
