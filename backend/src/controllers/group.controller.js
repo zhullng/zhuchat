@@ -29,6 +29,7 @@ export const createGroup = async (req, res) => {
       description,
       createdBy,
       members,
+      admins: [createdBy], // O criador é automaticamente um administrador
       profilePic
     });
     
@@ -277,43 +278,72 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // Remover membro de um grupo
-    export const removeGroupMember = async (req, res) => {
-      try {
-        const { groupId, memberId } = req.params;
-        const userId = req.user._id;
-        
-        // Verificar se o usuário é o criador do grupo
-        const group = await Group.findOne({
-          _id: groupId,
-          createdBy: userId
-        });
-        
-        if (!group) {
-          return res.status(403).json({ error: "Acesso negado ou grupo não encontrado" });
-        }
-        
-        // Não permitir remover o criador
-        if (memberId === group.createdBy.toString()) {
-          return res.status(400).json({ error: "Não é possível remover o criador do grupo" });
-        }
-        
-        // Remover o membro
-        group.members = group.members.filter(m => m.toString() !== memberId);
-        await group.save();
-        
-        // Notificar o membro removido
-        const memberSocketId = getReceiverSocketId(memberId);
-        if (memberSocketId) {
-          io.to(memberSocketId).emit("removedFromGroup", { groupId });
-        }
-        
-        res.status(200).json({ success: true });
-      } catch (error) {
-        console.error("Erro ao remover membro:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
-      }
-    };
+// Remover membro de um grupo
+// Remover membro de um grupo
+export const removeGroupMember = async (req, res) => {
+  try {
+    const { groupId, memberId } = req.params;
+    const userId = req.user._id;
+    
+    // Buscar o grupo primeiro
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ error: "Grupo não encontrado" });
+    }
+    
+    // Verificar se o usuário faz parte do grupo
+    const isUserMember = group.members.some(id => id.toString() === userId.toString());
+    if (!isUserMember) {
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
+    }
+    
+    // Verificar se o usuário é o criador
+    const isCreator = group.createdBy.toString() === userId.toString();
+    
+    // Verificar se o usuário é um administrador
+    // Se o campo admins não existir em grupos antigos, consideramos como array vazio
+    const admins = group.admins || [];
+    const isAdmin = admins.some(id => id.toString() === userId.toString());
+    
+    // Apenas criador ou administradores podem remover membros
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ error: "Apenas o criador ou administradores podem remover membros" });
+    }
+    
+    // Não permitir remover o criador
+    if (memberId === group.createdBy.toString()) {
+      return res.status(400).json({ error: "Não é possível remover o criador do grupo" });
+    }
+    
+    // Verificar se o membro a ser removido existe no grupo
+    const isMemberInGroup = group.members.some(id => id.toString() === memberId);
+    if (!isMemberInGroup) {
+      return res.status(404).json({ error: "Membro não encontrado no grupo" });
+    }
+    
+    // Remover o membro
+    group.members = group.members.filter(m => m.toString() !== memberId);
+    
+    // Se o membro também for um administrador, removê-lo dos administradores também
+    if (group.admins) {
+      group.admins = group.admins.filter(m => m.toString() !== memberId);
+    }
+    
+    await group.save();
+    
+    // Notificar o membro removido
+    const memberSocketId = getReceiverSocketId(memberId);
+    if (memberSocketId) {
+      io.to(memberSocketId).emit("removedFromGroup", { groupId });
+    }
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Erro ao remover membro:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
     
     // Sair de um grupo
 // Sair de um grupo
