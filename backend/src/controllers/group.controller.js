@@ -113,8 +113,7 @@ export const getGroupById = async (req, res) => {
   }
 };
 
-// controllers/group.controller.js - correção da função sendGroupMessage
-
+// Enviar mensagem para um grupo - CORRIGIDO
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body;
@@ -134,7 +133,7 @@ export const sendGroupMessage = async (req, res) => {
     let imageUrl;
     let fileData = null;
     
-    // Upload de imagem, se fornecida (código existente)
+    // Upload de imagem, se fornecida
     if (image && image.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
         resource_type: "auto",
@@ -144,7 +143,7 @@ export const sendGroupMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo, se fornecido (código existente)
+    // Upload de arquivo, se fornecido
     if (file && file.data && file.data.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(file.data, {
         resource_type: "auto",
@@ -188,13 +187,14 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // CORREÇÃO: Enviar a mensagem para a sala de grupo em vez de enviar individualmente
+    // Enviar a mensagem para a sala de grupo com identificador do remetente original
     io.to(`group-${groupId}`).emit("newGroupMessage", {
       message: formattedMessage,
       group: {
         _id: group._id,
         name: group.name,
-        members: group.members // Incluir membros para que o front-end possa formatar corretamente
+        members: group.members,
+        originalSender: senderId.toString() // Adicionar ID do remetente original
       }
     });
     
@@ -326,7 +326,7 @@ export const addGroupMembers = async (req, res) => {
   }
 };
 
-// Remover membro de um grupo - VERSÃO SIMPLIFICADA
+// Remover membro de um grupo
 export const removeGroupMember = async (req, res) => {
   try {
     console.log("Tentando remover membro:", { 
@@ -504,7 +504,7 @@ export const deleteGroup = async (req, res) => {
   }
 };
 
-// Função deleteEmptyGroup melhorada
+// Função deleteEmptyGroup
 export const deleteEmptyGroup = async (req, res) => {
   try {
     const groupId = req.params.id;

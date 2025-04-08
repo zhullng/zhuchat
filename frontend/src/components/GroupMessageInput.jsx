@@ -90,6 +90,7 @@ const GroupMessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // ATUALIZADO
   const handleSendMessage = async (e) => {
     // Importante: Previnir o comportamento padrão do formulário 
     // para evitar refresh da página
@@ -111,9 +112,16 @@ const GroupMessageInput = () => {
         );
       }
 
+      // ATUALIZADO: Capturar o texto atual e limpar imediatamente para melhor feedback
+      const messageText = text;
+      setText("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "40px";
+      }
+
       // Preparar dados para envio
       const messageData = {
-        text: text
+        text: messageText
       };
 
       // Se houver uma imagem, adicionar aos dados
@@ -144,8 +152,7 @@ const GroupMessageInput = () => {
         );
       }
 
-      // Limpar formulário
-      setText("");
+      // Limpar o resto do formulário
       setImagePreview(null);
       setImageData(null);
       setFileInfo(null);
@@ -153,11 +160,6 @@ const GroupMessageInput = () => {
       
       if (imageInputRef.current) imageInputRef.current.value = "";
       if (fileInputRef.current) fileInputRef.current.value = "";
-      
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "40px";
-      }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       toast.error("Erro ao enviar mensagem. Tente novamente.");

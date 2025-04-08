@@ -86,44 +86,43 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-// Adicionar ao useGroupStore.js - na função selectGroup
-
-selectGroup: (group) => {
-  // Código existente
-  set({ selectedGroup: group });
-  
-  // Se um grupo foi selecionado
-  if (group) {
-    // Limpar qualquer chat selecionado quando um grupo é selecionado
-    try {
-      const chatStore = useChatStore.getState();
-      if (chatStore && chatStore.setSelectedUser) {
-        chatStore.setSelectedUser(null);
-      }
-    } catch (error) {
-      console.warn("Não foi possível limpar o usuário selecionado:", error);
-    }
+  // Selecionar um grupo - ATUALIZADO
+  selectGroup: (group) => {
+    // Código existente
+    set({ selectedGroup: group });
     
-    // NOVO: Juntar-se à sala do grupo selecionado
-    const socket = useAuthStore.getState().socket;
-    if (socket) {
-      // Primeiro saia de qualquer sala de grupo anterior
-      const prevGroup = get().selectedGroup;
-      if (prevGroup && prevGroup._id !== group._id) {
-        socket.emit("leaveGroup", prevGroup._id);
+    // Se um grupo foi selecionado
+    if (group) {
+      // Limpar qualquer chat selecionado quando um grupo é selecionado
+      try {
+        const chatStore = useChatStore.getState();
+        if (chatStore && chatStore.setSelectedUser) {
+          chatStore.setSelectedUser(null);
+        }
+      } catch (error) {
+        console.warn("Não foi possível limpar o usuário selecionado:", error);
       }
       
-      // Então junte-se à nova sala
-      socket.emit("joinGroup", group._id);
+      // NOVO: Juntar-se à sala do grupo selecionado
+      const socket = useAuthStore.getState().socket;
+      if (socket) {
+        // Primeiro saia de qualquer sala de grupo anterior
+        const prevGroup = get().selectedGroup;
+        if (prevGroup && prevGroup._id !== group._id) {
+          socket.emit("leaveGroup", prevGroup._id);
+        }
+        
+        // Então junte-se à nova sala
+        socket.emit("joinGroup", group._id);
+      }
+      
+      // Carregar mensagens e marcar como lidas
+      get().getGroupMessages(group._id);
+      get().markGroupAsRead(group._id);
     }
-    
-    // Carregar mensagens e marcar como lidas
-    get().getGroupMessages(group._id);
-    get().markGroupAsRead(group._id);
-  }
-},
+  },
   
-  // Obter mensagens de um grupo - CORRIGIDA
+  // Obter mensagens de um grupo
   getGroupMessages: async (groupId) => {
     set({ isGroupMessagesLoading: true });
     try {
@@ -194,25 +193,25 @@ selectGroup: (group) => {
     }
   },
   
-// Marcar mensagens de grupo como lidas
-markGroupAsRead: async (groupId) => {
-  try {
-    await axiosInstance.patch(`/groups/${groupId}/read`);
-    
-    // Atualizar contador localmente
-    set(state => ({
-      unreadGroupCounts: {
-        ...state.unreadGroupCounts,
-        [groupId]: 0
-      }
-    }));
-  } catch (error) {
-    console.error("Erro ao marcar mensagens como lidas:", error);
-  }
-},
-
-// Enviar mensagem para o grupo - CORRIGIDA para evitar refresh
-sendGroupMessage: async (groupId, messageData) => {
+  // Marcar mensagens de grupo como lidas
+  markGroupAsRead: async (groupId) => {
+    try {
+      await axiosInstance.patch(`/groups/${groupId}/read`);
+      
+      // Atualizar contador localmente
+      set(state => ({
+        unreadGroupCounts: {
+          ...state.unreadGroupCounts,
+          [groupId]: 0
+        }
+      }));
+    } catch (error) {
+      console.error("Erro ao marcar mensagens como lidas:", error);
+    }
+  },
+  
+ // Enviar mensagem para o grupo - ATUALIZADO
+ sendGroupMessage: async (groupId, messageData) => {
   try {
     const authUser = useAuthStore.getState().authUser;
     
@@ -304,7 +303,7 @@ addGroupMembers: async (groupId, members) => {
   }
 },
 
-// Remover membro do grupo - VERSÃO CORRIGIDA
+// Remover membro do grupo
 removeGroupMember: async (groupId, memberId) => {
   try {
     console.log("Tentando remover membro:", { groupId, memberId });
@@ -460,7 +459,7 @@ deleteGroup: async (groupId) => {
   }
 },
 
-// Subscrever a eventos de grupo via WebSocket
+// Subscrever a eventos de grupo via WebSocket - ATUALIZADO
 subscribeToGroupEvents: () => {
   const socket = useAuthStore.getState().socket;
   if (!socket) return;
@@ -480,13 +479,20 @@ subscribeToGroupEvents: () => {
     toast.success(`Você foi adicionado ao grupo ${group.name}`);
   });
   
+  // Nova mensagem no grupo - ATUALIZADO
   socket.on("newGroupMessage", ({ message, group }) => {
     console.log("Nova mensagem de grupo recebida via socket:", { message, group });
     
     const authUser = useAuthStore.getState().authUser;
     const currentGroup = get().selectedGroup;
     
-    // Formatar a mensagem recebida via socket para exibição consistente
+    // VERIFICAÇÃO: Se a mensagem vier do próprio remetente via originalSender, ignorar
+    if (group.originalSender === authUser._id.toString()) {
+      console.log("Ignorando mensagem do próprio usuário recebida via socket");
+      return;
+    }
+    
+    // Formatar a mensagem recebida para exibição consistente
     let formattedMessage = {...message};
     
     // Se já estiver em formato de objeto, use o ID do objeto
@@ -532,6 +538,19 @@ subscribeToGroupEvents: () => {
     // Se o grupo da mensagem é o grupo atualmente selecionado
     if (currentGroup && currentGroup._id === message.groupId) {
       console.log("Adicionando mensagem ao grupo atual");
+      
+      // Verificar se a mensagem já existe (evitar duplicação)
+      const isDuplicate = get().groupMessages.some(
+        msg => msg._id === message._id || 
+              (msg.text === message.text && 
+               msg.senderId._id === message.senderId._id &&
+               Math.abs(new Date(msg.createdAt) - new Date(message.createdAt)) < 3000) // Diferença menor que 3 segundos
+      );
+      
+      if (isDuplicate) {
+        console.log("Mensagem duplicada detectada, ignorando");
+        return;
+      }
       
       // Adicionar mensagem à lista e marcar como lida
       set(state => ({
