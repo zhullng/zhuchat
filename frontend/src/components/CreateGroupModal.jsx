@@ -1,9 +1,11 @@
 // components/CreateGroupModal.jsx
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
-import { X, Upload, Check, Users, Search } from "lucide-react";
+import { X, Upload, Check, Users, Search, Camera } from "lucide-react";
 import toast from "react-hot-toast";
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 const CreateGroupModal = ({ isOpen, onClose }) => {
   const { users } = useChatStore();
@@ -16,6 +18,21 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
   const [profilePic, setProfilePic] = useState(null);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para cropping
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [srcImg, setSrcImg] = useState(null);
+  const [crop, setCrop] = useState({ 
+    unit: '%', 
+    width: 80,
+    height: 80,
+    x: 10,
+    y: 10,
+    aspect: 1
+  });
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const imgRef = useRef(null);
+  const previewCanvasRef = useRef(null);
 
   // Filtrar usuários com base na pesquisa
   const filteredUsers = users.filter(user => 
@@ -23,27 +40,137 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Efeito para desenhar a pré-visualização do corte
+  useEffect(() => {
+    if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
+      return;
+    }
+
+    const image = imgRef.current;
+    const canvas = previewCanvasRef.current;
+    const crop = completedCrop;
+
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const ctx = canvas.getContext('2d');
+    const pixelRatio = window.devicePixelRatio;
+
+    canvas.width = crop.width * pixelRatio;
+    canvas.height = crop.height * pixelRatio;
+
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.imageSmoothingQuality = 'high';
+
+    ctx.drawImage(
+      image,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.width * scaleX,
+      crop.height * scaleY,
+      0,
+      0,
+      crop.width,
+      crop.height
+    );
+  }, [completedCrop]);
+  
+  // Validação de imagem
+  const validateImage = (file) => {
+    // Limite de 5MB para imagens de grupo
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    // Formatos permitidos
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/png', 
+      'image/webp'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Formato inválido. Use JPEG, PNG ou WebP');
+    }
+    
+    if (file.size > maxSize) {
+      const sizeMB = maxSize / (1024 * 1024);
+      throw new Error(`Imagem muito grande. Máximo de ${sizeMB}MB`);
+    }
+    
+    return true;
+  };
+
   // Lidar com upload de imagem de perfil do grupo
   const handleProfilePicChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione um arquivo de imagem");
+    try {
+      validateImage(file);
+  
+      // Criar URL para a imagem selecionada
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSrcImg(reader.result);
+        setIsCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+      
+    } catch (error) {
+      console.error("Erro ao processar imagem:", error);
+      toast.error(error.message || "Erro ao processar a imagem");
+      e.target.value = "";
+    }
+  };
+
+  // Função para obter a imagem recortada
+  const getCroppedImage = (canvas) => {
+    return new Promise((resolve) => {
+      canvas.toBlob((file) => {
+        // Converte para base64
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+      }, 'image/jpeg', 0.9);
+    });
+  };
+
+  // Finalizar o corte da imagem
+  const handleCropComplete = async () => {
+    if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 5MB");
-      return;
+    try {
+      const croppedImage = await getCroppedImage(previewCanvasRef.current);
+      
+      // Fechar modal de corte
+      setIsCropModalOpen(false);
+      
+      // Atualizar o preview e a imagem a ser enviada
+      setProfilePicPreview(croppedImage);
+      setProfilePic(croppedImage);
+      
+      toast.success('Imagem recortada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao processar imagem:', error);
+      toast.error('Erro ao processar imagem. Tente novamente.');
     }
+  };
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProfilePicPreview(reader.result);
-      setProfilePic(reader.result);
-    };
-    reader.readAsDataURL(file);
+  // Cancelar o corte
+  const cancelCrop = () => {
+    setIsCropModalOpen(false);
+    setSrcImg(null);
+    setCrop({ 
+      unit: '%', 
+      width: 80,
+      height: 80,
+      x: 10,
+      y: 10,
+      aspect: 1
+    });
+    setCompletedCrop(null);
   };
 
   // Alternar seleção de membro
@@ -97,6 +224,19 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
     setSearchQuery("");
     setProfilePic(null);
     setProfilePicPreview(null);
+    
+    // Resetar estados de crop
+    setSrcImg(null);
+    setIsCropModalOpen(false);
+    setCrop({ 
+      unit: '%', 
+      width: 80,
+      height: 80,
+      x: 10,
+      y: 10,
+      aspect: 1
+    });
+    setCompletedCrop(null);
   };
 
   // Limpar formulário ao fechar
@@ -266,6 +406,82 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
           </button>
         </div>
       </div>
+      
+      {/* Modal de Corte de Imagem */}
+      {isCropModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-base-100 rounded-lg p-6 max-w-3xl w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Recortar Imagem</h3>
+              <button
+                onClick={cancelCrop}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="overflow-auto max-h-[60vh]">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentageCrop) => setCrop(percentageCrop)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  circularCrop
+                  keepSelection
+                  aspect={1}
+                  minWidth={100}
+                  minHeight={100}
+                >
+                  <img 
+                    src={srcImg} 
+                    ref={imgRef} 
+                    style={{ maxWidth: '100%' }} 
+                    alt="Imagem para recortar"
+                    onLoad={(e) => {
+                      imgRef.current = e.currentTarget;
+                    }}
+                  />
+                </ReactCrop>
+              </div>
+              
+              <div className="flex flex-col items-center justify-center">
+                <p className="text-sm mb-3 text-base-content/70">Pré-visualização</p>
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-base-300 bg-base-200">
+                  {completedCrop && (
+                    <canvas
+                      ref={previewCanvasRef}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={cancelCrop}
+                className="btn btn-ghost gap-2"
+              >
+                <X className="size-4" />
+                Cancelar
+              </button>
+              <button
+                onClick={handleCropComplete}
+                className="btn btn-primary gap-2"
+                disabled={!completedCrop?.width || !completedCrop?.height}
+              >
+                <Check className="size-4" />
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
