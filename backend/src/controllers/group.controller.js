@@ -277,86 +277,43 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-// Remover membro de um grupo (função melhorada)
-export const removeGroupMember = async (req, res) => {
-  try {
-    const { groupId, memberId } = req.params;
-    const userId = req.user._id;
-    
-    console.log("🔍 Tentando remover membro:", { groupId, memberId, userId: String(userId) });
-    
-    // Buscar o grupo sem verificar o criador inicialmente
-    const group = await Group.findById(groupId);
-    
-    if (!group) {
-      console.log("❌ Grupo não encontrado:", groupId);
-      return res.status(404).json({ error: "Grupo não encontrado" });
-    }
-    
-    // Converter IDs para string para comparação segura
-    const stringUserId = String(userId);
-    const stringCreatorId = String(group.createdBy);
-    const stringMemberId = String(memberId);
-    
-    console.log("📊 Verificando permissões:", {
-      userId: stringUserId,
-      creatorId: stringCreatorId,
-      memberId: stringMemberId,
-      isCreator: stringUserId === stringCreatorId
-    });
-    
-    // Verificar se o usuário é o criador ou administrador do grupo
-    if (stringUserId !== stringCreatorId) {
-      console.log("❌ Permissão negada: Usuário não é o criador do grupo");
-      return res.status(403).json({ error: "Apenas o criador pode remover membros" });
-    }
-    
-    // Não permitir remover o criador
-    if (stringMemberId === stringCreatorId) {
-      console.log("❌ Operação inválida: tentativa de remover o criador");
-      return res.status(400).json({ error: "Não é possível remover o criador do grupo" });
-    }
-    
-    // Verificar se o membro a ser removido realmente existe no grupo
-    const memberExists = Array.isArray(group.members) && 
-      group.members.some(m => String(m) === stringMemberId);
-      
-    if (!memberExists) {
-      console.log("❌ Membro não encontrado no grupo");
-      return res.status(404).json({ error: "Membro não encontrado no grupo" });
-    }
-    
-    console.log("🔄 Removendo membro do grupo");
-    
-    // Remover o membro de forma segura
-    if (Array.isArray(group.members)) {
-      group.members = group.members.filter(m => String(m) !== stringMemberId);
-      await group.save();
-      
-      console.log("✅ Membro removido com sucesso");
-      
-      // Notificar o membro removido
+    // Remover membro de um grupo
+    export const removeGroupMember = async (req, res) => {
       try {
+        const { groupId, memberId } = req.params;
+        const userId = req.user._id;
+        
+        // Verificar se o usuário é o criador do grupo
+        const group = await Group.findOne({
+          _id: groupId,
+          createdBy: userId
+        });
+        
+        if (!group) {
+          return res.status(403).json({ error: "Acesso negado ou grupo não encontrado" });
+        }
+        
+        // Não permitir remover o criador
+        if (memberId === group.createdBy.toString()) {
+          return res.status(400).json({ error: "Não é possível remover o criador do grupo" });
+        }
+        
+        // Remover o membro
+        group.members = group.members.filter(m => m.toString() !== memberId);
+        await group.save();
+        
+        // Notificar o membro removido
         const memberSocketId = getReceiverSocketId(memberId);
         if (memberSocketId) {
           io.to(memberSocketId).emit("removedFromGroup", { groupId });
-          console.log("📤 Notificação enviada ao membro removido");
         }
-      } catch (socketError) {
-        console.error("⚠️ Erro ao notificar membro:", socketError);
-        // Não interromper o fluxo por erro na notificação
+        
+        res.status(200).json({ success: true });
+      } catch (error) {
+        console.error("Erro ao remover membro:", error);
+        res.status(500).json({ error: "Erro interno do servidor" });
       }
-      
-      return res.status(200).json({ success: true });
-    } else {
-      console.log("❌ Estrutura de membros inválida");
-      return res.status(500).json({ error: "Estrutura de membros do grupo inválida" });
-    }
-  } catch (error) {
-    console.error("❌ Erro ao remover membro:", error);
-    return res.status(500).json({ error: "Erro interno do servidor" });
-  }
-};
+    };
     
     // Sair de um grupo
 // Sair de um grupo
