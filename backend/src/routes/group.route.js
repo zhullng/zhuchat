@@ -11,7 +11,8 @@ import {
   addGroupMembers,
   removeGroupMember,
   leaveGroup,
-  deleteGroup
+  deleteGroup,
+  deleteEmptyGroup
 } from "../controllers/group.controller.js";
 
 const router = express.Router();
@@ -27,5 +28,6 @@ router.post("/:id/members", protectRoute, addGroupMembers);
 router.delete("/:id/members/:memberId", protectRoute, removeGroupMember);
 router.delete("/:id/leave", protectRoute, leaveGroup);
 router.delete("/:id", protectRoute, deleteGroup);
+router.delete("/:id/empty-delete", protectRoute, deleteEmptyGroup);
 
 export default router;

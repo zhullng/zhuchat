@@ -368,79 +368,90 @@ export const leaveGroup = async (req, res) => {
 };
     
 // Deletar um grupo (apenas o criador)
+// Deletar um grupo (versão simplificada)
 export const deleteGroup = async (req, res) => {
   try {
-    const { id: groupId } = req.params;
+    const groupId = req.params.id;
     const userId = req.user._id;
     
-    // Validação inicial de entrada
-    if (!groupId || !mongoose.isValidObjectId(groupId)) {
-      return res.status(400).json({ error: "ID de grupo inválido" });
-    }
-    
-    // Verificar se o usuário é o criador
-    const group = await Group.findOne({
-      _id: groupId
-    });
+    // Buscar o grupo sem verificar o criador inicialmente
+    const group = await Group.findById(groupId);
     
     if (!group) {
       return res.status(404).json({ error: "Grupo não encontrado" });
     }
     
-    // Converter IDs para string para comparação segura
-    const creatorId = group.createdBy ? group.createdBy.toString() : null;
-    const requestUserId = userId ? userId.toString() : null;
+    // Converter IDs para string para comparação
+    const stringUserId = String(userId);
+    const stringCreatorId = String(group.createdBy);
     
-    if (creatorId !== requestUserId) {
-      return res.status(403).json({ error: "Acesso negado. Apenas o criador pode excluir o grupo" });
+    // Verificar se o usuário é o criador
+    if (stringUserId !== stringCreatorId) {
+      return res.status(403).json({ error: "Apenas o criador pode excluir o grupo" });
     }
     
-    // Tentar notificar outros membros, com tratamento de erros
-    try {
-      if (group.members && Array.isArray(group.members) && group.members.length > 0) {
-        const otherMembers = group.members.filter(memberId => 
-          memberId && memberId.toString() !== requestUserId
-        );
-        
-        if (otherMembers.length > 0) {
-          otherMembers.forEach(memberId => {
-            try {
-              const memberSocketId = getReceiverSocketId(memberId);
-              if (memberSocketId) {
-                io.to(memberSocketId).emit("groupDeleted", { groupId });
-              }
-            } catch (notifyError) {
-              console.error(`Erro ao notificar membro ${memberId}:`, notifyError);
-              // Continuar mesmo com erro de notificação
-            }
-          });
-        }
-      }
-    } catch (notifyError) {
-      console.error("Erro durante notificação dos membros:", notifyError);
-      // Continuar mesmo se houver erro na notificação
-    }
+    // Excluir mensagens relacionadas
+    await GroupMessage.deleteMany({ groupId });
     
-    // Remover mensagens do grupo com tratamento de erro
-    try {
-      await GroupMessage.deleteMany({ groupId });
-    } catch (messagesError) {
-      console.error("Erro ao remover mensagens do grupo:", messagesError);
-      return res.status(500).json({ error: "Erro ao remover mensagens do grupo" });
-    }
+    // Usar deleteOne em vez de findByIdAndDelete (pode ser mais estável)
+    await Group.deleteOne({ _id: groupId });
     
-    // Remover o grupo
-    try {
-      await Group.findByIdAndDelete(groupId);
-    } catch (deleteError) {
-      console.error("Erro ao excluir o grupo:", deleteError);
-      return res.status(500).json({ error: "Erro ao excluir o grupo" });
-    }
-    
-    // Resposta de sucesso
-    res.status(200).json({ success: true });
+    return res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Erro ao deletar grupo:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    console.error("Erro ao excluir grupo:", error);
+    return res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Adicione esta função ao arquivo controllers/group.controller.js
+export const deleteEmptyGroup = async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    const userId = req.user._id;
+    
+    // Buscar o grupo
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ error: "Grupo não encontrado" });
+    }
+    
+    // Converter IDs para string
+    const stringUserId = String(userId);
+    const stringCreatorId = String(group.createdBy);
+    
+    // Verificar se o usuário é o criador
+    if (stringUserId !== stringCreatorId) {
+      return res.status(403).json({ error: "Apenas o criador pode excluir o grupo" });
+    }
+    
+    // Verificar se o grupo só tem o criador como membro
+    let isSingleMember = false;
+    
+    if (Array.isArray(group.members)) {
+      if (group.members.length === 1) {
+        const onlyMemberId = String(group.members[0]);
+        isSingleMember = onlyMemberId === stringUserId;
+      } else if (group.members.length === 0) {
+        isSingleMember = true;
+      }
+    }
+    
+    if (!isSingleMember) {
+      return res.status(400).json({ 
+        error: "Esta rota só pode ser usada para excluir grupos onde você é o único membro" 
+      });
+    }
+    
+    // Excluir mensagens primeiro
+    await GroupMessage.deleteMany({ groupId });
+    
+    // Excluir o grupo usando deleteOne
+    await Group.deleteOne({ _id: groupId });
+    
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Erro ao excluir grupo vazio:", error);
+    return res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
