@@ -293,27 +293,89 @@ sendGroupMessage: async (groupId, messageData) => {
   },
   
   // Remover membro do grupo
-  removeGroupMember: async (groupId, memberId) => {
+ // Remover membro do grupo - versão melhorada
+removeGroupMember: async (groupId, memberId) => {
+  try {
+    const loadingToast = toast.loading("Removendo membro...");
+    
+    // Verificar se temos os dados necessários
+    if (!groupId || !memberId) {
+      toast.dismiss(loadingToast);
+      toast.error("Dados incompletos para remover membro");
+      return;
+    }
+    
+    console.log("Tentando remover membro:", { groupId, memberId });
+    
     try {
-      await axiosInstance.delete(`/groups/${groupId}/members/${memberId}`);
+      // Fazer a chamada para remover o membro
+      const response = await axiosInstance.delete(`/groups/${groupId}/members/${memberId}`);
       
-      // Atualizar grupo na lista
-      const updatedGroup = await axiosInstance.get(`/groups/${groupId}`);
-      
-      set(state => ({
-        groups: state.groups.map(g => 
-          g._id === groupId ? updatedGroup.data : g
-        ),
-        selectedGroup: state.selectedGroup?._id === groupId ? updatedGroup.data : state.selectedGroup
-      }));
-      
-      toast.success("Membro removido com sucesso!");
+      if (response.status === 200) {
+        console.log("Membro removido com sucesso no servidor");
+        
+        // Atualizar o grupo na lista local
+        set(state => ({
+          groups: state.groups.map(g => {
+            if (g._id === groupId) {
+              // Criar uma cópia do grupo com o membro removido
+              return {
+                ...g,
+                members: Array.isArray(g.members) 
+                  ? g.members.filter(m => {
+                      // Lidar com diferentes formatos de membros
+                      const mId = typeof m === 'object' ? m._id : m;
+                      return String(mId) !== String(memberId);
+                    })
+                  : g.members
+              };
+            }
+            return g;
+          }),
+          
+          // Atualizar o grupo selecionado, se for o mesmo
+          selectedGroup: state.selectedGroup?._id === groupId 
+            ? {
+                ...state.selectedGroup,
+                members: Array.isArray(state.selectedGroup.members)
+                  ? state.selectedGroup.members.filter(m => {
+                      const mId = typeof m === 'object' ? m._id : m;
+                      return String(mId) !== String(memberId);
+                    })
+                  : state.selectedGroup.members
+              } 
+            : state.selectedGroup
+        }));
+        
+        toast.dismiss(loadingToast);
+        toast.success("Membro removido com sucesso!");
+      } else {
+        console.warn("Resposta inesperada:", response);
+        toast.dismiss(loadingToast);
+        toast.error("Erro ao remover membro");
+      }
     } catch (error) {
       console.error("Erro ao remover membro:", error);
-      toast.error(error.response?.data?.error || "Erro ao remover membro");
-      throw error;
+      toast.dismiss(loadingToast);
+      
+      // Mostrar mensagem baseada no código de erro
+      if (error.response) {
+        if (error.response.status === 403) {
+          toast.error("Você não tem permissão para remover este membro");
+        } else if (error.response.status === 404) {
+          toast.error("Grupo ou membro não encontrado");
+        } else {
+          toast.error(error.response.data?.error || "Erro ao remover membro");
+        }
+      } else {
+        toast.error("Erro de conexão ao tentar remover membro");
+      }
     }
-  },
+  } catch (unexpectedError) {
+    console.error("Erro inesperado:", unexpectedError);
+    toast.error("Ocorreu um erro inesperado");
+  }
+},
   
   // Sair de um grupo
   leaveGroup: async (groupId) => {
