@@ -114,6 +114,7 @@ export const getGroupById = async (req, res) => {
 };
 
 // Enviar mensagem para um grupo - CORRIGIDO
+// Enviar mensagem para um grupo - CORRIGIDO
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body;
@@ -188,7 +189,10 @@ export const sendGroupMessage = async (req, res) => {
     };
     
     // Enviar a mensagem para a sala de grupo com identificador do remetente original
-    io.to(`group-${groupId}`).emit("newGroupMessage", {
+    const roomName = `group-${groupId}`;
+    console.log(`Enviando mensagem para sala ${roomName}. Total de destinatários: ${io.sockets.adapter.rooms.get(roomName)?.size || 0}`);
+    
+    io.to(roomName).emit("newGroupMessage", {
       message: formattedMessage,
       group: {
         _id: group._id,

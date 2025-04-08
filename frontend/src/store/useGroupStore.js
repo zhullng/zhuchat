@@ -215,9 +215,9 @@ export const useGroupStore = create((set, get) => ({
   try {
     const authUser = useAuthStore.getState().authUser;
     
-    // Criar uma mensagem temporária para mostrar imediatamente, antes da resposta do servidor
+    // Criar uma mensagem temporária para mostrar imediatamente
     const tempMessage = {
-      _id: Date.now().toString(), // ID temporário
+      _id: Date.now().toString(),
       text: messageData.text || "",
       image: messageData.image || null,
       file: messageData.file || null,
@@ -228,16 +228,15 @@ export const useGroupStore = create((set, get) => ({
       },
       createdAt: new Date().toISOString(),
       groupId: groupId,
-      // Outros campos que podem ser necessários com valores padrão
       read: []
     };
     
-    // Adicionar a mensagem temporária ao estado ANTES da chamada API
+    // Adicionar a mensagem temporária ao estado
     set(state => ({
       groupMessages: [...state.groupMessages, tempMessage]
     }));
     
-    // Garantir scroll imediato para a nova mensagem
+    // Garantir scroll imediato
     setTimeout(() => {
       const messageEnd = document.getElementById('message-end-ref');
       if (messageEnd) {
@@ -245,11 +244,21 @@ export const useGroupStore = create((set, get) => ({
       }
     }, 50);
 
+    // Enviar via socket como backup para garantir entrega
+    const socket = useAuthStore.getState().socket;
+    if (socket) {
+      socket.emit("sendGroupMessage", {
+        groupId,
+        text: messageData.text || "",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Fazer a chamada API em segundo plano
     const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
     const newMessage = res.data;
     
-    // Substituir silenciosamente a mensagem temporária pela versão do servidor
+    // Substituir a mensagem temporária pela versão do servidor
     set(state => ({
       groupMessages: state.groupMessages.map(msg => 
         msg._id === tempMessage._id ? 
@@ -278,6 +287,219 @@ export const useGroupStore = create((set, get) => ({
     
     throw error;
   }
+},
+
+// Subscrever a eventos de grupo via WebSocket - ATUALIZADO
+subscribeToGroupEvents: () => {
+  const socket = useAuthStore.getState().socket;
+  if (!socket) return;
+  
+  // Remover listeners existentes primeiro
+  socket.off("newGroup");
+  socket.off("newGroupMessage");
+  socket.off("directGroupMessage");
+  socket.off("addedToGroup");
+  socket.off("removedFromGroup");
+  socket.off("groupDeleted");
+  
+  // Novo grupo criado
+  socket.on("newGroup", (group) => {
+    set(state => ({
+      groups: [group, ...state.groups]
+    }));
+    toast.success(`Você foi adicionado ao grupo ${group.name}`);
+  });
+  
+  // Nova mensagem no grupo - ATUALIZADO
+  socket.on("newGroupMessage", ({ message, group }) => {
+    console.log("Nova mensagem de grupo recebida via socket:", { message, group });
+    
+    const authUser = useAuthStore.getState().authUser;
+    const currentGroup = get().selectedGroup;
+    
+    // VERIFICAÇÃO: Se a mensagem vier do próprio remetente via originalSender, ignorar
+    if (group.originalSender === authUser._id.toString()) {
+      console.log("Ignorando mensagem do próprio usuário recebida via socket");
+      return;
+    }
+    
+    // Formatar a mensagem recebida para exibição consistente
+    let formattedMessage = {...message};
+    
+    // Se já estiver em formato de objeto, use o ID do objeto
+    const senderId = typeof message.senderId === 'object' 
+      ? message.senderId._id 
+      : message.senderId;
+    
+    // Se a mensagem for do usuário atual, formate-a como "Você"
+    if (senderId === authUser._id) {
+      formattedMessage = {
+        ...formattedMessage,
+        senderId: {
+          _id: authUser._id,
+          fullName: authUser.fullName || 'Você',
+          profilePic: authUser.profilePic || '/avatar.png'
+        }
+      };
+    } 
+    // Caso contrário, use as informações do membro do grupo
+    else if (typeof message.senderId === 'object' && message.senderId.fullName) {
+      // Se a mensagem já vier com dados formatados do remetente, mantenha-os
+      formattedMessage = message;
+    }
+    // Se não tiver informações do remetente, tente encontrar no grupo
+    else if (group && group.members) {
+      const member = group.members.find(m => {
+        const memberId = typeof m === 'object' ? m._id : m;
+        return memberId === senderId;
+      });
+      
+      if (member && typeof member === 'object') {
+        formattedMessage = {
+          ...formattedMessage,
+          senderId: {
+            _id: member._id,
+            fullName: member.fullName || 'Membro do grupo',
+            profilePic: member.profilePic || '/avatar.png'
+          }
+        };
+      }
+    }
+    
+    // Se o grupo da mensagem é o grupo atualmente selecionado
+    if (currentGroup && currentGroup._id === message.groupId) {
+      console.log("Adicionando mensagem ao grupo atual");
+      
+      // Verificar se a mensagem já existe (evitar duplicação)
+      const isDuplicate = get().groupMessages.some(
+        msg => msg._id === message._id || 
+              (msg.text === message.text && 
+               msg.senderId._id === message.senderId._id &&
+               Math.abs(new Date(msg.createdAt) - new Date(message.createdAt)) < 3000) // Diferença menor que 3 segundos
+      );
+      
+      if (isDuplicate) {
+        console.log("Mensagem duplicada detectada, ignorando");
+        return;
+      }
+      
+      // Adicionar mensagem à lista e marcar como lida
+      set(state => ({
+        groupMessages: [...state.groupMessages, formattedMessage]
+      }));
+      
+      get().markGroupAsRead(message.groupId);
+      
+      // Garantir que o scroll se mova para a nova mensagem
+      setTimeout(() => {
+        const messageEnd = document.getElementById('message-end-ref');
+        if (messageEnd) {
+          messageEnd.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 50);
+    } else {
+      console.log("Mensagem para outro grupo, incrementando contador");
+      
+      // Caso contrário, incrementar contador de não lidas
+      set(state => ({
+        unreadGroupCounts: {
+          ...state.unreadGroupCounts,
+          [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
+        }
+      }));
+      
+      // Tocar som de notificação
+      try {
+        const notificationSound = new Audio('/notification.mp3');
+        notificationSound.volume = 0.5;
+        notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+      } catch (err) {
+        console.log('Erro ao criar áudio:', err);
+      }
+      
+      // Exibir notificação toast
+      toast.success(`Nova mensagem no grupo ${group.name}`);
+    }
+  });
+  
+  // Manipulador para backup de mensagens
+  socket.on("directGroupMessage", (messageData) => {
+    console.log("Mensagem direta recebida:", messageData);
+    
+    const currentGroup = get().selectedGroup;
+    const authUser = useAuthStore.getState().authUser;
+    
+    if (currentGroup && currentGroup._id === messageData.groupId) {
+      // Verificar se já temos uma mensagem com conteúdo/horário similar
+      const isDuplicate = get().groupMessages.some(
+        msg => msg.text === messageData.text && 
+               (msg.senderId._id === messageData.senderId ||
+                typeof msg.senderId === 'string' && msg.senderId === messageData.senderId) &&
+               Math.abs(new Date(msg.createdAt) - new Date(messageData.timestamp)) < 5000
+      );
+      
+      if (!isDuplicate) {
+        // Processar esta mensagem como backup
+        console.log("Processando mensagem direta como backup");
+        
+        // Criar mensagem formatada
+        const backupMessage = {
+          _id: `backup-${Date.now()}`,
+          text: messageData.text,
+          createdAt: messageData.timestamp,
+          groupId: messageData.groupId,
+          senderId: {
+            _id: messageData.senderId,
+            fullName: 'Membro do grupo', // Nome padrão, será atualizado quando a mensagem real chegar
+            profilePic: '/avatar.png'
+          }
+        };
+        
+        // Adicionar mensagem ao grupo e atualizar
+        set(state => ({
+          groupMessages: [...state.groupMessages, backupMessage]
+        }));
+        
+        // Marcar como lida
+        get().markGroupAsRead(messageData.groupId);
+      }
+    }
+  });
+  
+  // Adicionado a um grupo
+  socket.on("addedToGroup", (group) => {
+    set(state => ({
+      groups: [group, ...state.groups]
+    }));
+    toast.success(`Você foi adicionado ao grupo ${group.name}`);
+    
+    // Entrar automaticamente na sala de grupo
+    socket.emit("joinGroup", group._id);
+  });
+  
+  // Removido de um grupo
+  socket.on("removedFromGroup", ({ groupId }) => {
+    set(state => ({
+      groups: state.groups.filter(g => g._id !== groupId),
+      selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
+    }));
+    toast.info("Você foi removido de um grupo");
+    
+    // Sair da sala de grupo
+    socket.emit("leaveGroup", groupId);
+  });
+  
+  // Grupo excluído
+  socket.on("groupDeleted", ({ groupId }) => {
+    set(state => ({
+      groups: state.groups.filter(g => g._id !== groupId),
+      selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
+    }));
+    toast.info("Um grupo foi excluído");
+    
+    // Sair da sala de grupo
+    socket.emit("leaveGroup", groupId);
+  });
 },
 
 // Adicionar membros ao grupo
