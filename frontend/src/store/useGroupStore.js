@@ -86,28 +86,42 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // Selecionar um grupo - MODIFICADA para limpar chat selecionado
-  selectGroup: (group) => {
-    // Definir o grupo selecionado
-    set({ selectedGroup: group });
+// Adicionar ao useGroupStore.js - na função selectGroup
+
+selectGroup: (group) => {
+  // Código existente
+  set({ selectedGroup: group });
+  
+  // Se um grupo foi selecionado
+  if (group) {
+    // Limpar qualquer chat selecionado quando um grupo é selecionado
+    try {
+      const chatStore = useChatStore.getState();
+      if (chatStore && chatStore.setSelectedUser) {
+        chatStore.setSelectedUser(null);
+      }
+    } catch (error) {
+      console.warn("Não foi possível limpar o usuário selecionado:", error);
+    }
     
-    // Se um grupo foi selecionado
-    if (group) {
-      // Limpar qualquer chat selecionado quando um grupo é selecionado
-      try {
-        const chatStore = useChatStore.getState();
-        if (chatStore && chatStore.setSelectedUser) {
-          chatStore.setSelectedUser(null);
-        }
-      } catch (error) {
-        console.warn("Não foi possível limpar o usuário selecionado:", error);
+    // NOVO: Juntar-se à sala do grupo selecionado
+    const socket = useAuthStore.getState().socket;
+    if (socket) {
+      // Primeiro saia de qualquer sala de grupo anterior
+      const prevGroup = get().selectedGroup;
+      if (prevGroup && prevGroup._id !== group._id) {
+        socket.emit("leaveGroup", prevGroup._id);
       }
       
-      // Carregar mensagens e marcar como lidas
-      get().getGroupMessages(group._id);
-      get().markGroupAsRead(group._id);
+      // Então junte-se à nova sala
+      socket.emit("joinGroup", group._id);
     }
-  },
+    
+    // Carregar mensagens e marcar como lidas
+    get().getGroupMessages(group._id);
+    get().markGroupAsRead(group._id);
+  }
+},
   
   // Obter mensagens de um grupo - CORRIGIDA
   getGroupMessages: async (groupId) => {
@@ -466,16 +480,21 @@ subscribeToGroupEvents: () => {
     toast.success(`Você foi adicionado ao grupo ${group.name}`);
   });
   
-  // Nova mensagem no grupo
   socket.on("newGroupMessage", ({ message, group }) => {
+    console.log("Nova mensagem de grupo recebida via socket:", { message, group });
+    
     const authUser = useAuthStore.getState().authUser;
     const currentGroup = get().selectedGroup;
     
-    // Formatar a mensagem recebida via socket
+    // Formatar a mensagem recebida via socket para exibição consistente
     let formattedMessage = {...message};
-    const senderId = typeof message.senderId === 'object' ? message.senderId._id : message.senderId;
     
-    // Se a mensagem for do usuário atual
+    // Se já estiver em formato de objeto, use o ID do objeto
+    const senderId = typeof message.senderId === 'object' 
+      ? message.senderId._id 
+      : message.senderId;
+    
+    // Se a mensagem for do usuário atual, formate-a como "Você"
     if (senderId === authUser._id) {
       formattedMessage = {
         ...formattedMessage,
@@ -486,10 +505,19 @@ subscribeToGroupEvents: () => {
         }
       };
     } 
-    // Se for de outro usuário e temos o grupo, verificar se temos dados do membro
+    // Caso contrário, use as informações do membro do grupo
+    else if (typeof message.senderId === 'object' && message.senderId.fullName) {
+      // Se a mensagem já vier com dados formatados do remetente, mantenha-os
+      formattedMessage = message;
+    }
+    // Se não tiver informações do remetente, tente encontrar no grupo
     else if (group && group.members) {
-      const member = group.members.find(m => m._id === senderId);
-      if (member) {
+      const member = group.members.find(m => {
+        const memberId = typeof m === 'object' ? m._id : m;
+        return memberId === senderId;
+      });
+      
+      if (member && typeof member === 'object') {
         formattedMessage = {
           ...formattedMessage,
           senderId: {
@@ -503,10 +531,13 @@ subscribeToGroupEvents: () => {
     
     // Se o grupo da mensagem é o grupo atualmente selecionado
     if (currentGroup && currentGroup._id === message.groupId) {
+      console.log("Adicionando mensagem ao grupo atual");
+      
       // Adicionar mensagem à lista e marcar como lida
       set(state => ({
         groupMessages: [...state.groupMessages, formattedMessage]
       }));
+      
       get().markGroupAsRead(message.groupId);
       
       // Garantir que o scroll se mova para a nova mensagem
@@ -517,6 +548,8 @@ subscribeToGroupEvents: () => {
         }
       }, 50);
     } else {
+      console.log("Mensagem para outro grupo, incrementando contador");
+      
       // Caso contrário, incrementar contador de não lidas
       set(state => ({
         unreadGroupCounts: {

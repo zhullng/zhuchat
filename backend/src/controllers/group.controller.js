@@ -113,7 +113,8 @@ export const getGroupById = async (req, res) => {
   }
 };
 
-// Enviar mensagem para um grupo
+// controllers/group.controller.js - correção da função sendGroupMessage
+
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body;
@@ -124,7 +125,7 @@ export const sendGroupMessage = async (req, res) => {
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [senderId] }
-    });
+    }).populate("members", "fullName profilePic");
     
     if (!group) {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
@@ -133,7 +134,7 @@ export const sendGroupMessage = async (req, res) => {
     let imageUrl;
     let fileData = null;
     
-    // Upload de imagem, se fornecida
+    // Upload de imagem, se fornecida (código existente)
     if (image && image.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
         resource_type: "auto",
@@ -143,7 +144,7 @@ export const sendGroupMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo, se fornecido
+    // Upload de arquivo, se fornecido (código existente)
     if (file && file.data && file.data.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(file.data, {
         resource_type: "auto",
@@ -174,19 +175,26 @@ export const sendGroupMessage = async (req, res) => {
     
     await newMessage.save();
     
-    // Notificar membros do grupo sobre a nova mensagem via socket
-    group.members.forEach(memberId => {
-      if (memberId.toString() !== senderId.toString()) {
-        const receiverSocketId = getReceiverSocketId(memberId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("newGroupMessage", {
-            message: newMessage,
-            group: {
-              _id: group._id,
-              name: group.name
-            }
-          });
-        }
+    // Encontrar o remetente para ter informações completas
+    const sender = group.members.find(member => member._id.toString() === senderId.toString());
+    
+    // Criar uma mensagem formatada com dados do remetente
+    const formattedMessage = {
+      ...newMessage.toObject(),
+      senderId: {
+        _id: senderId,
+        fullName: sender?.fullName || "Membro do grupo",
+        profilePic: sender?.profilePic || "/avatar.png"
+      }
+    };
+    
+    // CORREÇÃO: Enviar a mensagem para a sala de grupo em vez de enviar individualmente
+    io.to(`group-${groupId}`).emit("newGroupMessage", {
+      message: formattedMessage,
+      group: {
+        _id: group._id,
+        name: group.name,
+        members: group.members // Incluir membros para que o front-end possa formatar corretamente
       }
     });
     
