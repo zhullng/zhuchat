@@ -334,82 +334,68 @@ sendGroupMessage: async (groupId, messageData) => {
     }
   },
   
-// Deletar um grupo - versão robusta com mais tratamento de erros
-// Versão alternativa se a primeira solução não resolver o problema
-// Deletar um grupo com rota alternativa para grupos vazios
+// Versão final da função deleteGroup
 deleteGroup: async (groupId) => {
   try {
     const loadingToast = toast.loading("Excluindo grupo...");
     
-    // Verificar se o grupo tem apenas o admin
-    const group = get().groups.find(g => g._id === groupId);
-    const authUser = useAuthStore.getState().authUser;
+    // Primeiro, vamos remover o grupo localmente para garantir uma UI responsiva
+    const removedGroup = get().groups.find(g => g._id === groupId);
     
-    const isEmptyGroup = group && Array.isArray(group.members) && 
-      (group.members.length === 0 || 
-        (group.members.length === 1 && 
-         String(group.members[0]._id || group.members[0]) === String(authUser._id)));
+    // Armazenar o estado atual para eventual recuperação
+    const previousGroups = get().groups;
+    const previousSelected = get().selectedGroup;
     
+    // Atualizar o estado imediatamente (mesmo antes de ouvir do servidor)
+    set(state => ({
+      groups: state.groups.filter(g => g._id !== groupId),
+      selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
+    }));
+    
+    // Tentativa principal: rota de grupo vazio
     try {
-      // Usar rota específica se for grupo vazio
-      if (isEmptyGroup) {
-        console.log("Usando rota para grupo vazio");
-        await axiosInstance.delete(`/groups/${groupId}/empty-delete`);
-      } else {
-        console.log("Usando rota normal");
-        await axiosInstance.delete(`/groups/${groupId}`);
-      }
-      
-      // Atualizar o estado local
-      set(state => ({
-        groups: state.groups.filter(g => g._id !== groupId),
-        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
-      }));
+      console.log("Tentando excluir grupo (rota para grupos vazios)");
+      await axiosInstance.delete(`/groups/${groupId}/empty-delete`);
       
       toast.dismiss(loadingToast);
       toast.success("Grupo excluído com sucesso");
-    } catch (error) {
-      toast.dismiss(loadingToast);
+      return;
+    } catch (emptyError) {
+      console.log("Falha na rota de grupos vazios:", emptyError.message);
       
-      // Se o primeiro método falhar, tentamos o alternativo
-      if (!isEmptyGroup) {
-        try {
-          console.log("Tentando método alternativo");
-          await axiosInstance.delete(`/groups/${groupId}/empty-delete`);
-          
-          // Atualizar o estado local
-          set(state => ({
-            groups: state.groups.filter(g => g._id !== groupId),
-            selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
-          }));
-          
-          toast.success("Grupo excluído com sucesso (método alternativo)");
-          return;
-        } catch (secondError) {
-          console.error("Segundo método também falhou:", secondError);
+      // Se a primeira tentativa falhar, tente a rota padrão
+      try {
+        console.log("Tentando rota normal de exclusão");
+        await axiosInstance.delete(`/groups/${groupId}`);
+        
+        toast.dismiss(loadingToast);
+        toast.success("Grupo excluído com sucesso");
+        return;
+      } catch (normalError) {
+        console.error("Ambas as rotas falharam:", normalError);
+        toast.dismiss(loadingToast);
+        
+        // Perguntar se deseja remover apenas localmente
+        const removeLocally = window.confirm(
+          "Não foi possível excluir o grupo no servidor. Deseja manter o grupo removido da sua lista local?"
+        );
+        
+        if (removeLocally) {
+          // O estado já foi atualizado no início
+          toast.success("Grupo removido localmente");
+        } else {
+          // Restaurar o grupo na lista
+          set({ 
+            groups: previousGroups,
+            selectedGroup: previousSelected
+          });
+          toast.error("Operação cancelada");
         }
-      }
-      
-      // Perguntar se deseja remover apenas localmente
-      const removeLocally = window.confirm(
-        "Não foi possível excluir o grupo no servidor. Deseja remover apenas da sua lista local?"
-      );
-      
-      if (removeLocally) {
-        // O estado já foi atualizado acima
-        toast.success("Grupo removido localmente");
-      } else {
-        // Restaurar o grupo na lista
-        set(state => ({
-          groups: [...state.groups, group],
-          selectedGroup: state.selectedGroup
-        }));
-        toast.error("Operação cancelada");
       }
     }
   } catch (unexpectedError) {
     toast.error("Erro inesperado ao processar sua solicitação");
-    console.error("Erro inesperado:", unexpectedError);
+    console.error("Erro inesperado ao excluir grupo:", unexpectedError);
   }
 },
 

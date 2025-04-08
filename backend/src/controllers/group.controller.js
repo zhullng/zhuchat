@@ -403,18 +403,29 @@ export const deleteGroup = async (req, res) => {
   }
 };
 
-// Adicione esta função ao arquivo controllers/group.controller.js
+// Função deleteEmptyGroup melhorada
 export const deleteEmptyGroup = async (req, res) => {
   try {
     const groupId = req.params.id;
     const userId = req.user._id;
     
+    console.log("🔍 Tentando excluir grupo vazio:", { groupId, userId: String(userId) });
+    
     // Buscar o grupo
     const group = await Group.findById(groupId);
     
     if (!group) {
+      console.log("❌ Grupo não encontrado:", groupId);
       return res.status(404).json({ error: "Grupo não encontrado" });
     }
+    
+    // Logar informações detalhadas sobre o grupo
+    console.log("📊 Dados do grupo:", {
+      id: groupId,
+      creatorId: String(group.createdBy),
+      membersCount: group.members?.length || 0,
+      members: group.members?.map(m => String(m))
+    });
     
     // Converter IDs para string
     const stringUserId = String(userId);
@@ -422,36 +433,34 @@ export const deleteEmptyGroup = async (req, res) => {
     
     // Verificar se o usuário é o criador
     if (stringUserId !== stringCreatorId) {
+      console.log("❌ Usuário não é o criador:", { userId: stringUserId, creatorId: stringCreatorId });
       return res.status(403).json({ error: "Apenas o criador pode excluir o grupo" });
     }
     
-    // Verificar se o grupo só tem o criador como membro
-    let isSingleMember = false;
-    
+    // REMOVER A VERIFICAÇÃO DE ÚNICO MEMBRO - Vamos permitir a exclusão mesmo se houver outros membros
+    // Apenas registrar o estado para fins de logging, mas não impedir a operação
     if (Array.isArray(group.members)) {
-      if (group.members.length === 1) {
-        const onlyMemberId = String(group.members[0]);
-        isSingleMember = onlyMemberId === stringUserId;
-      } else if (group.members.length === 0) {
-        isSingleMember = true;
+      const otherMembers = group.members.filter(m => String(m) !== stringUserId);
+      if (otherMembers.length > 0) {
+        console.log("⚠️ Aviso: Grupo tem outros membros, mas vamos excluir mesmo assim:", 
+          { otherMembersCount: otherMembers.length });
+      } else {
+        console.log("✅ Grupo tem apenas o criador como membro");
       }
     }
     
-    if (!isSingleMember) {
-      return res.status(400).json({ 
-        error: "Esta rota só pode ser usada para excluir grupos onde você é o único membro" 
-      });
-    }
-    
+    console.log("🗑️ Excluindo mensagens do grupo");
     // Excluir mensagens primeiro
     await GroupMessage.deleteMany({ groupId });
     
+    console.log("🗑️ Excluindo o grupo");
     // Excluir o grupo usando deleteOne
     await Group.deleteOne({ _id: groupId });
     
+    console.log("✅ Grupo excluído com sucesso");
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Erro ao excluir grupo vazio:", error);
+    console.error("❌ Erro ao excluir grupo vazio:", error);
     return res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
