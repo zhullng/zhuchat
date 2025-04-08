@@ -1,5 +1,6 @@
 // routes/group.route.js
 import express from "express";
+import mongoose from "mongoose";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import {
   createGroup,

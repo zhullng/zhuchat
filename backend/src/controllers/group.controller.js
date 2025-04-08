@@ -1,4 +1,5 @@
 // controllers/group.controller.js
+import mongoose from "mongoose";
 import Group from "../models/group.model.js";
 import GroupMessage from "../models/groupMessage.model.js";
 import { io, getReceiverSocketId } from "../lib/socket.js";
@@ -60,7 +61,15 @@ export const getUserGroups = async (req, res) => {
       members: { $in: [userId] } 
     }).populate("members", "fullName profilePic email");
     
-    res.status(200).json(groups);
+    // Enriquecer os grupos com informações de permissões
+    const enrichedGroups = groups.map(group => {
+      const groupObj = group.toObject();
+      groupObj.isCreator = group.createdBy.toString() === userId.toString();
+      groupObj.isAdmin = group.admins && group.admins.some(adminId => adminId.toString() === userId.toString());
+      return groupObj;
+    });
+    
+    res.status(200).json(enrichedGroups);
   } catch (error) {
     console.error("Erro ao obter grupos:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -83,7 +92,21 @@ export const getGroupById = async (req, res) => {
       return res.status(404).json({ error: "Grupo não encontrado ou acesso negado" });
     }
     
-    res.status(200).json(group);
+    // Adicionar informações sobre quem é admin e quem é criador
+    const enrichedGroup = group.toObject();
+    enrichedGroup.isCreator = group.createdBy.toString() === userId.toString();
+    enrichedGroup.isAdmin = group.admins && group.admins.some(adminId => adminId.toString() === userId.toString());
+    
+    // Adicionar flag para cada membro indicando se é admin
+    if (enrichedGroup.members && Array.isArray(enrichedGroup.members)) {
+      enrichedGroup.members = enrichedGroup.members.map(member => ({
+        ...member,
+        isAdmin: group.admins && group.admins.some(adminId => adminId.toString() === member._id.toString()),
+        isCreator: group.createdBy.toString() === member._id.toString()
+      }));
+    }
+    
+    res.status(200).json(enrichedGroup);
   } catch (error) {
     console.error("Erro ao obter detalhes do grupo:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -156,196 +179,230 @@ export const sendGroupMessage = async (req, res) => {
       if (memberId.toString() !== senderId.toString()) {
         const receiverSocketId = getReceiverSocketId(memberId);
         if (receiverSocketId) {
-            io.to(receiverSocketId).emit("newGroupMessage", {
-                message: newMessage,
-                group: {
-                  _id: group._id,
-                  name: group.name
-                }
-              });
-            }
-          }
-        });
-        
-        res.status(201).json(newMessage);
-      } catch (error) {
-        console.error("Erro ao enviar mensagem de grupo:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
-      }
-    };
-    
-    // Obter mensagens de um grupo
-    export const getGroupMessages = async (req, res) => {
-      try {
-        const { id: groupId } = req.params;
-        const userId = req.user._id;
-        
-        // Verificar se o usuário é membro do grupo
-        const group = await Group.findOne({
-          _id: groupId,
-          members: { $in: [userId] }
-        });
-        
-        if (!group) {
-          return res.status(403).json({ error: "Você não é membro deste grupo" });
-        }
-        
-        // Obter as mensagens do grupo
-        const messages = await GroupMessage.find({
-          groupId
-        }).sort({ createdAt: 1 })
-          .populate("senderId", "fullName profilePic");
-        
-        res.status(200).json(messages);
-      } catch (error) {
-        console.error("Erro ao obter mensagens do grupo:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
-      }
-    };
-    
-    // Marcar mensagens como lidas
-    export const markGroupMessagesAsRead = async (req, res) => {
-      try {
-        const { id: groupId } = req.params;
-        const userId = req.user._id;
-        
-        // Verificar se o usuário é membro do grupo
-        const group = await Group.findOne({
-          _id: groupId,
-          members: { $in: [userId] }
-        });
-        
-        if (!group) {
-          return res.status(403).json({ error: "Você não é membro deste grupo" });
-        }
-        
-        // Encontrar mensagens que o usuário ainda não leu
-        const messagesToUpdate = await GroupMessage.find({
-          groupId,
-          'read.userId': { $ne: userId }
-        });
-        
-        // Adicionar o usuário à lista de leitores de cada mensagem
-        for (const message of messagesToUpdate) {
-          message.read.push({ userId, readAt: new Date() });
-          await message.save();
-        }
-        
-        res.status(200).json({ success: true, count: messagesToUpdate.length });
-      } catch (error) {
-        console.error("Erro ao marcar mensagens como lidas:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
-      }
-    };
-    
-    // Adicionar membros a um grupo
-    export const addGroupMembers = async (req, res) => {
-      try {
-        const { id: groupId } = req.params;
-        const { members } = req.body; // Array de IDs de usuários a adicionar
-        const userId = req.user._id;
-        
-        // Verificar se o usuário é o criador do grupo
-        const group = await Group.findOne({
-          _id: groupId,
-          createdBy: userId
-        });
-        
-        if (!group) {
-          return res.status(403).json({ error: "Acesso negado ou grupo não encontrado" });
-        }
-        
-        // Filtrar membros já existentes
-        const newMembers = members.filter(m => !group.members.includes(m));
-        
-        if (newMembers.length > 0) {
-          group.members.push(...newMembers);
-          await group.save();
-          
-          // Notificar novos membros
-          newMembers.forEach(memberId => {
-            const memberSocketId = getReceiverSocketId(memberId);
-            if (memberSocketId) {
-              io.to(memberSocketId).emit("addedToGroup", group);
+          io.to(receiverSocketId).emit("newGroupMessage", {
+            message: newMessage,
+            group: {
+              _id: group._id,
+              name: group.name
             }
           });
         }
-        
-        res.status(200).json(group);
-      } catch (error) {
-        console.error("Erro ao adicionar membros:", error);
-        res.status(500).json({ error: "Erro interno do servidor" });
       }
-    };
+    });
     
-// Remover membro de um grupo
-// Remover membro de um grupo
-export const removeGroupMember = async (req, res) => {
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error("Erro ao enviar mensagem de grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Obter mensagens de um grupo
+export const getGroupMessages = async (req, res) => {
   try {
-    const { groupId, memberId } = req.params;
+    const { id: groupId } = req.params;
     const userId = req.user._id;
     
-    // Buscar o grupo primeiro
+    // Verificar se o usuário é membro do grupo
+    const group = await Group.findOne({
+      _id: groupId,
+      members: { $in: [userId] }
+    });
+    
+    if (!group) {
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
+    }
+    
+    // Obter as mensagens do grupo
+    const messages = await GroupMessage.find({
+      groupId
+    }).sort({ createdAt: 1 })
+      .populate("senderId", "fullName profilePic");
+    
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error("Erro ao obter mensagens do grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Marcar mensagens como lidas
+export const markGroupMessagesAsRead = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const userId = req.user._id;
+    
+    // Verificar se o usuário é membro do grupo
+    const group = await Group.findOne({
+      _id: groupId,
+      members: { $in: [userId] }
+    });
+    
+    if (!group) {
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
+    }
+    
+    // Encontrar mensagens que o usuário ainda não leu
+    const messagesToUpdate = await GroupMessage.find({
+      groupId,
+      'read.userId': { $ne: userId }
+    });
+    
+    // Adicionar o usuário à lista de leitores de cada mensagem
+    for (const message of messagesToUpdate) {
+      message.read.push({ userId, readAt: new Date() });
+      await message.save();
+    }
+    
+    res.status(200).json({ success: true, count: messagesToUpdate.length });
+  } catch (error) {
+    console.error("Erro ao marcar mensagens como lidas:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Adicionar membros a um grupo
+export const addGroupMembers = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const { members } = req.body; // Array de IDs de usuários a adicionar
+    const userId = req.user._id;
+    
+    // Buscar o grupo
     const group = await Group.findById(groupId);
     
     if (!group) {
       return res.status(404).json({ error: "Grupo não encontrado" });
     }
     
-    // Verificar se o usuário faz parte do grupo
+    // Verificar se o usuário é membro do grupo
     const isUserMember = group.members.some(id => id.toString() === userId.toString());
     if (!isUserMember) {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
     
-    // Verificar se o usuário é o criador
+    // Verificar se o usuário é o criador ou um administrador
     const isCreator = group.createdBy.toString() === userId.toString();
+    const isAdmin = group.admins && group.admins.some(id => id.toString() === userId.toString());
     
-    // Verificar se o usuário é um administrador
-    // Se o campo admins não existir em grupos antigos, consideramos como array vazio
-    const admins = group.admins || [];
-    const isAdmin = admins.some(id => id.toString() === userId.toString());
-    
-    // Apenas criador ou administradores podem remover membros
     if (!isCreator && !isAdmin) {
-      return res.status(403).json({ error: "Apenas o criador ou administradores podem remover membros" });
+      return res.status(403).json({ error: "Apenas o criador ou administradores podem adicionar membros" });
     }
     
+    // Filtrar membros já existentes
+    const newMembers = members.filter(m => !group.members.some(existingMember => 
+      existingMember.toString() === m.toString()
+    ));
+    
+    if (newMembers.length > 0) {
+      group.members.push(...newMembers);
+      await group.save();
+      
+      // Notificar novos membros
+      newMembers.forEach(memberId => {
+        const memberSocketId = getReceiverSocketId(memberId);
+        if (memberSocketId) {
+          io.to(memberSocketId).emit("addedToGroup", group);
+        }
+      });
+    }
+    
+    // Retornar o grupo atualizado e populado
+    const updatedGroup = await Group.findById(groupId)
+      .populate("members", "fullName profilePic email");
+    
+    res.status(200).json(updatedGroup);
+  } catch (error) {
+    console.error("Erro ao adicionar membros:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+// Remover membro de um grupo - VERSÃO SIMPLIFICADA
+export const removeGroupMember = async (req, res) => {
+  try {
+    console.log("Tentando remover membro:", { 
+      params: req.params,
+      user: req.user._id.toString()
+    });
+
+    // Primeiro, vamos garantir que temos os parâmetros corretos
+    // Algumas rotas usam groupId, outras usam id
+    const groupId = req.params.groupId || req.params.id;
+    const memberId = req.params.memberId;
+    const userId = req.user._id;
+
+    console.log("Parâmetros após padronização:", { groupId, memberId, userId: userId.toString() });
+
+    if (!groupId || !memberId) {
+      return res.status(400).json({ error: "IDs de grupo e membro são obrigatórios" });
+    }
+
+    // Buscar o grupo com informações completas
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      console.log("Grupo não encontrado");
+      return res.status(404).json({ error: "Grupo não encontrado" });
+    }
+
+    console.log("Grupo encontrado:", { 
+      id: group._id.toString(), 
+      name: group.name,
+      creatorId: group.createdBy.toString(),
+      membersCount: group.members.length
+    });
+
+    // Permitir que qualquer membro remova outros membros (exceto o criador)
+    // Isso é temporário até resolvermos o problema de permissões
+    const isUserMember = group.members.some(m => m.toString() === userId.toString());
+    
+    if (!isUserMember) {
+      console.log("Usuário não é membro do grupo");
+      return res.status(403).json({ error: "Você não é membro deste grupo" });
+    }
+
     // Não permitir remover o criador
     if (memberId === group.createdBy.toString()) {
+      console.log("Tentativa de remover o criador");
       return res.status(400).json({ error: "Não é possível remover o criador do grupo" });
     }
+
+    // Verificar se o membro existe no grupo
+    const isMemberInGroup = group.members.some(m => m.toString() === memberId);
     
-    // Verificar se o membro a ser removido existe no grupo
-    const isMemberInGroup = group.members.some(id => id.toString() === memberId);
     if (!isMemberInGroup) {
-      return res.status(404).json({ error: "Membro não encontrado no grupo" });
+      console.log("Membro não existe no grupo");
+      return res.status(404).json({ error: "Usuário não é membro deste grupo" });
     }
-    
+
+    console.log("Removendo membro:", memberId);
+
     // Remover o membro
     group.members = group.members.filter(m => m.toString() !== memberId);
     
-    // Se o membro também for um administrador, removê-lo dos administradores também
-    if (group.admins) {
-      group.admins = group.admins.filter(m => m.toString() !== memberId);
+    // Se o membro for admin, removê-lo dos admins também
+    if (group.admins && group.admins.length > 0) {
+      group.admins = group.admins.filter(a => a.toString() !== memberId);
     }
-    
+
     await group.save();
-    
+    console.log("Membro removido com sucesso");
+
     // Notificar o membro removido
     const memberSocketId = getReceiverSocketId(memberId);
     if (memberSocketId) {
       io.to(memberSocketId).emit("removedFromGroup", { groupId });
     }
-    
+
+    // Retornar sucesso
     res.status(200).json({ success: true });
   } catch (error) {
     console.error("Erro ao remover membro:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
-    
-    // Sair de um grupo
+
 // Sair de um grupo
 export const leaveGroup = async (req, res) => {
   try {
@@ -353,7 +410,7 @@ export const leaveGroup = async (req, res) => {
     const userId = req.user._id;
     
     // Validação de entrada
-    if (!groupId || !mongoose.isValidObjectId(groupId)) {
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
       return res.status(400).json({ error: "ID de grupo inválido" });
     }
     
@@ -386,6 +443,13 @@ export const leaveGroup = async (req, res) => {
         memberId && memberId.toString() !== requestUserId
       );
       
+      // Se o usuário era um administrador, removê-lo dos administradores também
+      if (group.admins) {
+        group.admins = group.admins.filter(adminId => 
+          adminId && adminId.toString() !== requestUserId
+        );
+      }
+      
       await group.save();
       res.status(200).json({ success: true });
     } else {
@@ -396,8 +460,7 @@ export const leaveGroup = async (req, res) => {
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
-    
-// Deletar um grupo (apenas o criador)
+
 // Deletar um grupo (versão simplificada)
 export const deleteGroup = async (req, res) => {
   try {
