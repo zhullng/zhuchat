@@ -22,6 +22,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
   const chatContainerRef = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
 
   // Efeito para carregar mensagens
   useEffect(() => {
@@ -75,6 +76,32 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     setActiveMessageMenu(null);
   };
 
+  // Registrar a função global para destacar mensagens na pesquisa
+  useEffect(() => {
+    window.highlightAndScrollToGroupMessage = (messageId) => {
+      setHighlightedMessageId(messageId);
+      
+      setTimeout(() => {
+        const messageElement = document.getElementById(`group-message-${messageId}`);
+        if (messageElement) {
+          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Adicionar destaque visual temporário
+          messageElement.style.backgroundColor = 'rgba(var(--p), 0.1)';
+          
+          setTimeout(() => {
+            messageElement.style.backgroundColor = '';
+            setHighlightedMessageId(null);
+          }, 2000);
+        }
+      }, 100);
+    };
+    
+    return () => {
+      delete window.highlightAndScrollToGroupMessage;
+    };
+  }, []);
+
   if (isGroupMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
@@ -127,10 +154,16 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
             }
           }
           
+          // Verificar se esta mensagem está destacada
+          const isHighlighted = message._id === highlightedMessageId;
+          
           return (
             <div
               key={message._id}
-              className={`chat ${isMyMessage ? "chat-end" : "chat-start"}`}
+              id={`group-message-${message._id}`}
+              className={`chat ${isMyMessage ? "chat-end" : "chat-start"} ${
+                isHighlighted ? "bg-base-200 rounded-lg transition-colors duration-500" : ""
+              }`}
             >
               <div className="chat-image avatar">
                 <div className="size-10 rounded-full border">
