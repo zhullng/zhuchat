@@ -270,6 +270,59 @@ export const updateGroupInfo = async (req, res) => {
   }
 };
 
+// Adicionar ao controllers/group.controller.js
+
+// Excluir mensagem de grupo
+export const deleteGroupMessage = async (req, res) => {
+  try {
+    const { groupId, messageId } = req.params;
+    const userId = req.user._id;
+    
+    // Verificar se a mensagem existe
+    const message = await GroupMessage.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Mensagem não encontrada" });
+    }
+    
+    // Verificar se a mensagem pertence ao grupo correto
+    if (message.groupId.toString() !== groupId) {
+      return res.status(400).json({ error: "A mensagem não pertence a este grupo" });
+    }
+    
+    // Verificar se o usuário é o remetente da mensagem ou administrador do grupo
+    const group = await Group.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ error: "Grupo não encontrado" });
+    }
+    
+    const isAdmin = group.admins && group.admins.some(adminId => adminId.toString() === userId.toString());
+    const isCreator = group.createdBy.toString() === userId.toString();
+    const isSender = message.senderId.toString() === userId.toString();
+    
+    if (!isSender && !isAdmin && !isCreator) {
+      return res.status(403).json({ error: "Você não tem permissão para excluir esta mensagem" });
+    }
+    
+    // Excluir a mensagem
+    await GroupMessage.findByIdAndDelete(messageId);
+    
+    // Notificar membros do grupo sobre a exclusão
+    const roomName = `group-${groupId}`;
+    io.to(roomName).emit("groupMessageDeleted", {
+      messageId,
+      groupId,
+      deletedBy: userId.toString()
+    });
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Erro ao excluir mensagem de grupo:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
 // Obter mensagens de um grupo
 export const getGroupMessages = async (req, res) => {
   try {

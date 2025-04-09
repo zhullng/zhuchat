@@ -16,7 +16,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     selectedGroup,
     getGroupMessages,
     markGroupAsRead,
-    deleteGroupMessage, // Adicionado a função de exclusão de mensagem
+    deleteGroupMessage
   } = useGroupStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -70,7 +70,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     };
   }, [activeMessageMenu]);
 
-  // Função para excluir mensagem - Implementação atualizada
+  // Função para excluir mensagem
   const handleDeleteMessage = async (messageId) => {
     try {
       // Mostrar toast de carregamento

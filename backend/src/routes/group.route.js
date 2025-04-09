@@ -14,7 +14,8 @@ import {
   leaveGroup,
   deleteGroup,
   deleteEmptyGroup,
-  updateGroupInfo
+  updateGroupInfo,
+  deleteGroupMessage
 } from "../controllers/group.controller.js";
 
 const router = express.Router();
@@ -32,5 +33,6 @@ router.delete("/:id/leave", protectRoute, leaveGroup);
 router.delete("/:id", protectRoute, deleteGroup);
 router.delete("/:id/empty-delete", protectRoute, deleteEmptyGroup);
 router.patch("/:id/update", protectRoute, updateGroupInfo);
+router.delete("/:groupId/messages/:messageId", protectRoute, deleteGroupMessage);
 
 export default router;
