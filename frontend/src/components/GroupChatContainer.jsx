@@ -16,6 +16,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     selectedGroup,
     getGroupMessages,
     markGroupAsRead,
+    deleteGroupMessage, // Adicionado a função de exclusão de mensagem
   } = useGroupStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -69,11 +70,24 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     };
   }, [activeMessageMenu]);
 
-  // Função para excluir mensagem (a ser implementada no backend)
+  // Função para excluir mensagem - Implementação atualizada
   const handleDeleteMessage = async (messageId) => {
-    // Implementação futura
-    toast.error("Funcionalidade ainda não implementada");
-    setActiveMessageMenu(null);
+    try {
+      // Mostrar toast de carregamento
+      const loadingToast = toast.loading("Eliminando mensagem...");
+      
+      // Chamar a função do store para eliminar a mensagem
+      await deleteGroupMessage(messageId);
+      
+      // Fechar o menu de opções
+      setActiveMessageMenu(null);
+      
+      // Dismissar o toast de carregamento
+      toast.dismiss(loadingToast);
+    } catch (error) {
+      console.error("Erro ao eliminar mensagem:", error);
+      toast.error("Erro ao eliminar mensagem");
+    }
   };
 
   // Registrar a função global para destacar mensagens na pesquisa

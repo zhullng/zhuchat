@@ -849,6 +849,22 @@ subscribeToGroupEvents: () => {
     
     toast.info(`O grupo "${updatedGroup.name}" foi atualizado`);
   });
+
+  // Adicione este ouvinte de socket ao método subscribeToGroupEvents
+socket.on("groupMessageDeleted", ({ messageId, groupId }) => {
+  const currentGroup = get().selectedGroup;
+  
+  // Se o grupo da mensagem excluída for o grupo atualmente selecionado
+  if (currentGroup && currentGroup._id === groupId) {
+    // Atualizar estado removendo a mensagem
+    set(state => ({
+      groupMessages: state.groupMessages.filter(msg => msg._id !== messageId)
+    }));
+    
+    // Opcional: Exibir toast informando sobre a exclusão
+    // toast.info("Uma mensagem foi excluída");
+  }
+});
 },
 
 updateGroupInfo: async (groupId, updateData) => {
@@ -873,6 +889,44 @@ updateGroupInfo: async (groupId, updateData) => {
   } catch (error) {
     console.error("Erro ao atualizar grupo:", error);
     toast.error(error.response?.data?.error || "Erro ao atualizar grupo");
+    throw error;
+  }
+},
+
+// Função para eliminar mensagem de grupo
+deleteGroupMessage: async (messageId) => {
+  try {
+    // Chamada para o endpoint de exclusão de mensagem de grupo
+    const response = await axiosInstance.delete(`/groups/messages/${messageId}`);
+    
+    // Atualizar estado removendo a mensagem local
+    set(state => ({
+      groupMessages: state.groupMessages.filter(msg => msg._id !== messageId)
+    }));
+    
+    // Notificação de sucesso
+    toast.success("Mensagem eliminada com sucesso");
+    
+    // Notificar outros membros via WebSocket
+    const socket = useAuthStore.getState().socket;
+    const selectedGroup = get().selectedGroup;
+    
+    if (socket && selectedGroup) {
+      socket.emit("groupMessageDeleted", {
+        messageId,
+        groupId: selectedGroup._id
+      });
+    }
+    
+    return response.data;
+  } catch (error) {
+    // Log detalhado do erro
+    console.error("Erro ao eliminar mensagem de grupo:", error);
+    
+    // Notificação de erro para o usuário
+    toast.error(error.response?.data?.error || "Erro ao eliminar mensagem");
+    
+    // Propagar o erro para tratamento adicional, se necessário
     throw error;
   }
 },
