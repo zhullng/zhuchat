@@ -338,178 +338,178 @@ subscribeToGroupEvents: () => {
     }
   });
   
-  // Nova mensagem no grupo - CORRIGIDO
-  socket.on("newGroupMessage", ({ message, group }) => {
-    console.log("Nova mensagem de grupo recebida via socket:", { message, group });
+  // Nova mensagem no grupo - CORREÇÃO DE NOMES
+socket.on("newGroupMessage", ({ message, group }) => {
+  console.log("Nova mensagem de grupo recebida via socket:", { message, group });
+  
+  const authUser = useAuthStore.getState().authUser;
+  const currentGroup = get().selectedGroup;
+  
+  // VERIFICAÇÃO: Para evitar duplicação com mensagens enviadas pelo próprio usuário
+  // Só ignoramos se a mensagem corresponder exatamente a uma que acabamos de enviar
+  // e estiver sendo processada via socket
+  if (group.originalSender === authUser._id.toString() && 
+      get().groupMessages.some(m => 
+        m._id === message._id || 
+        (m.text === message.text && 
+         Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 3000)
+      )) {
+    console.log("Ignorando mensagem do próprio usuário recebida via socket");
+    return;
+  }
+  
+  // Formatar a mensagem recebida para exibição consistente
+  let formattedMessage = {...message};
+  
+  // Se já está em formato de objeto com nome, aproveitar os dados
+  if (typeof message.senderId === 'object' && 
+      message.senderId && 
+      message.senderId.fullName) {
+    // Não precisa modificar
+    formattedMessage = message;
+  }
+  // Caso contrário, temos que formatar o senderId adequadamente
+  else {
+    // Obter o ID do remetente como string
+    const senderId = typeof message.senderId === 'object' 
+      ? (message.senderId._id || message.senderId.id || '').toString()
+      : (message.senderId || '').toString();
     
-    const authUser = useAuthStore.getState().authUser;
-    const currentGroup = get().selectedGroup;
-    
-    // Verifique se originalSender está sendo comparado corretamente
-    // Converter IDs para strings para comparação consistente
-    const originalSenderId = group.originalSender?.toString();
-    const currentUserId = authUser._id?.toString();
-    
-    // VERIFICAÇÃO: Se a mensagem vier do próprio remetente via originalSender, ignorar
-    if (originalSenderId === currentUserId) {
-      console.log("Ignorando mensagem do próprio usuário recebida via socket");
-      return;
-    }
-    
-    // Formatar a mensagem recebida para exibição consistente
-    let formattedMessage = {...message};
-    
-    // Verificar e garantir que senderId seja tratado corretamente
-    if (typeof message.senderId === 'object' && message.senderId) {
-      // Já é um objeto, mantemos o formato mas garantimos que tenha todas as propriedades
+    // Se for o usuário atual
+    if (senderId === authUser._id.toString()) {
       formattedMessage.senderId = {
-        _id: message.senderId._id || message.senderId.id || 'unknown',
-        fullName: message.senderId.fullName || 'Membro do grupo',
-        profilePic: message.senderId.profilePic || '/avatar.png'
+        _id: authUser._id,
+        fullName: authUser.fullName || 'Você',
+        profilePic: authUser.profilePic || '/avatar.png'
       };
-    } else {
-      // É uma string ou outro formato, procurar o membro no grupo
-      const senderId = message.senderId?.toString();
+    }
+    // Se não for o usuário atual, buscar nos membros do grupo
+    else if (currentGroup && currentGroup.members) {
+      // Buscar o membro nos dados do grupo atual (que já estão populados)
+      const member = currentGroup.members.find(m => 
+        (typeof m === 'object' ? m._id.toString() : m.toString()) === senderId
+      );
       
-      // Verificar se é o usuário atual
-      if (senderId === currentUserId) {
+      if (member && typeof member === 'object') {
         formattedMessage.senderId = {
-          _id: authUser._id,
-          fullName: authUser.fullName || 'Você',
-          profilePic: authUser.profilePic || '/avatar.png'
+          _id: member._id,
+          fullName: member.fullName || 'Membro do grupo',
+          profilePic: member.profilePic || '/avatar.png'
         };
-      } else if (group.members && Array.isArray(group.members)) {
-        // Procurar o membro no grupo
-        const member = group.members.find(m => {
-          if (typeof m === 'object') {
-            return m._id?.toString() === senderId || m.id?.toString() === senderId;
-          }
-          return m?.toString() === senderId;
-        });
+      }
+      // Se não encontrar no grupo atual, buscar nos dados enviados pelo socket
+      else if (group && group.members) {
+        const socketMember = group.members.find(m => 
+          (typeof m === 'object' ? (m._id || m.id || '').toString() : m.toString()) === senderId
+        );
         
-        if (member && typeof member === 'object') {
+        if (socketMember && typeof socketMember === 'object') {
           formattedMessage.senderId = {
-            _id: member._id || member.id || senderId || 'unknown',
-            fullName: member.fullName || 'Membro do grupo',
-            profilePic: member.profilePic || '/avatar.png'
+            _id: socketMember._id || socketMember.id || senderId,
+            fullName: socketMember.fullName || 'Membro do grupo',
+            profilePic: socketMember.profilePic || '/avatar.png'
           };
-        } else {
-          // Não encontrou o membro nos dados do grupo
+        }
+        // Se não encontrar em nenhum lugar, usar informações genéricas
+        else {
           formattedMessage.senderId = {
-            _id: senderId || 'unknown',
+            _id: senderId,
             fullName: 'Membro do grupo',
             profilePic: '/avatar.png'
           };
         }
-      } else {
-        // Não há lista de membros, usar valores padrão
+      }
+      // Se não tiver membros no grupo do socket, usar informações genéricas
+      else {
         formattedMessage.senderId = {
-          _id: senderId || 'unknown',
+          _id: senderId,
           fullName: 'Membro do grupo',
           profilePic: '/avatar.png'
         };
       }
     }
+    // Se não tiver grupo selecionado, usar informações genéricas
+    else {
+      formattedMessage.senderId = {
+        _id: senderId,
+        fullName: 'Membro do grupo',
+        profilePic: '/avatar.png'
+      };
+    }
+  }
+  
+  // Se o grupo da mensagem é o grupo atualmente selecionado
+  if (currentGroup && currentGroup._id === message.groupId) {
+    console.log("Adicionando mensagem ao grupo atual");
     
-    // Se o grupo da mensagem é o grupo atualmente selecionado
-    if (currentGroup && currentGroup._id === message.groupId) {
-      console.log("Adicionando mensagem ao grupo atual");
-      
-      // Verificar se a mensagem já existe (evitar duplicação)
-      const isDuplicate = get().groupMessages.some(
-        msg => msg._id === message._id || 
-              (msg.text === message.text && 
-               msg.senderId._id === formattedMessage.senderId._id &&
-               Math.abs(new Date(msg.createdAt) - new Date(message.createdAt)) < 3000) // Diferença menor que 3 segundos
-      );
-      
-      if (isDuplicate) {
-        console.log("Mensagem duplicada detectada, ignorando");
-        return;
-      }
-      
+    // Verificar se a mensagem já existe (evitar duplicação)
+    // Verificar apenas pelo _id exato, permitindo atualização de mensagens de backup
+    const existingMessageIndex = get().groupMessages.findIndex(
+      msg => msg._id === message._id
+    );
+    
+    // Se a mensagem já existe pelo mesmo ID exato, é uma duplicata
+    if (existingMessageIndex >= 0) {
+      console.log("Mensagem duplicada detectada, ignorando");
+      return;
+    }
+    
+    // Verificar se há uma mensagem de backup que deve ser substituída
+    const backupMessageIndex = get().groupMessages.findIndex(
+      msg => msg._id.startsWith("backup-") && 
+            msg.text === message.text &&
+            msg.senderId._id === formattedMessage.senderId._id && 
+            Math.abs(new Date(msg.createdAt) - new Date(message.createdAt)) < 5000
+    );
+    
+    if (backupMessageIndex >= 0) {
+      console.log("Substituindo mensagem de backup pela versão completa");
+      // Substituir a mensagem de backup pela versão completa
+      set(state => {
+        const updatedMessages = [...state.groupMessages];
+        updatedMessages[backupMessageIndex] = formattedMessage;
+        return { groupMessages: updatedMessages };
+      });
+    } else {
       // Adicionar mensagem à lista e marcar como lida
       set(state => ({
         groupMessages: [...state.groupMessages, formattedMessage]
       }));
-      
-      get().markGroupAsRead(message.groupId);
-      
-      // Garantir que o scroll se mova para a nova mensagem
-      setTimeout(() => {
-        const messageEnd = document.getElementById('message-end-ref');
-        if (messageEnd) {
-          messageEnd.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 50);
-    } else {
-      console.log("Mensagem para outro grupo, incrementando contador");
-      
-      // Caso contrário, incrementar contador de não lidas
-      set(state => ({
-        unreadGroupCounts: {
-          ...state.unreadGroupCounts,
-          [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
-        }
-      }));
-      
-      // Tocar som de notificação
-      try {
-        const notificationSound = new Audio('/notification.mp3');
-        notificationSound.volume = 0.5;
-        notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-      } catch (err) {
-        console.log('Erro ao criar áudio:', err);
-      }
-      
-      // Exibir notificação toast
-      toast.success(`Nova mensagem no grupo ${group.name}`);
     }
-  });
-  
-  // Manipulador para backup de mensagens
-  socket.on("directGroupMessage", (messageData) => {
-    console.log("Mensagem direta recebida:", messageData);
     
-    const currentGroup = get().selectedGroup;
-    const authUser = useAuthStore.getState().authUser;
+    get().markGroupAsRead(message.groupId);
     
-    if (currentGroup && currentGroup._id === messageData.groupId) {
-      // Verificar se já temos uma mensagem com conteúdo/horário similar
-      const isDuplicate = get().groupMessages.some(
-        msg => msg.text === messageData.text && 
-               (msg.senderId._id === messageData.senderId ||
-                typeof msg.senderId === 'string' && msg.senderId === messageData.senderId) &&
-               Math.abs(new Date(msg.createdAt) - new Date(messageData.timestamp)) < 5000
-      );
-      
-      if (!isDuplicate) {
-        // Processar esta mensagem como backup
-        console.log("Processando mensagem direta como backup");
-        
-        // Criar mensagem formatada
-        const backupMessage = {
-          _id: `backup-${Date.now()}`,
-          text: messageData.text,
-          createdAt: messageData.timestamp,
-          groupId: messageData.groupId,
-          senderId: {
-            _id: messageData.senderId,
-            fullName: 'Membro do grupo', // Nome padrão, será atualizado quando a mensagem real chegar
-            profilePic: '/avatar.png'
-          }
-        };
-        
-        // Adicionar mensagem ao grupo e atualizar
-        set(state => ({
-          groupMessages: [...state.groupMessages, backupMessage]
-        }));
-        
-        // Marcar como lida
-        get().markGroupAsRead(messageData.groupId);
+    // Garantir que o scroll se mova para a nova mensagem
+    setTimeout(() => {
+      const messageEnd = document.getElementById('message-end-ref');
+      if (messageEnd) {
+        messageEnd.scrollIntoView({ behavior: 'smooth' });
       }
+    }, 50);
+  } else {
+    console.log("Mensagem para outro grupo, incrementando contador");
+    
+    // Caso contrário, incrementar contador de não lidas
+    set(state => ({
+      unreadGroupCounts: {
+        ...state.unreadGroupCounts,
+        [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
+      }
+    }));
+    
+    // Tocar som de notificação
+    try {
+      const notificationSound = new Audio('/notification.mp3');
+      notificationSound.volume = 0.5;
+      notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+    } catch (err) {
+      console.log('Erro ao criar áudio:', err);
     }
-  });
+    
+    // Exibir notificação toast
+    toast.success(`Nova mensagem no grupo ${group.name}`);
+  }
+});
   
 // Adicionado a um grupo
 socket.on("addedToGroup", (group) => {
