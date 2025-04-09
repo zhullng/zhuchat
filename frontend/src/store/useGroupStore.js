@@ -318,7 +318,6 @@ export const useGroupStore = create((set, get) => ({
       get().initializeGroups();
     });
     
-    // Nova mensagem no grupo
     socket.on("newGroupMessage", ({ message, group }) => {
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
@@ -343,42 +342,36 @@ export const useGroupStore = create((set, get) => ({
         }
       };
       
-      // Se o grupo da mensagem é o grupo atualmente selecionado
-      if (currentGroup && currentGroup._id === message.groupId) {
-        set(state => ({
-          groupMessages: [...state.groupMessages, formattedMessage]
-        }));
+      // Adicionar a mensagem independente do grupo selecionado
+      set(state => {
+        // Verificar se a mensagem já existe em qualquer grupo
+        const existingMessageInAnyGroup = state.groupMessages.find(
+          msg => msg._id === formattedMessage._id
+        );
         
-        get().markGroupAsRead(message.groupId);
+        if (existingMessageInAnyGroup) {
+          return state;
+        }
         
-        // Scroll automático
-        setTimeout(() => {
-          const messageEnd = document.getElementById('message-end-ref');
-          if (messageEnd) {
-            messageEnd.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 50);
-      } else {
-        // Incrementar contador de mensagens não lidas
-        set(state => ({
+        // Se o grupo da mensagem é o grupo atualmente selecionado
+        if (currentGroup && currentGroup._id === message.groupId) {
+          return {
+            groupMessages: [...state.groupMessages, formattedMessage],
+            unreadGroupCounts: {
+              ...state.unreadGroupCounts,
+              [message.groupId]: 0
+            }
+          };
+        }
+        
+        // Para grupos não selecionados, incrementar contador de não lidas
+        return {
           unreadGroupCounts: {
             ...state.unreadGroupCounts,
             [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
           }
-        }));
-        
-        // Tocar som de notificação
-        try {
-          const notificationSound = new Audio('/notification.mp3');
-          notificationSound.volume = 0.5;
-          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-        } catch (err) {
-          console.log('Erro ao criar áudio:', err);
-        }
-        
-        // Notificação
-        toast.success(`Nova mensagem no grupo ${group.name}`);
-      }
+        };
+      });
       
       // Atualizar lista de grupos
       setTimeout(() => {
