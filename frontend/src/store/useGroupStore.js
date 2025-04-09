@@ -223,84 +223,66 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
- // Enviar mensagem para o grupo - ATUALIZADO
- sendGroupMessage: async (groupId, messageData) => {
-  try {
-    const authUser = useAuthStore.getState().authUser;
-    
-    // Criar uma mensagem temporária para mostrar imediatamente
-    const tempMessage = {
-      _id: Date.now().toString(),
-      text: messageData.text || "",
-      image: messageData.image || null,
-      file: messageData.file || null,
-      senderId: {
-        _id: authUser._id,
-        fullName: authUser.fullName || "Você",
-        profilePic: authUser.profilePic || "/avatar.png"
-      },
-      createdAt: new Date().toISOString(),
-      groupId: groupId,
-      read: []
-    };
-    
-    // Adicionar a mensagem temporária ao estado
-    set(state => ({
-      groupMessages: [...state.groupMessages, tempMessage]
-    }));
-    
-    // Garantir scroll imediato
-    setTimeout(() => {
-      const messageEnd = document.getElementById('message-end-ref');
-      if (messageEnd) {
-        messageEnd.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 50);
-
-    // Enviar via socket como backup para garantir entrega
-    const socket = useAuthStore.getState().socket;
-    if (socket) {
-      socket.emit("sendGroupMessage", {
-        groupId,
+  sendGroupMessage: async (groupId, messageData) => {
+    try {
+      const authUser = useAuthStore.getState().authUser;
+      const socket = useAuthStore.getState().socket;
+      
+      // Criar mensagem temporária
+      const tempMessage = {
+        _id: `backup-${Date.now().toString()}`,
         text: messageData.text || "",
-        timestamp: new Date().toISOString()
-      });
+        image: messageData.image || null,
+        file: messageData.file || null,
+        senderId: {
+          _id: authUser._id,
+          fullName: authUser.fullName || "Você",
+          profilePic: authUser.profilePic || "/avatar.png"
+        },
+        createdAt: new Date().toISOString(),
+        groupId: groupId,
+        read: []
+      };
+      
+      // Adicionar mensagem temporária
+      set(state => ({
+        groupMessages: [...state.groupMessages, tempMessage]
+      }));
+      
+      // Enviar via API
+      const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
+      const newMessage = res.data;
+      
+      // Substituir mensagem temporária
+      set(state => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === tempMessage._id ? 
+          {
+            ...newMessage,
+            senderId: {
+              _id: authUser._id,
+              fullName: authUser.fullName || "Você",
+              profilePic: authUser.profilePic || "/avatar.png"
+            }
+          } : msg
+        )
+      }));
+      
+      return newMessage;
+    } catch (error) {
+      console.error("Erro ao enviar mensagem ao grupo:", error);
+      toast.error("Erro ao enviar mensagem");
+      
+      // Remover mensagem temporária em caso de erro
+      set(state => ({
+        groupMessages: state.groupMessages.filter(msg => 
+          !msg._id.toString().startsWith("backup-")
+        )
+      }));
+      
+      throw error;
     }
-
-    // Fazer a chamada API em segundo plano
-    const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
-    const newMessage = res.data;
-    
-    // Substituir a mensagem temporária pela versão do servidor
-    set(state => ({
-      groupMessages: state.groupMessages.map(msg => 
-        msg._id === tempMessage._id ? 
-        {
-          ...newMessage,
-          senderId: {
-            _id: authUser._id,
-            fullName: authUser.fullName || "Você",
-            profilePic: authUser.profilePic || "/avatar.png"
-          }
-        } : msg
-      )
-    }));
-    
-    return newMessage;
-  } catch (error) {
-    console.error("Erro ao enviar mensagem ao grupo:", error);
-    toast.error("Erro ao enviar mensagem");
-    
-    // Remover a mensagem temporária em caso de erro
-    set(state => ({
-      groupMessages: state.groupMessages.filter(msg => 
-        !msg._id.toString().startsWith(Date.now().toString().substring(0, 8))
-      )
-    }));
-    
-    throw error;
-  }
-},
+  },
 
 // Subscrever a eventos de grupo via WebSocket - CORRIGIDO
 subscribeToGroupEvents: () => {

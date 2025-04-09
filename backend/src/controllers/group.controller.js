@@ -113,8 +113,6 @@ export const getGroupById = async (req, res) => {
   }
 };
 
-// Enviar mensagem para um grupo - CORRIGIDO
-// Enviar mensagem para um grupo - CORRIGIDO
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image, file } = req.body;
@@ -131,10 +129,8 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
     
-    let imageUrl;
-    let fileData = null;
-    
-    // Upload de imagem, se fornecida
+    // Upload de imagem e arquivo (código existente)
+    let imageUrl, fileData;
     if (image && image.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
         resource_type: "auto",
@@ -144,7 +140,6 @@ export const sendGroupMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo, se fornecido
     if (file && file.data && file.data.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(file.data, {
         resource_type: "auto",
@@ -170,15 +165,15 @@ export const sendGroupMessage = async (req, res) => {
       text,
       image: imageUrl,
       file: fileData,
-      read: [{ userId: senderId }] // O remetente já leu a mensagem
+      read: [{ userId: senderId }]
     });
     
     await newMessage.save();
     
-    // Encontrar o remetente para ter informações completas
+    // Encontrar o remetente
     const sender = group.members.find(member => member._id.toString() === senderId.toString());
     
-    // Criar uma mensagem formatada com dados do remetente
+    // Criar mensagem formatada
     const formattedMessage = {
       ...newMessage.toObject(),
       senderId: {
@@ -188,17 +183,15 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // Enviar a mensagem para a sala de grupo com identificador do remetente original
+    // Enviar para todos os membros do grupo
     const roomName = `group-${groupId}`;
-    console.log(`Enviando mensagem para sala ${roomName}. Total de destinatários: ${io.sockets.adapter.rooms.get(roomName)?.size || 0}`);
-    
     io.to(roomName).emit("newGroupMessage", {
       message: formattedMessage,
       group: {
         _id: group._id,
         name: group.name,
         members: group.members,
-        originalSender: senderId.toString() // Adicionar ID do remetente original
+        originalSender: senderId.toString()
       }
     });
     
