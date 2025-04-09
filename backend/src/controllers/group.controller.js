@@ -183,17 +183,32 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // Enviar para todos os membros do grupo
-    const roomName = `group-${groupId}`;
-    io.to(roomName).emit("newGroupMessage", {
+    // Enviar para TODOS os membros do grupo individualmente
+    const messagePayload = {
       message: formattedMessage,
       group: {
         _id: group._id,
         name: group.name,
-        members: group.members,
+        members: group.members.map(m => ({
+          _id: m._id,
+          fullName: m.fullName,
+          profilePic: m.profilePic
+        })),
         originalSender: senderId.toString()
       }
-    });
+    };
+    
+    // Enviar para cada membro do grupo
+    await Promise.all(group.members.map(async (memberId) => {
+      const memberSocketId = getReceiverSocketId(memberId);
+      if (memberSocketId) {
+        try {
+          io.to(memberSocketId).emit("newGroupMessage", messagePayload);
+        } catch (emitError) {
+          console.error(`Erro ao enviar mensagem para membro ${memberId}:`, emitError);
+        }
+      }
+    }));
     
     res.status(201).json(newMessage);
   } catch (error) {
