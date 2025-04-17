@@ -158,29 +158,21 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // MODIFICAÇÃO: Emitir para cada membro individualmente
-    await Promise.all(group.members.map(async (member) => {
-      const memberSocketId = getReceiverSocketId(member._id);
-      if (memberSocketId) {
-        try {
-          io.to(memberSocketId).emit("newGroupMessage", {
-            message: formattedMessage,
-            group: {
-              _id: group._id,
-              name: group.name,
-              members: group.members.map(m => ({
-                _id: m._id,
-                fullName: m.fullName,
-                profilePic: m.profilePic
-              })),
-              originalSender: senderId.toString()
-            }
-          });
-        } catch (emitError) {
-          console.error(`Erro ao emitir mensagem para membro ${member._id}:`, emitError);
-        }
+    // Emitir para a sala do grupo (todos os membros de uma vez)
+    const roomName = `group-${groupId}`;
+    io.to(roomName).emit("newGroupMessage", {
+      message: formattedMessage,
+      group: {
+        _id: group._id,
+        name: group.name,
+        members: group.members.map(m => ({
+          _id: m._id,
+          fullName: m.fullName,
+          profilePic: m.profilePic
+        })),
+        originalSender: senderId.toString()
       }
-    }));
+    });
     
     res.status(201).json(newMessage);
   } catch (error) {
