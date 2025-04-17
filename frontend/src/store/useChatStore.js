@@ -2,6 +2,7 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import { getSocket, sendMessageViaSocket, notifyMessageDeleted } from "../lib/socketClient";
 
 // Função auxiliar para carregar conversas visualizadas do localStorage
 const loadViewedConversations = (userId) => {
@@ -36,6 +37,10 @@ export const useChatStore = create((set, get) => ({
   // Função para eliminar mensagem com tratamento de erros e atualização de estado
   deleteMessage: async (messageId) => {
     try {
+      // Obter o receptor da mensagem para notificação
+      const selectedUser = get().selectedUser;
+      const message = get().messages.find(msg => msg._id === messageId);
+      
       // Chamada para o endpoint de exclusão de mensagem
       const response = await axiosInstance.delete(`/messages/${messageId}`);
       
@@ -43,6 +48,11 @@ export const useChatStore = create((set, get) => ({
       set(state => ({
         messages: state.messages.filter(msg => msg._id !== messageId)
       }));
+      
+      // Notificação via Socket
+      if (message && selectedUser) {
+        notifyMessageDeleted(messageId, message.receiverId);
+      }
       
       // Notificação de sucesso
       toast.success("Mensagem eliminada com sucesso");
@@ -254,7 +264,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Enviar mensagem
+  // Enviar mensagem - CORRIGIDO para usar Socket.IO
   sendMessage: async (messageData) => {
     const { selectedUser } = get();
     
@@ -272,7 +282,6 @@ export const useChatStore = create((set, get) => ({
       
       // Se estiver enviando arquivo, processar de forma especial
       if (messageData.file) {
-        // Enviando a mensagem com o arquivo incluído
         console.log("Enviando arquivo:", messageData.file.name);
       }
       
@@ -289,9 +298,20 @@ export const useChatStore = create((set, get) => ({
       
       const newMessage = res.data;
       
+      // Adicionar mensagem ao estado localmente para UX imediata
       set((state) => ({
         messages: [...state.messages, newMessage],
       }));
+      
+      // NOVO: Enviar via socket para entrega em tempo real
+      const authUser = useAuthStore.getState().authUser;
+      if (authUser) {
+        sendMessageViaSocket({
+          ...newMessage,
+          senderName: authUser.fullName,
+          senderPic: authUser.profilePic
+        });
+      }
       
       // Atualizar a conversa com a nova mensagem
       set(state => {
@@ -385,14 +405,18 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
-  // Subscrever mensagens por WebSocket
+  // Subscrever mensagens por WebSocket - CORRIGIDO
   subscribeToMessages: () => {
-    const socket = useAuthStore.getState().socket;
+    const socket = getSocket();
     
     if (socket) {
+      // Remover listeners anteriores para evitar duplicação
       socket.off("newMessage");
+      socket.off("messageDeleted");
 
+      // Evento para receber novas mensagens
       socket.on("newMessage", (newMessage) => {
+        console.log("Nova mensagem recebida via socket:", newMessage);
         const authUser = useAuthStore.getState().authUser;
         const currentSelectedUser = get().selectedUser;
         const viewedConversations = get().viewedConversations;
@@ -400,6 +424,11 @@ export const useChatStore = create((set, get) => ({
         // Se a mensagem é do utilizador selecionado atualmente, adiciona à lista de mensagens
         if (currentSelectedUser && newMessage.senderId === currentSelectedUser._id) {
           set(state => {
+            // Verificar se a mensagem já existe (evitar duplicação)
+            if (state.messages.some(msg => msg._id === newMessage._id)) {
+              return state;
+            }
+            
             const updatedViewedConversations = {
               ...state.viewedConversations,
               [newMessage.senderId]: true
@@ -445,221 +474,221 @@ export const useChatStore = create((set, get) => ({
                 [newMessage.senderId]: 0
               }
             };
-          });
-        } 
-        else if (newMessage.receiverId === authUser._id) {
-          const isConversationPreviouslyViewed = viewedConversations[newMessage.senderId];
-          
-          const existingConv = get().conversations.find(
-            c => c.participants && c.participants.includes(newMessage.senderId)
-          );
-          
-          let isNewConversation = false;
-          
-          if (!existingConv || !existingConv.latestMessage || 
-              (new Date(existingConv.latestMessage.createdAt) < new Date(newMessage.createdAt))) {
-            isNewConversation = true;
-          }
-          
-          if (isNewConversation && !isConversationPreviouslyViewed) {
-            try {
-              const notificationSound = new Audio('/notification.mp3');
-              notificationSound.volume = 0.5;
-              notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-            } catch (err) {
-              console.log('Erro ao criar áudio:', err);
+          });} 
+          else if (newMessage.receiverId === authUser._id) {
+            const isConversationPreviouslyViewed = viewedConversations[newMessage.senderId];
+            
+            const existingConv = get().conversations.find(
+              c => c.participants && c.participants.includes(newMessage.senderId)
+            );
+            
+            let isNewConversation = false;
+            
+            if (!existingConv || !existingConv.latestMessage || 
+                (new Date(existingConv.latestMessage.createdAt) < new Date(newMessage.createdAt))) {
+              isNewConversation = true;
+            }
+            
+            if (isNewConversation && !isConversationPreviouslyViewed) {
+              try {
+                const notificationSound = new Audio('/notification.mp3');
+                notificationSound.volume = 0.5;
+                notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+              } catch (err) {
+                console.log('Erro ao criar áudio:', err);
+              }
+              
+              set(state => {
+                const senderId = newMessage.senderId;
+                const currentCount = state.unreadCounts[senderId] || 0;
+                
+                return {
+                  unreadCounts: {
+                    ...state.unreadCounts,
+                    [senderId]: currentCount + 1
+                  }
+                };
+              });
             }
             
             set(state => {
-              const senderId = newMessage.senderId;
-              const currentCount = state.unreadCounts[senderId] || 0;
+              const updatedConversations = [...state.conversations];
               
-              return {
-                unreadCounts: {
-                  ...state.unreadCounts,
-                  [senderId]: currentCount + 1
-                }
+              const existingConvIndex = updatedConversations.findIndex(
+                c => c.participants && c.participants.includes(newMessage.senderId)
+              );
+              
+              if (existingConvIndex >= 0) {
+                const currentUnreadCount = isConversationPreviouslyViewed ? 
+                  0 : (updatedConversations[existingConvIndex].unreadCount || 0) + 1;
+                
+                updatedConversations[existingConvIndex] = {
+                  ...updatedConversations[existingConvIndex],
+                  latestMessage: {
+                    ...newMessage,
+                    read: isConversationPreviouslyViewed
+                  },
+                  unreadCount: currentUnreadCount
+                };
+                
+                const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
+                updatedConversations.unshift(updatedConv);
+              } else {
+                updatedConversations.unshift({
+                  participants: [authUser._id, newMessage.senderId],
+                  latestMessage: newMessage,
+                  unreadCount: isConversationPreviouslyViewed ? 0 : 1
+                });
+              }
+              
+              const updatedUnreadCounts = {...state.unreadCounts};
+              if (isConversationPreviouslyViewed) {
+                updatedUnreadCounts[newMessage.senderId] = 0;
+              }
+              
+              return { 
+                conversations: updatedConversations,
+                unreadCounts: updatedUnreadCounts
               };
             });
           }
           
-          set(state => {
-            const updatedConversations = [...state.conversations];
-            
-            const existingConvIndex = updatedConversations.findIndex(
-              c => c.participants && c.participants.includes(newMessage.senderId)
-            );
-            
-            if (existingConvIndex >= 0) {
-              const currentUnreadCount = isConversationPreviouslyViewed ? 
-                0 : (updatedConversations[existingConvIndex].unreadCount || 0) + 1;
-              
-              updatedConversations[existingConvIndex] = {
-                ...updatedConversations[existingConvIndex],
-                latestMessage: {
-                  ...newMessage,
-                  read: isConversationPreviouslyViewed
-                },
-                unreadCount: currentUnreadCount
-              };
-              
-              const updatedConv = updatedConversations.splice(existingConvIndex, 1)[0];
-              updatedConversations.unshift(updatedConv);
-            } else {
-              updatedConversations.unshift({
-                participants: [authUser._id, newMessage.senderId],
-                latestMessage: newMessage,
-                unreadCount: isConversationPreviouslyViewed ? 0 : 1
-              });
-            }
-            
-            const updatedUnreadCounts = {...state.unreadCounts};
-            if (isConversationPreviouslyViewed) {
-              updatedUnreadCounts[newMessage.senderId] = 0;
-            }
-            
-            return { 
-              conversations: updatedConversations,
-              unreadCounts: updatedUnreadCounts
-            };
-          });
-        }
-        
-        setTimeout(() => {
-          get().getConversations();
-        }, 500);
-      });
-
-      socket.on("messageDeleted", (messageId) => {
-        set(state => ({
-          messages: state.messages.filter(msg => msg._id !== messageId)
-        }));
-        
-        setTimeout(() => {
-          get().getConversations();
-        }, 300);
-      });
-    } else {
-      console.warn("Socket não disponível para subscrever mensagens");
-    }
-  },
-
-  // Desinscrever mensagens por WebSocket
-  unsubscribeFromMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    if (socket && socket.connected) {
-      socket.off("newMessage");
-      socket.off("messageDeleted");
-    }
-  },
-  addContact: async (email) => {
-    try {
-      const res = await axiosInstance.post("/contacts/add", { email });
-      toast.success("Pedido de contacto enviado com sucesso");
-      return res.data;
-    } catch (error) {
-      console.error("Erro ao adicionar contacto:", error);
-      toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
-      throw error;
-    }
-  },
+          setTimeout(() => {
+            get().getConversations();
+          }, 500);
+        });
   
-  // Obter pedidos de contacto pendentes
-  getPendingRequests: async () => {
-    try {
-      const res = await axiosInstance.get("/contacts/pending");
-      return Array.isArray(res.data) ? res.data : [];
-    } catch (error) {
-      console.error("Erro ao obter pedidos pendentes:", error);
-      return [];
-    }
-  },
+        socket.on("messageDeleted", (messageId) => {
+          set(state => ({
+            messages: state.messages.filter(msg => msg._id !== messageId)
+          }));
+          
+          setTimeout(() => {
+            get().getConversations();
+          }, 300);
+        });
+      } else {
+        console.warn("Socket não disponível para subscrever mensagens");
+      }
+    },
   
-  // Responder a um pedido de contacto
-  respondToRequest: async (contactId, status) => {
-    try {
-      const res = await axiosInstance.patch(`/contacts/${contactId}/respond`, { status });
-      toast.success(status === "accepted" 
-        ? "Pedido de contacto aceite" 
-        : "Pedido de contacto rejeitado"
-      );
-      // Atualizar a lista de contactos
-      get().getUsers();
-      return res.data;
-    } catch (error) {
-      console.error("Erro ao processar pedido:", error);
-      toast.error("Erro ao processar o pedido de contacto");
-      throw error;
-    }
-  },
+    // Desinscrever mensagens por WebSocket
+    unsubscribeFromMessages: () => {
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        socket.off("newMessage");
+        socket.off("messageDeleted");
+      }
+    },
+    
+    addContact: async (email) => {
+      try {
+        const res = await axiosInstance.post("/contacts/add", { email });
+        toast.success("Pedido de contacto enviado com sucesso");
+        return res.data;
+      } catch (error) {
+        console.error("Erro ao adicionar contacto:", error);
+        toast.error(error.response?.data?.error || "Erro ao adicionar contacto");
+        throw error;
+      }
+    },
+    
+    // Obter pedidos de contacto pendentes
+    getPendingRequests: async () => {
+      try {
+        const res = await axiosInstance.get("/contacts/pending");
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (error) {
+        console.error("Erro ao obter pedidos pendentes:", error);
+        return [];
+      }
+    },
+    
+    // Responder a um pedido de contacto
+    respondToRequest: async (contactId, status) => {
+      try {
+        const res = await axiosInstance.patch(`/contacts/${contactId}/respond`, { status });
+        toast.success(status === "accepted" 
+          ? "Pedido de contacto aceite" 
+          : "Pedido de contacto rejeitado"
+        );
+        // Atualizar a lista de contactos
+        get().getUsers();
+        return res.data;
+      } catch (error) {
+        console.error("Erro ao processar pedido:", error);
+        toast.error("Erro ao processar o pedido de contacto");
+        throw error;
+      }
+    },
+    
+    // Remover contacto
+    removeContact: async (contactId) => {
+      try {
+        const res = await axiosInstance.delete(`/contacts/${contactId}`);
+        toast.success("Contacto removido com sucesso");
+        // Atualizar a lista de contactos
+        get().getUsers();
+        return res.data;
+      } catch (error) {
+        console.error("Erro ao remover contacto:", error);
+        toast.error("Erro ao remover contacto");
+        throw error;
+      }
+    },
+    
+    // Bloquear utilizador
+    blockUser: async (userId) => {
+      try {
+        await axiosInstance.post(`/contacts/block/${userId}`);
+        toast.success("Utilizador bloqueado com sucesso");
+        // Atualizar a lista de contactos
+        get().getUsers();
+        return true;
+      } catch (error) {
+        console.error("Erro ao bloquear utilizador:", error);
+        toast.error(error.response?.data?.error || "Erro ao bloquear utilizador");
+        return false;
+      }
+    },
   
-  // Remover contacto
-  removeContact: async (contactId) => {
-    try {
-      const res = await axiosInstance.delete(`/contacts/${contactId}`);
-      toast.success("Contacto removido com sucesso");
-      // Atualizar a lista de contactos
-      get().getUsers();
-      return res.data;
-    } catch (error) {
-      console.error("Erro ao remover contacto:", error);
-      toast.error("Erro ao remover contacto");
-      throw error;
-    }
-  },
+    // Obter utilizadores bloqueados
+    getBlockedUsers: async () => {
+      try {
+        const res = await axiosInstance.get("/contacts/blocked");
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (error) {
+        console.error("Erro ao obter utilizadores bloqueados:", error);
+        toast.error("Erro ao carregar utilizadores bloqueados");
+        return [];
+      }
+    },
   
-  // Bloquear utilizador
-  blockUser: async (userId) => {
-    try {
-      await axiosInstance.post(`/contacts/block/${userId}`);
-      toast.success("Utilizador bloqueado com sucesso");
-      // Atualizar a lista de contactos
-      get().getUsers();
-      return true;
-    } catch (error) {
-      console.error("Erro ao bloquear utilizador:", error);
-      toast.error(error.response?.data?.error || "Erro ao bloquear utilizador");
-      return false;
+    // Desbloquear utilizador
+    unblockUser: async (userId) => {
+      try {
+        await axiosInstance.delete(`/contacts/unblock/${userId}`);
+        toast.success("Utilizador desbloqueado com sucesso");
+        return true;
+      } catch (error) {
+        console.error("Erro ao desbloquear utilizador:", error);
+        toast.error("Erro ao desbloquear utilizador");
+        return false;
+      }
+    },
+  
+    // Atualizar nota do contacto
+    updateContactNote: async (contactId, note) => {
+      try {
+        const res = await axiosInstance.patch(`/contacts/${contactId}/note`, { note });
+        toast.success("Nota atualizada com sucesso");
+        // Atualizar a lista de contactos
+        get().getUsers();
+        return res.data;
+      } catch (error) {
+        console.error("Erro ao atualizar nota:", error);
+        toast.error("Erro ao atualizar nota");
+        throw error;
+      }
     }
-  },
-
-  // Obter utilizadores bloqueados
-  getBlockedUsers: async () => {
-    try {
-      const res = await axiosInstance.get("/contacts/blocked");
-      return Array.isArray(res.data) ? res.data : [];
-    } catch (error) {
-      console.error("Erro ao obter utilizadores bloqueados:", error);
-      toast.error("Erro ao carregar utilizadores bloqueados");
-      return [];
-    }
-  },
-
-  // Desbloquear utilizador
-  unblockUser: async (userId) => {
-    try {
-      await axiosInstance.delete(`/contacts/unblock/${userId}`);
-      toast.success("Utilizador desbloqueado com sucesso");
-      return true;
-    } catch (error) {
-      console.error("Erro ao desbloquear utilizador:", error);
-      toast.error("Erro ao desbloquear utilizador");
-      return false;
-    }
-  },
-
-  // Atualizar nota do contacto
-  updateContactNote: async (contactId, note) => {
-    try {
-      const res = await axiosInstance.patch(`/contacts/${contactId}/note`, { note });
-      toast.success("Nota atualizada com sucesso");
-      // Atualizar a lista de contactos
-      get().getUsers();
-      return res.data;
-    } catch (error) {
-      console.error("Erro ao atualizar nota:", error);
-      toast.error("Erro ao atualizar nota");
-      throw error;
-    }
-  }
-}));
+  }));

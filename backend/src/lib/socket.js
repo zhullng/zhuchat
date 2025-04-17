@@ -121,6 +121,15 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Melhorado: Evento para receber mensagens em tempo real
+  socket.on("sendMessage", (messageData) => {
+    const receiverSocketId = userSocketMap[messageData.receiverId];
+    if (receiverSocketId) {
+      // Enviar diretamente para o destinatário
+      io.to(receiverSocketId).emit("newMessage", messageData);
+    }
+  });
+
   // Evento de desconexão do Socket.IO
   socket.on("disconnect", () => {
     console.log("Um utilizador desconectou-se", socket.id);
@@ -152,21 +161,34 @@ io.on("connection", (socket) => {
     console.log(`Usuário ${userId} saiu do grupo ${roomName}`);
   });
 
-  // Backup para garantir entrega de mensagens
+  // Melhorado: Evento para garantir entrega de mensagens de grupo
   socket.on("sendGroupMessage", (data) => {
-    const { groupId, text, timestamp } = data;
+    const { groupId, message } = data;
     const roomName = `group-${groupId}`;
     
-    console.log(`Usuário ${userId} está tentando enviar mensagem direta para ${roomName}`);
+    console.log(`Usuário ${userId} está enviando mensagem para o grupo ${roomName}`);
     
-    // Este é apenas um backup para o fluxo normal da API
-    // para garantir que todos recebam a mensagem
-    socket.to(roomName).emit("directGroupMessage", {
-      senderId: userId,
-      text,
-      timestamp,
-      groupId
+    // Enviar mensagem para todos os membros do grupo
+    socket.to(roomName).emit("newGroupMessage", {
+      message: message,
+      group: {
+        _id: groupId
+      }
     });
+  });
+
+  // Novo: Evento específico para anunciar mensagens excluídas
+  socket.on("messageDeleted", (messageId) => {
+    const receiverId = socket.handshake.query.receiverId;
+    if (receiverId && userSocketMap[receiverId]) {
+      io.to(userSocketMap[receiverId]).emit("messageDeleted", messageId);
+    }
+  });
+
+  // Novo: Evento específico para anunciar mensagens de grupo excluídas
+  socket.on("groupMessageDeleted", ({ messageId, groupId }) => {
+    const roomName = `group-${groupId}`;
+    socket.to(roomName).emit("groupMessageDeleted", { messageId, groupId });
   });
 });
 

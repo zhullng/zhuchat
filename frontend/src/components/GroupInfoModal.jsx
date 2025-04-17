@@ -1,16 +1,44 @@
-// Modificar o GroupInfoModal.jsx para adicionar o botão de edição
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Users, LogOut, Trash2, Edit } from "lucide-react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import toast from "react-hot-toast";
-import EditGroupModal from "./EditGroupModal"; // Importar o componente de edição
+import EditGroupModal from "./EditGroupModal";
 
 const GroupInfoModal = ({ isOpen, onClose }) => {
-  const { selectedGroup, leaveGroup, deleteGroup, removeGroupMember } = useGroupStore();
+  const { 
+    selectedGroup, 
+    leaveGroup, 
+    deleteGroup, 
+    removeGroupMember, 
+    getGroupById 
+  } = useGroupStore();
   const { authUser } = useAuthStore();
-  const [showEditModal, setShowEditModal] = useState(false); // Estado para controlar o modal de edição
-  
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [loadingGroup, setLoadingGroup] = useState(false);
+
+  // Função para carregar detalhes do grupo
+  const fetchGroupDetails = async () => {
+    if (isOpen && selectedGroup?._id) {
+      try {
+        setLoadingGroup(true);
+        await getGroupById(selectedGroup._id);
+      } catch (error) {
+        console.error("Erro ao carregar detalhes do grupo:", error);
+        toast.error("Não foi possível carregar as informações do grupo");
+      } finally {
+        setLoadingGroup(false);
+      }
+    }
+  };
+
+  // Carregar detalhes do grupo quando o modal for aberto
+  useEffect(() => {
+    if (isOpen) {
+      fetchGroupDetails();
+    }
+  }, [isOpen, selectedGroup?._id]);
+
   // Verificar se o usuário logado é o criador do grupo
   const isCreator = selectedGroup?.createdBy === authUser._id;
   
@@ -54,6 +82,15 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
   };
 
   if (!isOpen || !selectedGroup) return null;
+
+  // Se estiver carregando, mostrar um indicador de carregamento
+  if (loadingGroup) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
 
   return (
     <>
