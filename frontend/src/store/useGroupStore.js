@@ -3,7 +3,6 @@ import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 import { useChatStore } from "./useChatStore";
-import { getSocket, sendGroupMessageViaSocket, notifyGroupMessageDeleted } from "../lib/socketClient";
 
 export const useGroupStore = create((set, get) => ({
   // Estado
@@ -99,7 +98,7 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // Selecionar um grupo - CORRIGIDO
+  // Selecionar um grupo - ATUALIZADO
   selectGroup: (group) => {
     // Código existente
     set({ selectedGroup: group });
@@ -116,8 +115,8 @@ export const useGroupStore = create((set, get) => ({
         console.warn("Não foi possível limpar o usuário selecionado:", error);
       }
       
-      // NOVO: Juntar-se à sala do grupo selecionado usando a função correta
-      const socket = getSocket();
+      // NOVO: Juntar-se à sala do grupo selecionado
+      const socket = useAuthStore.getState().socket;
       if (socket) {
         // Primeiro saia de qualquer sala de grupo anterior
         const prevGroup = get().selectedGroup;
@@ -223,14 +222,14 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // CORRIGIDO: Enviar mensagem de grupo com suporte a Socket.IO
   sendGroupMessage: async (groupId, messageData) => {
     try {
       const authUser = useAuthStore.getState().authUser;
+      const socket = useAuthStore.getState().socket;
       
       // Criar mensagem temporária
       const tempMessage = {
-        _id: `temp-${Date.now().toString()}`,
+        _id: `backup-${Date.now().toString()}`,
         text: messageData.text || "",
         image: messageData.image || null,
         file: messageData.file || null,
@@ -241,7 +240,7 @@ export const useGroupStore = create((set, get) => ({
         },
         createdAt: new Date().toISOString(),
         groupId: groupId,
-        read: [{ userId: authUser._id }]
+        read: []
       };
       
       // Adicionar mensagem temporária
@@ -268,18 +267,6 @@ export const useGroupStore = create((set, get) => ({
         )
       }));
       
-      // NOVO: Enviar via socket para entrega em tempo real
-      const formattedMessage = {
-        ...newMessage,
-        senderId: {
-          _id: authUser._id,
-          fullName: authUser.fullName || "Você",
-          profilePic: authUser.profilePic || "/avatar.png"
-        }
-      };
-      
-      sendGroupMessageViaSocket(groupId, formattedMessage);
-      
       return newMessage;
     } catch (error) {
       console.error("Erro ao enviar mensagem ao grupo:", error);
@@ -288,7 +275,7 @@ export const useGroupStore = create((set, get) => ({
       // Remover mensagem temporária em caso de erro
       set(state => ({
         groupMessages: state.groupMessages.filter(msg => 
-          !msg._id.toString().startsWith("temp-")
+          !msg._id.toString().startsWith("backup-")
         )
       }));
       
@@ -296,9 +283,8 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
-  // CORRIGIDO: Subscrever eventos de grupo
   subscribeToGroupEvents: () => {
-    const socket = getSocket();
+    const socket = useAuthStore.getState().socket;
     if (!socket) return;
     
     // Remover listeners existentes primeiro
@@ -312,7 +298,6 @@ export const useGroupStore = create((set, get) => ({
     
     // Novo grupo criado
     socket.on("newGroup", (group) => {
-      console.log("Novo grupo recebido:", group);
       set(state => ({
         groups: [group, ...state.groups]
       }));
@@ -321,7 +306,6 @@ export const useGroupStore = create((set, get) => ({
     
     // Mensagem de grupo eliminada
     socket.on("groupMessageDeleted", ({ messageId, groupId }) => {
-      console.log("Mensagem de grupo eliminada:", messageId);
       const currentGroup = get().selectedGroup;
       
       if (currentGroup && currentGroup._id === groupId) {
@@ -334,45 +318,13 @@ export const useGroupStore = create((set, get) => ({
       get().initializeGroups();
     });
     
-    // CORRIGIDO: Nova mensagem de grupo recebida
     socket.on("newGroupMessage", ({ message, group }) => {
-      console.log("Nova mensagem de grupo recebida:", message, group);
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
-      // Verificar formato da mensagem e aplicar correções se necessário
-      let formattedMessage = message;
-      
-      // Garantir que senderId seja um objeto completo
-      if (typeof message.senderId !== 'object' || !message.senderId.fullName) {
-        // Tentar encontrar o membro no grupo
-        const sender = group.members?.find(m => m._id === message.senderId || m._id === message.senderId?._id);
-        
-        if (sender) {
-          formattedMessage = {
-            ...message,
-            senderId: {
-              _id: sender._id,
-              fullName: sender.fullName || 'Membro do grupo',
-              profilePic: sender.profilePic || '/avatar.png'
-            }
-          };
-        } else {
-          // Se não encontrar, usar dados básicos
-          formattedMessage = {
-            ...message,
-            senderId: {
-              _id: typeof message.senderId === 'object' ? message.senderId?._id : message.senderId,
-              fullName: 'Membro do grupo',
-              profilePic: '/avatar.png'
-            }
-          };
-        }
-      }
-      
       // Evitar duplicação de mensagens
       const existingMessage = get().groupMessages.find(
-        msg => msg._id === formattedMessage._id
+        msg => msg._id === message._id
       );
       
       if (existingMessage) {
@@ -380,36 +332,46 @@ export const useGroupStore = create((set, get) => ({
         return;
       }
       
-      // Adicionar a mensagem se estamos no grupo correspondente
-      if (currentGroup && currentGroup._id === group._id) {
-        set(state => ({
-          groupMessages: [...state.groupMessages, formattedMessage],
-          unreadGroupCounts: {
-            ...state.unreadGroupCounts,
-            [group._id]: 0
-          }
-        }));
-        
-        // Marcar como lida automaticamente
-        get().markGroupAsRead(group._id);
-      } else {
-        // Para grupos não selecionados, incrementar contador de não lidas
-        set(state => ({
-          unreadGroupCounts: {
-            ...state.unreadGroupCounts,
-            [group._id]: (state.unreadGroupCounts[group._id] || 0) + 1
-          }
-        }));
-        
-        // Tocar som de notificação
-        try {
-          const notificationSound = new Audio('/notification.mp3');
-          notificationSound.volume = 0.5;
-          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-        } catch (err) {
-          console.log('Erro ao criar áudio:', err);
+      // Formatar a mensagem
+      const formattedMessage = {
+        ...message,
+        senderId: {
+          _id: message.senderId._id || message.senderId,
+          fullName: message.senderId.fullName || 'Membro do grupo',
+          profilePic: message.senderId.profilePic || '/avatar.png'
         }
-      }
+      };
+      
+      // Adicionar a mensagem independente do grupo selecionado
+      set(state => {
+        // Verificar se a mensagem já existe em qualquer grupo
+        const existingMessageInAnyGroup = state.groupMessages.find(
+          msg => msg._id === formattedMessage._id
+        );
+        
+        if (existingMessageInAnyGroup) {
+          return state;
+        }
+        
+        // Se o grupo da mensagem é o grupo atualmente selecionado
+        if (currentGroup && currentGroup._id === message.groupId) {
+          return {
+            groupMessages: [...state.groupMessages, formattedMessage],
+            unreadGroupCounts: {
+              ...state.unreadGroupCounts,
+              [message.groupId]: 0
+            }
+          };
+        }
+        
+        // Para grupos não selecionados, incrementar contador de não lidas
+        return {
+          unreadGroupCounts: {
+            ...state.unreadGroupCounts,
+            [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
+          }
+        };
+      });
       
       // Atualizar lista de grupos
       setTimeout(() => {
@@ -466,6 +428,7 @@ export const useGroupStore = create((set, get) => ({
   },
 
   // Restante das funções permanece igual...
+  // [Todo o código anterior permanece o mesmo, e continua a partir daqui]
 
   addGroupMembers: async (groupId, members) => {
     try {
@@ -506,7 +469,7 @@ export const useGroupStore = create((set, get) => ({
       // Dismissar toast de carregamento
       toast.dismiss(loadingToast);
       
-                // Atualizar o grupo localmente primeiro para uma UI responsiva
+      // Atualizar o grupo localmente primeiro para uma UI responsiva
       set(state => {
         // Buscar o grupo nos groups
         const group = state.groups.find(g => g._id === groupId);
@@ -530,6 +493,7 @@ export const useGroupStore = create((set, get) => ({
         
         return state; // Se o grupo não foi encontrado, retorna o estado sem mudanças
       });
+      
       // Em segundo plano, buscar o grupo atualizado do servidor
       try {
         const updatedGroup = await axiosInstance.get(`/groups/${groupId}`);
@@ -564,12 +528,6 @@ export const useGroupStore = create((set, get) => ({
   leaveGroup: async (groupId) => {
     try {
       await axiosInstance.delete(`/groups/${groupId}/leave`);
-      
-      // Sair da sala de grupo via socket
-      const socket = getSocket();
-      if (socket) {
-        socket.emit("leaveGroup", groupId);
-      }
       
       // Remover o grupo da lista
       set(state => ({
@@ -713,8 +671,14 @@ export const useGroupStore = create((set, get) => ({
       // Notificação de sucesso
       toast.success("Mensagem eliminada com sucesso");
       
-      // Notificar outros membros via WebSocket
-      notifyGroupMessageDeleted(messageId, selectedGroup._id);
+      // Notificar outros membros via WebSocket (o backend já faz isso, mas mantemos por redundância)
+      const socket = useAuthStore.getState().socket;
+      if (socket) {
+        socket.emit("groupMessageDeleted", {
+          messageId,
+          groupId: selectedGroup._id
+        });
+      }
       
       return response.data;
     } catch (error) {
@@ -731,7 +695,7 @@ export const useGroupStore = create((set, get) => ({
 
   // Cancelar subscrição de eventos
   unsubscribeFromGroupEvents: () => {
-    const socket = getSocket();
+    const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
     socket.off("newGroup");

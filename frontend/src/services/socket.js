@@ -2,8 +2,6 @@ import { io } from "socket.io-client";
 
 let socket = null;
 let isInitializing = false;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
 
 export const initializeSocket = (authUser) => {
   try {
@@ -44,7 +42,7 @@ export const initializeSocket = (authUser) => {
     }
 
     // URL do backend
-    const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "https://zhuchat.onrender.com"; 
+    const BACKEND_URL = "https://zhuchat.onrender.com"; 
 
     console.log("Inicializando novo socket com URL:", BACKEND_URL);
 
@@ -53,7 +51,6 @@ export const initializeSocket = (authUser) => {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       timeout: 20000,
-      transports: ['websocket', 'polling'],
       forceNew: true,
       autoConnect: true
     });
@@ -61,22 +58,11 @@ export const initializeSocket = (authUser) => {
     socket.on("connect", () => {
       console.log("Socket conectado com ID:", socket.id);
       isInitializing = false;
-      reconnectAttempts = 0;
     });
 
     socket.on("connect_error", (error) => {
       console.error("Erro de conexão socket:", error);
       isInitializing = false;
-      
-      // Lógica de backoff exponencial para reconexão
-      reconnectAttempts++;
-      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        const delay = Math.min(1000 * (2 ** reconnectAttempts), 30000);
-        console.log(`Tentando reconectar em ${delay/1000} segundos...`);
-        setTimeout(() => {
-          socket.connect();
-        }, delay);
-      }
     });
 
     socket.on("disconnect", (reason) => {
@@ -93,11 +79,6 @@ export const initializeSocket = (authUser) => {
     socket.on("wallet_updated", (data) => {
       console.log("Evento de atualização de carteira recebido:", data);
       // Este evento será processado no useWalletStore
-    });
-
-    // Melhorado: Debug para eventos do socket
-    socket.onAny((eventName, ...args) => {
-      console.log(`[DEBUG] Socket evento recebido: ${eventName}`);
     });
 
     return socket;
@@ -118,40 +99,4 @@ export const disconnectSocket = () => {
     socket.disconnect();
     socket = null;
   }
-};
-
-// Função para enviar mensagem via socket
-export const sendMessageViaSocket = (messageData) => {
-  if (socket?.connected) {
-    socket.emit("sendMessage", messageData);
-    return true;
-  }
-  return false;
-};
-
-// Função para enviar mensagem de grupo via socket
-export const sendGroupMessageViaSocket = (groupId, messageData) => {
-  if (socket?.connected) {
-    socket.emit("sendGroupMessage", { groupId, message: messageData });
-    return true;
-  }
-  return false;
-};
-
-// Notificar exclusão de mensagem
-export const notifyMessageDeleted = (messageId, receiverId) => {
-  if (socket?.connected) {
-    socket.emit("messageDeleted", messageId, { receiverId });
-    return true;
-  }
-  return false;
-};
-
-// Notificar exclusão de mensagem de grupo
-export const notifyGroupMessageDeleted = (messageId, groupId) => {
-  if (socket?.connected) {
-    socket.emit("groupMessageDeleted", { messageId, groupId });
-    return true;
-  }
-  return false;
 };

@@ -85,19 +85,10 @@ export const sendMessage = async (req, res) => {
     // Preparar mensagem de resposta
     const responseMessage = newMessage.toObject();
 
-    // CORRIGIDO: Enviar via socket se o receptor estiver online
+    // Enviar via socket se o receptor estiver online
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      // Adicionar informações extras do remetente para melhor visualização
-      const senderInfo = await User.findById(senderId).select("fullName profilePic");
-      
-      const enrichedMessage = {
-        ...responseMessage,
-        senderName: senderInfo?.fullName || "Usuário",
-        senderPic: senderInfo?.profilePic || "/avatar.png"
-      };
-      
-      io.to(receiverSocketId).emit("newMessage", enrichedMessage);
+      io.to(receiverSocketId).emit("newMessage", responseMessage);
     }
 
     // Resposta de sucesso
@@ -185,7 +176,7 @@ export const deleteMessage = async (req, res) => {
     // Excluir mensagem do banco de dados
     await Message.findByIdAndDelete(messageId);
     
-    // CORRIGIDO: Notificar o destinatário via WebSocket se estiver online
+    // Notificar o destinatário via WebSocket se estiver online
     const receiverSocketId = getReceiverSocketId(message.receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("messageDeleted", messageId);

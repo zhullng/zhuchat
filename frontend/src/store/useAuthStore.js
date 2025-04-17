@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
+import { io } from "socket.io-client";
 import { useChatStore } from "./useChatStore";
 import { useGroupStore } from "./useGroupStore";
-import { initializeSocket, disconnectSocket, getSocket } from "../services/socket";
+
+const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -13,6 +15,7 @@ export const useAuthStore = create((set, get) => ({
   isCheckingAuth: true,
   isDeletingAccount: false,
   onlineUsers: [],
+  socket: null,
 
   updatePassword: async (data) => {
     try {
@@ -37,27 +40,13 @@ export const useAuthStore = create((set, get) => ({
       set({ authUser: res.data });
       console.log("Verificação de autenticação bem-sucedida, dados do utilizador:", res.data);
       
-      // Inicializar socket após autenticação bem-sucedida
-      const socket = initializeSocket(res.data);
-      
       // Inicializar conversas visualizadas após autenticação bem-sucedida
       useChatStore.getState().initializeViewedConversations();
       
       // Inicializar grupos
       useGroupStore.getState().initializeGroups();
       
-      // Subscrever eventos de mensagens
-      useChatStore.getState().subscribeToMessages();
-      
-      // Subscrever eventos de grupos
-      useGroupStore.getState().subscribeToGroupEvents();
-      
-      // Registrar handler para usuários online
-      if (socket) {
-        socket.on("getOnlineUsers", (userIds) => {
-          set({ onlineUsers: userIds });
-        });
-      }
+      get().connectSocket();
     } catch (error) {
       console.error("Falha na verificação de autenticação:", error);
       set({ authUser: null });
@@ -77,14 +66,10 @@ export const useAuthStore = create((set, get) => ({
       set({ authUser: res.data });
       toast.success("Conta criada com sucesso!");
       
-      // Inicializar socket após cadastro bem-sucedido
-      const socket = initializeSocket(res.data);
-      
       // Inicializar conversas visualizadas após registro bem-sucedido
       useChatStore.getState().initializeViewedConversations();
       
-      // Subscrever eventos de mensagens
-      useChatStore.getState().subscribeToMessages();
+      get().connectSocket();
     } catch (error) {
       toast.error(error.response?.data?.message || "Falha no registo!");
     } finally {
@@ -93,69 +78,47 @@ export const useAuthStore = create((set, get) => ({
   },
 
   login: async (data) => {
-    set({ isLoggingIn: true });
-    try {
-      const res = await axiosInstance.post("/auth/login", data);
-      // Garantir que o saldo está definido
-      if (res.data && res.data.balance === undefined) {
-        res.data.balance = 0;
-      }
-      set({ authUser: res.data });
-      toast.success("Sessão iniciada!");
-      
-      // Inicializar socket após login bem-sucedido
-      const socket = initializeSocket(res.data);
-      
-      // Inicializar conversas visualizadas após login bem-sucedido
-      useChatStore.getState().initializeViewedConversations();
-      
-      // Inicializar grupos
-      useGroupStore.getState().initializeGroups();
-      
-      // Subscrever eventos de mensagens
-      useChatStore.getState().subscribeToMessages();
-      
-      // Subscrever eventos de grupos
-      useGroupStore.getState().subscribeToGroupEvents();
-      
-      // Registrar handler para usuários online
-      if (socket) {
-        socket.on("getOnlineUsers", (userIds) => {
-          set({ onlineUsers: userIds });
-        });
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Falha no início de sessão!");
-    } finally {
-      set({ isLoggingIn: false });
+  set({ isLoggingIn: true });
+  try {
+    const res = await axiosInstance.post("/auth/login", data);
+    // Garantir que o saldo está definido
+    if (res.data && res.data.balance === undefined) {
+      res.data.balance = 0;
     }
-  },
+    set({ authUser: res.data });
+    toast.success("Sessão iniciada!");
+    
+    // Inicializar conversas visualizadas após login bem-sucedido
+    useChatStore.getState().initializeViewedConversations();
+    
+    // Inicializar grupos
+    useGroupStore.getState().initializeGroups();
+    
+    get().connectSocket();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Falha no início de sessão!");
+  } finally {
+    set({ isLoggingIn: false });
+  }
+},
 
-  logout: async () => {
-    try {
-      await axiosInstance.post("/auth/logout");
-      
-      // Desinscrever de eventos de mensagens
-      useChatStore.getState().unsubscribeFromMessages();
-      
-      // Desinscrever de eventos de grupos
-      useGroupStore.getState().unsubscribeFromGroupEvents();
-      
-      // IMPORTANTE: Resetar o estado do chat ao fazer logout
-      useChatStore.getState().resetChatState();
-      
-      // Resetar estado dos grupos
-      useGroupStore.getState().resetGroupState();
-      
-      // Desconectar socket
-      disconnectSocket();
-      
-      set({ authUser: null, onlineUsers: [] });
-      toast.success("Sessão terminada com sucesso!");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
-    }
-  },
+logout: async () => {
+  try {
+    await axiosInstance.post("/auth/logout");
+    
+    // IMPORTANTE: Resetar o estado do chat ao fazer logout
+    useChatStore.getState().resetChatState();
+    
+    // Resetar estado dos grupos
+    useGroupStore.getState().resetGroupState();
+    
+    set({ authUser: null });
+    toast.success("Sessão terminada com sucesso!");
+    get().disconnectSocket();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
+  }
+},
 
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
@@ -202,6 +165,30 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  connectSocket: () => {
+    const { authUser } = get();
+    if (!authUser || get().socket?.connected) return;
+
+    const socket = io(BASE_URL, {
+      query: { userId: authUser._id }
+    });
+    socket.connect();
+
+    set({ socket });
+
+    socket.on("getOnlineUsers", (userIds) => {
+      set({ onlineUsers: userIds });
+    });
+  },
+
+  disconnectSocket: () => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
+
   forgotPassword: async (email) => {
     try {
       const res = await axiosInstance.post("/auth/forgot-password", { email });
@@ -242,54 +229,47 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Para eliminar conta diretamente (com verificação de saldo)
-  deleteAccount: async () => {
-    set({ isDeletingAccount: true });
-    try {
-      const res = await axiosInstance.delete("/auth/delete-account");
+ // Para eliminar conta diretamente (com verificação de saldo)
+deleteAccount: async () => {
+  set({ isDeletingAccount: true });
+  try {
+    const res = await axiosInstance.delete("/auth/delete-account");
+    
+    // Resetar estado do chat
+    useChatStore.getState().resetChatState();
+    
+    // Limpar dados do utilizador
+    set({ authUser: null });
+    
+    // Desconectar socket
+    get().disconnectSocket();
+    
+    toast.success(res.data.message || "Conta eliminada com sucesso");
+    return { success: true };
+  } catch (error) {
+    console.error("Erro ao eliminar conta:", error);
+    
+    // Verificar se o erro é devido a saldo na conta
+    if (error.response?.data?.hasBalance) {
+      const errorMessage = error.response?.data?.message || 
+        "Não é possível eliminar a conta enquanto tiver saldo. Por favor, transfira ou utilize o seu saldo antes de eliminar a conta.";
       
-      // Desinscrever de eventos antes de resetar
-      useChatStore.getState().unsubscribeFromMessages();
-      useGroupStore.getState().unsubscribeFromGroupEvents();
-      
-      // Resetar estado do chat
-      useChatStore.getState().resetChatState();
-      
-      // Resetar estado dos grupos
-      useGroupStore.getState().resetGroupState();
-      
-      // Desconectar socket
-      disconnectSocket();
-      
-      // Limpar dados do utilizador
-      set({ authUser: null, onlineUsers: [] });
-      
-      toast.success(res.data.message || "Conta eliminada com sucesso");
-      return { success: true };
-    } catch (error) {
-      console.error("Erro ao eliminar conta:", error);
-      
-      // Verificar se o erro é devido a saldo na conta
-      if (error.response?.data?.hasBalance) {
-        const errorMessage = error.response?.data?.message || 
-          "Não é possível eliminar a conta enquanto tiver saldo. Por favor, transfira ou utilize o seu saldo antes de eliminar a conta.";
-        
-        toast.error(errorMessage);
-        
-        return { 
-          success: false, 
-          message: errorMessage, 
-          hasBalance: true, 
-          balance: error.response?.data?.balance || 0 
-        };
-      }
-      
-      // Outros erros
-      const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
       toast.error(errorMessage);
-      return { success: false, message: errorMessage };
-    } finally {
-      set({ isDeletingAccount: false });
+      
+      return { 
+        success: false, 
+        message: errorMessage, 
+        hasBalance: true, 
+        balance: error.response?.data?.balance || 0 
+      };
     }
+    
+    // Outros erros
+    const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
+    toast.error(errorMessage);
+    return { success: false, message: errorMessage };
+  } finally {
+    set({ isDeletingAccount: false });
   }
+}
 }));
