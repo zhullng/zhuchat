@@ -321,17 +321,7 @@ export const useGroupStore = create((set, get) => ({
     socket.on("newGroupMessage", ({ message, group }) => {
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
-      
-      // Evitar duplicação de mensagens
-      const existingMessage = get().groupMessages.find(
-        msg => msg._id === message._id
-      );
-      
-      if (existingMessage) {
-        console.log("Mensagem duplicada, ignorando");
-        return;
-      }
-      
+    
       // Formatar a mensagem
       const formattedMessage = {
         ...message,
@@ -341,18 +331,9 @@ export const useGroupStore = create((set, get) => ({
           profilePic: message.senderId.profilePic || '/avatar.png'
         }
       };
-      
+    
       // Adicionar a mensagem independente do grupo selecionado
       set(state => {
-        // Verificar se a mensagem já existe em qualquer grupo
-        const existingMessageInAnyGroup = state.groupMessages.find(
-          msg => msg._id === formattedMessage._id
-        );
-        
-        if (existingMessageInAnyGroup) {
-          return state;
-        }
-        
         // Se o grupo da mensagem é o grupo atualmente selecionado
         if (currentGroup && currentGroup._id === message.groupId) {
           return {

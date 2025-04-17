@@ -181,8 +181,6 @@ export const sendGroupMessage = async (req, res) => {
   }
 };
 
-// Adicionar esta função ao controllers/group.controller.js
-
 // Atualizar informações do grupo
 export const updateGroupInfo = async (req, res) => {
   try {
