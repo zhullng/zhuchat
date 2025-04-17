@@ -97,7 +97,7 @@ export const initializeSocket = (authUser) => {
 
     // Melhorado: Debug para eventos do socket
     socket.onAny((eventName, ...args) => {
-      console.log(`[DEBUG] Socket evento recebido: ${eventName}`, args);
+      console.log(`[DEBUG] Socket evento recebido: ${eventName}`);
     });
 
     return socket;
@@ -120,7 +120,7 @@ export const disconnectSocket = () => {
   }
 };
 
-// Novo: Função para enviar mensagem via socket
+// Função para enviar mensagem via socket
 export const sendMessageViaSocket = (messageData) => {
   if (socket?.connected) {
     socket.emit("sendMessage", messageData);
@@ -129,7 +129,7 @@ export const sendMessageViaSocket = (messageData) => {
   return false;
 };
 
-// Novo: Função para enviar mensagem de grupo via socket
+// Função para enviar mensagem de grupo via socket
 export const sendGroupMessageViaSocket = (groupId, messageData) => {
   if (socket?.connected) {
     socket.emit("sendGroupMessage", { groupId, message: messageData });
@@ -138,7 +138,7 @@ export const sendGroupMessageViaSocket = (groupId, messageData) => {
   return false;
 };
 
-// Novo: Notificar exclusão de mensagem
+// Notificar exclusão de mensagem
 export const notifyMessageDeleted = (messageId, receiverId) => {
   if (socket?.connected) {
     socket.emit("messageDeleted", messageId, { receiverId });
@@ -147,7 +147,7 @@ export const notifyMessageDeleted = (messageId, receiverId) => {
   return false;
 };
 
-// Novo: Notificar exclusão de mensagem de grupo
+// Notificar exclusão de mensagem de grupo
 export const notifyGroupMessageDeleted = (messageId, groupId) => {
   if (socket?.connected) {
     socket.emit("groupMessageDeleted", { messageId, groupId });

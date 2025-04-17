@@ -3,7 +3,7 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { useChatStore } from "./useChatStore";
 import { useGroupStore } from "./useGroupStore";
-import { initializeSocket, disconnectSocket, getSocket } from "../lib/socketClient";
+import { initializeSocket, disconnectSocket, getSocket } from "../services/socket";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -38,7 +38,7 @@ export const useAuthStore = create((set, get) => ({
       console.log("Verificação de autenticação bem-sucedida, dados do utilizador:", res.data);
       
       // Inicializar socket após autenticação bem-sucedida
-      initializeSocket(res.data);
+      const socket = initializeSocket(res.data);
       
       // Inicializar conversas visualizadas após autenticação bem-sucedida
       useChatStore.getState().initializeViewedConversations();
@@ -53,7 +53,6 @@ export const useAuthStore = create((set, get) => ({
       useGroupStore.getState().subscribeToGroupEvents();
       
       // Registrar handler para usuários online
-      const socket = getSocket();
       if (socket) {
         socket.on("getOnlineUsers", (userIds) => {
           set({ onlineUsers: userIds });
@@ -79,7 +78,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Conta criada com sucesso!");
       
       // Inicializar socket após cadastro bem-sucedido
-      initializeSocket(res.data);
+      const socket = initializeSocket(res.data);
       
       // Inicializar conversas visualizadas após registro bem-sucedido
       useChatStore.getState().initializeViewedConversations();
@@ -105,7 +104,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Sessão iniciada!");
       
       // Inicializar socket após login bem-sucedido
-      initializeSocket(res.data);
+      const socket = initializeSocket(res.data);
       
       // Inicializar conversas visualizadas após login bem-sucedido
       useChatStore.getState().initializeViewedConversations();
@@ -120,7 +119,6 @@ export const useAuthStore = create((set, get) => ({
       useGroupStore.getState().subscribeToGroupEvents();
       
       // Registrar handler para usuários online
-      const socket = getSocket();
       if (socket) {
         socket.on("getOnlineUsers", (userIds) => {
           set({ onlineUsers: userIds });
