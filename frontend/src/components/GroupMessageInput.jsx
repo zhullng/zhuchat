@@ -102,45 +102,45 @@ const GroupMessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
+const handleSendMessage = async (e) => {
+  e.preventDefault();
+  
+  if (!text.trim() && !imageData && !fileInfo) return;
+  if (isUploading || !selectedGroup) return;
+
+  try {
+    setIsUploading(true);
     
-    if (!text.trim() && !imageData && !fileInfo) return;
-    if (isUploading || !selectedGroup) return;
-  
-    try {
-      setIsUploading(true);
-      
-      // Preparar dados da mensagem
-      const messageData = {
-        text: text.trim(),
-        image: imageData,
-        file: fileInfo ? {
-          data: fileInfo.data,
-          type: fileInfo.type,
-          name: fileInfo.name
-        } : null
-      };
-  
-      // Enviar mensagem usando o método do store
-      await sendGroupMessage(selectedGroup._id, messageData);
-      
-      // Limpar formulário
-      setText("");
-      setImagePreview(null);
-      setImageData(null);
-      setFileInfo(null);
-      setLineCount(1);
-      
-      if (textareaRef.current) textareaRef.current.style.height = "40px";
-      if (imageInputRef.current) imageInputRef.current.value = "";
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-    } finally {
-      setIsUploading(false);
-    }
-  };
+    // Preparar dados da mensagem
+    const messageData = {
+      text: text.trim(),
+      image: imageData,
+      file: fileInfo ? {
+        data: fileInfo.data,
+        type: fileInfo.type,
+        name: fileInfo.name
+      } : null
+    };
+
+    // Enviar mensagem usando o método do store
+    await sendGroupMessage(selectedGroup._id, messageData);
+    
+    // Limpar formulário
+    setText("");
+    setImagePreview(null);
+    setImageData(null);
+    setFileInfo(null);
+    setLineCount(1);
+    
+    if (textareaRef.current) textareaRef.current.style.height = "40px";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  } catch (error) {
+    console.error("Erro ao enviar mensagem:", error);
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {

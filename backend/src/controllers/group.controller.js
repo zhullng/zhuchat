@@ -119,11 +119,6 @@ export const sendGroupMessage = async (req, res) => {
     const { id: groupId } = req.params;
     const senderId = req.user._id;
     
-    // Validações iniciais
-    if (!text && !image && !file) {
-      return res.status(400).json({ error: "Mensagem vazia" });
-    }
-    
     // Verificar se o usuário é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
@@ -134,52 +129,43 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
     
-    let imageUrl, fileData = null;
+    let imageUrl;
+    let fileData = null;
     
-    // Upload de imagem com tratamento de erro
+    // Upload de imagem, se fornecida
     if (image && image.startsWith('data:')) {
-      try {
-        const uploadResponse = await cloudinary.uploader.upload(image, {
-          resource_type: "auto",
-          chunk_size: 6000000,
-          timeout: 120000
-        });
-        imageUrl = uploadResponse.secure_url;
-      } catch (uploadError) {
-        console.error("Erro no upload de imagem:", uploadError);
-        return res.status(500).json({ error: "Falha no upload da imagem" });
-      }
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        resource_type: "auto",
+        chunk_size: 6000000,
+        timeout: 120000
+      });
+      imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo com tratamento de erro
+    // Upload de arquivo, se fornecido
     if (file && file.data && file.data.startsWith('data:')) {
-      try {
-        const uploadResponse = await cloudinary.uploader.upload(file.data, {
-          resource_type: "auto",
-          public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
-          use_filename: true,
-          unique_filename: true,
-          overwrite: false,
-          chunk_size: 6000000,
-          timeout: 150000
-        });
-        
-        fileData = {
-          url: uploadResponse.secure_url,
-          type: file.type || "application/octet-stream",
-          name: file.name || "arquivo"
-        };
-      } catch (uploadError) {
-        console.error("Erro no upload de arquivo:", uploadError);
-        return res.status(500).json({ error: "Falha no upload do arquivo" });
-      }
+      const uploadResponse = await cloudinary.uploader.upload(file.data, {
+        resource_type: "auto",
+        public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        chunk_size: 6000000,
+        timeout: 150000
+      });
+      
+      fileData = {
+        url: uploadResponse.secure_url,
+        type: file.type || "application/octet-stream",
+        name: file.name || "arquivo"
+      };
     }
     
     // Criar a mensagem
     const newMessage = new GroupMessage({
       groupId,
       senderId,
-      text: text || "",
+      text,
       image: imageUrl,
       file: fileData,
       read: [{ userId: senderId }]
@@ -188,9 +174,7 @@ export const sendGroupMessage = async (req, res) => {
     await newMessage.save();
     
     // Encontrar o remetente
-    const sender = group.members.find(member => 
-      member._id.toString() === senderId.toString()
-    );
+    const sender = group.members.find(member => member._id.toString() === senderId.toString());
     
     // Criar mensagem formatada
     const formattedMessage = {
@@ -202,9 +186,9 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // Broadcast da mensagem para todos no grupo, exceto o remetente
+    // Emitir para a sala do grupo (todos os membros de uma vez)
     const roomName = `group-${groupId}`;
-    io.in(roomName).except(socket.id).emit("newGroupMessage", {
+    io.to(roomName).emit("newGroupMessage", {
       message: formattedMessage,
       group: {
         _id: group._id,
@@ -221,12 +205,10 @@ export const sendGroupMessage = async (req, res) => {
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Erro ao enviar mensagem de grupo:", error);
-    res.status(500).json({ 
-      error: "Erro interno do servidor", 
-      details: error.message 
-    });
+    res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
+// Adicionar esta função ao controllers/group.controller.js
 
 // Atualizar informações do grupo
 export const updateGroupInfo = async (req, res) => {
