@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import GroupChatHeader from "./GroupChatHeader";
 import GroupMessageInput from "./GroupMessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import { Trash2, MoreVertical, Users } from "lucide-react";
+import { Trash2, MoreVertical, Users, FileText, FileVideo, Image, File, Download } from "lucide-react";
 import { formatMessageTime } from "../lib/utils";
 import toast from "react-hot-toast";
 import { isSocketHealthy } from "../services/socket";
@@ -117,6 +117,18 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
       console.error("Erro ao eliminar mensagem:", error);
       toast.error("Erro ao eliminar mensagem");
     }
+  };
+
+  // Função para obter o ícone do tipo de arquivo
+  const getFileIcon = (fileType) => {
+    if (!fileType) return <FileText size={20} />;
+    
+    if (fileType.startsWith('image/')) return <Image size={20} />;
+    if (fileType.startsWith('video/')) return <FileVideo size={20} />;
+    if (fileType.includes('pdf')) return <FileText size={20} />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={20} />;
+    
+    return <File size={20} />;
   };
 
   // Registrar a função global para destacar mensagens na pesquisa
@@ -269,13 +281,65 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
               </div>
 
               <div className="chat-bubble flex flex-col relative">
+                {/* Renderizar imagem */}
                 {message.image && (
                   <img
                     src={message.image}
-                    alt="Attachment"
-                    className="sm:max-w-[200px] rounded-md mb-2"
+                    alt="Imagem anexada"
+                    className="sm:max-w-[200px] max-w-full rounded-md mb-2"
                   />
                 )}
+                
+                {/* Renderizar vídeo ou outro tipo de arquivo */}
+                {message.file && (
+                  <div className="bg-base-300 rounded-md p-2 mb-2 w-full max-w-xs">
+                    {message.file.type && message.file.type.startsWith('video/') ? (
+                      <div className="flex flex-col gap-1">
+                        <video 
+                          src={message.file.url} 
+                          controls
+                          className="rounded-md w-full max-w-xs max-h-48 object-contain"
+                        >
+                          <source src={message.file.url} type={message.file.type} />
+                          Seu navegador não suporta vídeos.
+                        </video>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs truncate flex-1">{message.file.name}</span>
+                          <a 
+                            href={message.file.url} 
+                            download={message.file.name}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-xs btn-ghost btn-square"
+                          >
+                            <Download size={14} />
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-base-200 rounded-md">
+                          {getFileIcon(message.file.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{message.file.name}</p>
+                          <p className="text-xs opacity-70">{message.file.size}</p>
+                        </div>
+                        <a 
+                          href={message.file.url} 
+                          download={message.file.name}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-xs btn-ghost btn-square"
+                        >
+                          <Download size={14} />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Renderizar texto da mensagem */}
                 {message.text && (
                   <p className="break-words whitespace-pre-wrap">{message.text}</p>
                 )}
