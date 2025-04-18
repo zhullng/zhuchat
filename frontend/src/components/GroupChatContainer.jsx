@@ -288,6 +288,22 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
         {groupMessages.map((message) => {
+
+          // Verificar se há dados de arquivo
+          let fileData = null;
+          if (message.fileData) {
+            try {
+              fileData = JSON.parse(message.fileData);
+              
+              // Normaliza URLs de vídeo se necessário
+              if (fileData.type.startsWith('video/') && fileData.data) {
+                fileData.data = normalizeVideoDataURI(fileData.data, fileData.originalType || fileData.type);
+              }
+            } catch (e) {
+              console.error("Erro ao analisar dados do arquivo:", e);
+            }
+          }
+          
           // Validação robusta para verificar se message.senderId é um objeto ou string
           let senderId, isMyMessage, senderName, senderPic;
           
