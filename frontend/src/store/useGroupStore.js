@@ -243,7 +243,6 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // MELHORADO: Enviar mensagem de grupo com melhor tratamento
   sendGroupMessage: async (groupId, messageData) => {
     try {
       const authUser = useAuthStore.getState().authUser;
@@ -302,7 +301,15 @@ export const useGroupStore = create((set, get) => ({
       return newMessage;
     } catch (error) {
       console.error("Erro ao enviar mensagem ao grupo:", error);
-      toast.error("Erro ao enviar mensagem");
+      
+      // Log detalhado do erro
+      console.log("Detalhes do erro:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      toast.error(error.response?.data?.error || "Erro ao enviar mensagem");
       
       // Remover mensagem temporária em caso de erro
       set(state => ({

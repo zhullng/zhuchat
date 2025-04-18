@@ -185,7 +185,6 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // MODIFICADO: Emitir usando sockets.to para excluir o remetente
     const roomName = `group-${groupId}`;
     io.in(roomName).except(socket.id).emit("newGroupMessage", {
       message: formattedMessage,
