@@ -182,35 +182,50 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     }));
   };
 
-  // NOVA IMPLEMENTAÇÃO: Função para baixar arquivo diretamente
-  const handleFileDownload = async (file, messageId) => {
+  // Função para baixar arquivo armazenado como base64 diretamente
+  const downloadFileFromBase64 = (fileData) => {
     try {
-      // Atualizar estado de download
-      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
-      
       // Mostrar toast de progresso
       const toastId = toast.loading("Preparando download...");
       
-      // Fazer fetch da URL do arquivo
-      const response = await fetch(file.url);
-      
-      if (!response.ok) {
-        throw new Error(`Erro ao baixar arquivo: ${response.status}`);
+      // Verificar se os dados são válidos
+      if (!fileData || !fileData.data || !fileData.name) {
+        toast.error("Dados do arquivo inválidos", { id: toastId });
+        return;
       }
       
-      // Obter o blob do arquivo
-      const blob = await response.blob();
+      // Já temos os dados base64 diretamente
+      const base64Data = fileData.data;
       
-      // Criar URL do objeto Blob
+      // Extrair a parte de dados do base64
+      const base64Content = base64Data.split(';base64,').pop();
+      
+      // Converter para blob
+      const byteCharacters = atob(base64Content);
+      const byteArrays = [];
+      
+      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+      
+      const blob = new Blob(byteArrays, { type: fileData.type });
+      
+      // Criar URL do Blob
       const blobUrl = URL.createObjectURL(blob);
       
-      // Criar elemento de link para download
+      // Criar link e acionar download
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = file.name || `arquivo${getFileExtension(file.type)}`;
+      link.download = fileData.name;
       link.style.display = 'none';
-      
-      // Adicionar ao documento e clicar para iniciar download
       document.body.appendChild(link);
       link.click();
       
@@ -220,35 +235,14 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
         document.body.removeChild(link);
       }, 100);
       
-      // Atualizar toast e estado
+      // Atualizar toast para sucesso
       toast.success("Download concluído", { id: toastId });
     } catch (error) {
       console.error("Erro ao baixar arquivo:", error);
-      toast.error("Erro ao baixar o arquivo. Tente novamente.");
-    } finally {
-      // Resetar estado de download
-      setDownloadingFiles(prev => ({ ...prev, [messageId]: false }));
+      toast.error("Erro ao baixar arquivo. Tente novamente.");
     }
   };
 
-  // Função auxiliar para obter extensão de arquivo
-  const getFileExtension = (mimeType) => {
-    if (!mimeType) return '';
-    
-    const mappings = {
-      'video/mp4': '.mp4',
-      'video/quicktime': '.mov',
-      'image/jpeg': '.jpg',
-      'image/png': '.png',
-      'image/gif': '.gif',
-      'application/pdf': '.pdf',
-      'application/msword': '.doc',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-      'text/plain': '.txt'
-    };
-    
-    return mappings[mimeType] || '';
-  };
 
   // Registrar a função global para destacar mensagens na pesquisa
   useEffect(() => {
@@ -410,94 +404,91 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                 )}
                 
                 {/* Renderizar vídeo ou outro tipo de arquivo */}
-                {message.file && (
-                  <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
-                    {message.file.type && message.file.type.startsWith('video/') ? (
-                      <div className="w-full max-w-[500px]">
-                        {videoErrors[message._id] ? (
-                          <VideoFallback 
-                            fileData={message.file} 
-                            onDownload={() => handleFileDownload(message.file, message._id)}
-                            onRetry={() => handleRetryVideo(message._id)}
-                          />
-                        ) : (
-                          <div className="video-container relative">
-                            {/* Player de vídeo com melhor compatibilidade */}
-                            <video 
-                              controls 
-                              controlsList="nodownload"
-                              className="w-full h-auto rounded-md cursor-pointer object-contain"
-                              onError={(e) => {
-                                console.error("Erro ao carregar vídeo:", e);
-                                handleVideoError(message._id);
-                              }}
-                              preload="metadata"
-                              playsInline
-                              src={message.file.url}
+                  {fileData && (
+                    <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
+                      {fileData.type.startsWith('video/') && (
+                        <div className="w-full max-w-[500px]">
+                          {videoErrors[message._id] ? (
+                            <VideoFallback 
+                              fileData={fileData} 
+                              onDownload={() => downloadFileFromBase64(fileData)}
+                              onRetry={() => handleRetryVideo(message._id)}
+                            />
+                          ) : (
+                            <div className="video-container relative">
+                              {/* Player de vídeo com melhor compatibilidade */}
+                              <video 
+                                controls 
+                                controlsList="nodownload"
+                                className="w-full h-auto rounded-md cursor-pointer object-contain"
+                                onError={(e) => {
+                                  console.error("Erro ao carregar vídeo:", e);
+                                  handleVideoError(message._id);
+                                }}
+                                preload="metadata"
+                                playsInline
+                              >
+                                {/* Use múltiplas fontes para melhorar compatibilidade */}
+                                <source src={fileData.data} type="video/mp4" />
+                                <source src={fileData.data} type="video/quicktime" />
+                                <source src={fileData.data} type="video/webm" />
+                                {/* Adicione uma mensagem para feedback */}
+                                Seu navegador não suporta reprodução deste vídeo.
+                              </video>
+                            </div>
+                          )}
+                          
+                          {/* Exibir informações do arquivo de vídeo */}
+                          <div className="mt-2 flex items-center justify-between px-2">
+                            <div className="flex items-center">
+                              <FileVideo size={16} className="mr-2" />
+                              <span className="text-xs">{fileData.name}</span>
+                            </div>
+                            <button
+                              onClick={() => downloadFileFromBase64(fileData)}
+                              className="btn btn-xs btn-ghost"
+                              title="Baixar vídeo"
                             >
-                              <source src={message.file.url} type={message.file.type} />
-                              <source src={message.file.url} type="video/mp4" />
-                              <source src={message.file.url} type="video/quicktime" />
-                              <source src={message.file.url} type="video/webm" />
-                              Seu navegador não suporta reprodução deste vídeo.
-                            </video>
+                              <Download size={14} />
+                            </button>
                           </div>
-                        )}
-                        
-                        {/* Exibir informações do arquivo de vídeo */}
-                        <div className="mt-2 flex items-center justify-between px-2">
-                          <div className="flex items-center">
-                            <FileVideo size={16} className="mr-2" />
-                            <span className="text-xs">{message.file.name}</span>
+                        </div>
+                      )}
+                      
+                      {!fileData.type.startsWith('video/') && (
+                        // Layout existente para outros tipos de arquivo
+                        <>
+                          <div className="p-2 bg-base-100 rounded-md">
+                            {getFileIcon(fileData.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{fileData.name}</p>
+                            <p className="text-xs opacity-70">{fileData.size}</p>
                           </div>
                           <button
-                            onClick={() => handleFileDownload(message.file, message._id)}
-                            className="btn btn-xs btn-ghost"
-                            title="Baixar vídeo"
+                            onClick={() => downloadFileFromBase64(fileData)}
+                            className="btn btn-sm btn-circle"
                             disabled={downloadingFiles[message._id]}
                           >
                             {downloadingFiles[message._id] ? (
                               <span className="loading loading-spinner loading-xs"></span>
                             ) : (
-                              <Download size={14} />
+                              <Download size={16} />
                             )}
                           </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // Layout existente para outros tipos de arquivo
-                      <>
-                        <div className="p-2 bg-base-100 rounded-md">
-                          {getFileIcon(message.file.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{message.file.name}</p>
-                          <p className="text-xs opacity-70">{message.file.size}</p>
-                        </div>
-                        <button
-                          onClick={() => handleFileDownload(message.file, message._id)}
-                          className="btn btn-sm btn-circle"
-                          disabled={downloadingFiles[message._id]}
-                        >
-                          {downloadingFiles[message._id] ? (
-                            <span className="loading loading-spinner loading-xs"></span>
-                          ) : (
-                            <Download size={16} />
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-                
-                {/* Renderizar texto da mensagem */}
-                {message.text && (
-                  <p className="break-words whitespace-pre-wrap">{message.text}</p>
-                )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Renderizar texto */}
+                  {message.text && (
+                    <p className="break-words whitespace-pre-wrap">{message.text}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
         
         {groupMessages.length === 0 && (
           <div className="flex items-center justify-center h-full text-base-content/60">
