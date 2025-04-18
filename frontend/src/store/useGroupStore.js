@@ -243,13 +243,11 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
-  // MELHORADO: Enviar mensagem de grupo com melhor tratamento
   sendGroupMessage: async (groupId, messageData) => {
     try {
-      const authUser = useAuthStore.getState().authUser;
-      const socket = useAuthStore.getState().socket;
-      
       // Criar mensagem temporária
+      const authUser = useAuthStore.getState().authUser;
+      
       const tempMessage = {
         _id: `temp-${Date.now().toString()}`,
         text: messageData.text || "",
@@ -269,16 +267,6 @@ export const useGroupStore = create((set, get) => ({
       set(state => ({
         groupMessages: [...state.groupMessages, tempMessage]
       }));
-      
-      // NOVO: Verificar se o socket está conectado
-      if (socket && socket.connected) {
-        // Enviar direto via Socket para backup
-        socket.emit("sendGroupMessage", {
-          groupId,
-          text: messageData.text,
-          timestamp: tempMessage.createdAt
-        });
-      }
       
       // Enviar via API
       const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
@@ -302,7 +290,6 @@ export const useGroupStore = create((set, get) => ({
       return newMessage;
     } catch (error) {
       console.error("Erro ao enviar mensagem ao grupo:", error);
-      toast.error("Erro ao enviar mensagem");
       
       // Remover mensagem temporária em caso de erro
       set(state => ({
@@ -311,6 +298,7 @@ export const useGroupStore = create((set, get) => ({
         )
       }));
       
+      toast.error(error.response?.data?.error || "Erro ao enviar mensagem");
       throw error;
     }
   },

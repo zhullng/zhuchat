@@ -119,6 +119,11 @@ export const sendGroupMessage = async (req, res) => {
     const { id: groupId } = req.params;
     const senderId = req.user._id;
     
+    // Validações iniciais
+    if (!text && !image && !file) {
+      return res.status(400).json({ error: "Mensagem vazia" });
+    }
+    
     // Verificar se o usuário é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
@@ -129,29 +134,21 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
     
-    let imageUrl;
-    let fileData = null;
+    let imageUrl, fileData = null;
     
-    // Upload de imagem, se fornecida
+    // Upload de imagem
     if (image && image.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
-        resource_type: "auto",
-        chunk_size: 6000000,
-        timeout: 120000
+        resource_type: "auto"
       });
       imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo, se fornecido
+    // Upload de arquivo
     if (file && file.data && file.data.startsWith('data:')) {
       const uploadResponse = await cloudinary.uploader.upload(file.data, {
         resource_type: "auto",
-        public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
-        use_filename: true,
-        unique_filename: true,
-        overwrite: false,
-        chunk_size: 6000000,
-        timeout: 150000
+        public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`
       });
       
       fileData = {
@@ -165,7 +162,7 @@ export const sendGroupMessage = async (req, res) => {
     const newMessage = new GroupMessage({
       groupId,
       senderId,
-      text,
+      text: text || "",
       image: imageUrl,
       file: fileData,
       read: [{ userId: senderId }]
@@ -174,7 +171,9 @@ export const sendGroupMessage = async (req, res) => {
     await newMessage.save();
     
     // Encontrar o remetente
-    const sender = group.members.find(member => member._id.toString() === senderId.toString());
+    const sender = group.members.find(member => 
+      member._id.toString() === senderId.toString()
+    );
     
     // Criar mensagem formatada
     const formattedMessage = {
@@ -186,7 +185,7 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // Emitir para a sala do grupo (todos os membros de uma vez)
+    // Broadcast para todos na sala do grupo
     const roomName = `group-${groupId}`;
     io.to(roomName).emit("newGroupMessage", {
       message: formattedMessage,
@@ -197,18 +196,19 @@ export const sendGroupMessage = async (req, res) => {
           _id: m._id,
           fullName: m.fullName,
           profilePic: m.profilePic
-        })),
-        originalSender: senderId.toString()
+        }))
       }
     });
     
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Erro ao enviar mensagem de grupo:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
+    res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      details: error.message 
+    });
   }
 };
-// Adicionar esta função ao controllers/group.controller.js
 
 // Atualizar informações do grupo
 export const updateGroupInfo = async (req, res) => {
