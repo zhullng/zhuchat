@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import GroupChatHeader from "./GroupChatHeader";
 import GroupMessageInput from "./GroupMessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import { Trash2, MoreVertical, Users, FileText, FileVideo, Image, File, Download } from "lucide-react";
+import { Trash2, MoreVertical, Users, FileText, FileVideo, Image, File, Download, ExternalLink } from "lucide-react";
 import { formatMessageTime } from "../lib/utils";
 import toast from "react-hot-toast";
 import { isSocketHealthy } from "../services/socket";
@@ -132,56 +132,32 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     return <File size={20} />;
   };
 
-  // Nova função de download que funciona com URLs de Cloudinary
-  const handleFileDownload = async (file, messageId) => {
+  // Função simplificada para visualizar arquivos
+  const handleFileView = (file, messageId) => {
     if (!file || !file.url) {
       toast.error("URL do arquivo não disponível");
       return;
     }
     
     try {
-      // Marcar este arquivo como baixando
+      // Indicar que está processando
       setDownloadingFile(messageId);
       
-      // Exibir toast de carregamento
-      const loadingToast = toast.loading(`Baixando ${file.name || 'arquivo'}...`);
+      // Mostrar toast
+      const loadingToast = toast.loading(`Abrindo ${file.name || 'arquivo'}...`);
       
-      // Método 1: Tentar método fetch/blob para compatibilidade máxima
-      const response = await fetch(file.url);
+      // Abrir em nova aba
+      window.open(file.url, '_blank');
       
-      if (!response.ok) {
-        throw new Error(`Erro na rede: ${response.status}`);
-      }
-      
-      // Obter o blob
-      const blob = await response.blob();
-      
-      // Criar URL para o blob
-      const blobUrl = URL.createObjectURL(blob);
-      
-      // Criar elemento de link temporário
-      const downloadLink = document.createElement('a');
-      downloadLink.href = blobUrl;
-      downloadLink.download = file.name || `arquivo${getFileExtension(file.type)}`;
-      downloadLink.style.display = 'none';
-      
-      // Adicionar, clicar e remover
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      
-      // Limpar recursos após o download
+      // Atualizar interface após curto período
       setTimeout(() => {
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(blobUrl);
-        
-        // Remover estado de download e mostrar mensagem de sucesso
         setDownloadingFile(null);
         toast.dismiss(loadingToast);
-        toast.success(`Download de ${file.name || 'arquivo'} concluído!`);
-      }, 100);
+        toast.success(`${file.name || 'Arquivo'} aberto em nova aba`);
+      }, 1000);
     } catch (error) {
-      console.error("Erro ao baixar arquivo:", error);
-      toast.error("Não foi possível baixar o arquivo. Tente novamente mais tarde.");
+      console.error("Erro ao abrir arquivo:", error);
+      toast.error("Não foi possível abrir o arquivo");
       setDownloadingFile(null);
     }
   };
@@ -380,14 +356,15 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs truncate flex-1">{message.file.name}</span>
                           <button 
-                            onClick={() => handleFileDownload(message.file, message._id)}
+                            onClick={() => handleFileView(message.file, message._id)}
                             disabled={downloadingFile === message._id}
                             className="btn btn-xs btn-ghost btn-square text-primary"
+                            title="Abrir em nova aba"
                           >
                             {downloadingFile === message._id ? (
                               <span className="loading loading-spinner loading-xs"></span>
                             ) : (
-                              <Download size={14} />
+                              <ExternalLink size={14} />
                             )}
                           </button>
                         </div>
@@ -402,14 +379,15 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                           <p className="text-xs opacity-70">{message.file.size}</p>
                         </div>
                         <button 
-                          onClick={() => handleFileDownload(message.file, message._id)}
+                          onClick={() => handleFileView(message.file, message._id)}
                           disabled={downloadingFile === message._id}
                           className="btn btn-xs btn-ghost btn-square text-primary"
+                          title="Abrir em nova aba"
                         >
                           {downloadingFile === message._id ? (
                             <span className="loading loading-spinner loading-xs"></span>
                           ) : (
-                            <Download size={14} />
+                            <ExternalLink size={14} />
                           )}
                         </button>
                       </div>
