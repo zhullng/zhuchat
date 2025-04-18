@@ -185,28 +185,29 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    const roomName = `group-${groupId}`;
-    io.to(roomName).except(req.user._id.toString()).emit("newGroupMessage", {
-      message: formattedMessage,
-      group: {
-        _id: group._id,
-        name: group.name,
-        members: group.members.map(m => ({
-          _id: m._id,
-          fullName: m.fullName,
-          profilePic: m.profilePic
-        }))
-      }
-    });
-    
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.error("Erro ao enviar mensagem de grupo:", error);
-    res.status(500).json({ 
-      error: "Erro interno do servidor", 
-      details: error.message 
-    });
-  }
+  // Broadcast para todos na sala do grupo, EXCETO o remetente
+  const roomName = `group-${groupId}`;
+  io.to(roomName).except(req.user._id.toString()).emit("newGroupMessage", {
+    message: formattedMessage,
+    group: {
+      _id: group._id,
+      name: group.name,
+      members: group.members.map(m => ({
+        _id: m._id,
+        fullName: m.fullName,
+        profilePic: m.profilePic
+      }))
+    }
+  });
+  
+  res.status(201).json(newMessage);
+} catch (error) {
+  console.error("Erro ao enviar mensagem de grupo:", error);
+  res.status(500).json({ 
+    error: "Erro interno do servidor", 
+    details: error.message 
+  });
+}
 };
 
 // Atualizar informações do grupo

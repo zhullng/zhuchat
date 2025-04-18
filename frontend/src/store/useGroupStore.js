@@ -353,16 +353,15 @@ export const useGroupStore = create((set, get) => ({
       get().initializeGroups();
     });
     
-    // CORRIGIDO: Processamento de novas mensagens de grupo
     socket.on("newGroupMessage", ({ message, group }) => {
       console.log("Nova mensagem de grupo recebida:", message.text);
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
-       // Ignorar mensagens do próprio usuário
-  if (message.senderId._id === authUser._id) {
-    return;
-  }
+      // Ignorar mensagens do próprio usuário
+      if (message.senderId._id === authUser._id) {
+        return;
+      }
       
       // Formatar a mensagem
       const formattedMessage = {
@@ -375,39 +374,11 @@ export const useGroupStore = create((set, get) => ({
               profilePic: message.senderProfilePic || '/avatar.png'
             }
       };
-    
+      
       // Adicionar a mensagem independente do grupo selecionado
       set(state => {
         // Se o grupo da mensagem é o grupo atualmente selecionado
         if (currentGroup && currentGroup._id === message.groupId) {
-          // MODIFICADO: Substituir mensagens temporárias em vez de simplesmente adicionar
-          const updatedMessages = [...state.groupMessages];
-          
-          // Verificar se é uma mensagem própria que já existe como temporária
-          if (message.senderId === authUser._id || 
-              (typeof message.senderId === 'object' && message.senderId._id === authUser._id)) {
-            
-            // Procurar uma mensagem temporária com mesmo texto para substituir
-            const tempIndex = updatedMessages.findIndex(msg => 
-              msg._id && msg._id.toString().startsWith('temp-') && 
-              msg.text === formattedMessage.text
-            );
-            
-            if (tempIndex >= 0) {
-              // Substituir a mensagem temporária com a real
-              updatedMessages[tempIndex] = formattedMessage;
-              
-              return {
-                groupMessages: updatedMessages,
-                unreadGroupCounts: {
-                  ...state.unreadGroupCounts,
-                  [message.groupId]: 0
-                }
-              };
-            }
-          }
-          
-          // Se não encontrou para substituir, adiciona normalmente
           return {
             groupMessages: [...state.groupMessages, formattedMessage],
             unreadGroupCounts: {
@@ -426,16 +397,14 @@ export const useGroupStore = create((set, get) => ({
         };
       });
       
-      // NOVO: Tocar som de notificação para grupos não selecionados
+      // Tocar som de notificação para grupos não selecionados
       if (!currentGroup || currentGroup._id !== message.groupId) {
-        if (message.senderId !== authUser._id) {
-          try {
-            const notificationSound = new Audio('/notification.mp3');
-            notificationSound.volume = 0.5;
-            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
-          } catch (err) {
-            console.log('Erro ao criar áudio:', err);
-          }
+        try {
+          const notificationSound = new Audio('/notification.mp3');
+          notificationSound.volume = 0.5;
+          notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+        } catch (err) {
+          console.log('Erro ao criar áudio:', err);
         }
       }
       
@@ -443,7 +412,7 @@ export const useGroupStore = create((set, get) => ({
       setTimeout(() => {
         get().initializeGroups();
       }, 500);
-    });
+     });
     
     // CORRIGIDO: Evento directGroupMessage simplificado para evitar duplicações
     socket.on("directGroupMessage", (message) => {
