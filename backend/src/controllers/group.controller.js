@@ -115,11 +115,10 @@ export const getGroupById = async (req, res) => {
 
 export const sendGroupMessage = async (req, res) => {
   try {
-    // Extrair dados da requisição
     const { text, image, file } = req.body;
     const { id: groupId } = req.params;
     const senderId = req.user._id;
-
+    
     // Verificar se o usuário é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
@@ -129,53 +128,54 @@ export const sendGroupMessage = async (req, res) => {
     if (!group) {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
-
-    // Validar entrada
-    if (!text && !image && !file) {
-      return res.status(400).json({ error: "Conteúdo da mensagem é obrigatório" });
+    
+    let imageUrl;
+    let fileData = null;
+    
+    // Upload de imagem, se fornecida
+    if (image && image.startsWith('data:')) {
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        resource_type: "auto",
+        chunk_size: 6000000,
+        timeout: 120000
+      });
+      imageUrl = uploadResponse.secure_url;
     }
-
-    // Criar objeto da mensagem
-    const messageData = {
+    
+    // Upload de arquivo, se fornecido
+    if (file && file.data && file.data.startsWith('data:')) {
+      const uploadResponse = await cloudinary.uploader.upload(file.data, {
+        resource_type: "auto",
+        public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`,
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        chunk_size: 6000000,
+        timeout: 150000
+      });
+      
+      fileData = {
+        url: uploadResponse.secure_url,
+        type: file.type || "application/octet-stream",
+        name: file.name || "arquivo"
+      };
+    }
+    // Criar a mensagem
+    const newMessage = new GroupMessage({
       groupId,
       senderId,
-      text: text || "",
-      read: [{ userId: senderId }] // O remetente já leu a mensagem
-    };
-
-    // Processar imagem (se houver) - usando Cloudinary para imagens
-    if (image) {
-      try {
-        const uploadResult = await uploadToCloudinary(image, "group_images");
-        messageData.image = uploadResult.url;
-      } catch (error) {
-        console.error("Erro ao fazer upload da imagem:", error);
-        return res.status(500).json({ error: "Falha ao processar imagem" });
-      }
-    }
-
-    // Processar arquivo (se houver) - armazenando diretamente como JSON
-    if (file) {
-      // Armazenar informações do arquivo com dados base64 diretamente
-      const fileInfo = {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        data: file.data // Dados base64 do arquivo
-      };
-      
-      // Converter para JSON e armazenar
-      messageData.fileData = JSON.stringify(fileInfo);
-    }
-
-    // Criar e salvar a mensagem
-    const newMessage = new GroupMessage(messageData);
+      text,
+      image: imageUrl,
+      file: fileData,
+      read: [{ userId: senderId }]
+    });
+    
     await newMessage.save();
-
+    
     // Encontrar o remetente
     const sender = group.members.find(member => member._id.toString() === senderId.toString());
     
-    // Criar mensagem formatada com informações do remetente
+    // Criar mensagem formatada
     const formattedMessage = {
       ...newMessage.toObject(),
       senderId: {
@@ -184,42 +184,24 @@ export const sendGroupMessage = async (req, res) => {
         profilePic: sender?.profilePic || "/avatar.png"
       }
     };
-
-    // Enviar via socket para todos os membros do grupo EXCETO o remetente
+    
+    // MODIFICADO: Emitir usando sockets.to para excluir o remetente
     const roomName = `group-${groupId}`;
+    io.in(roomName).except(socket.id).emit("newGroupMessage", {
+      message: formattedMessage,
+      group: {
+        _id: group._id,
+        name: group.name,
+        members: group.members.map(m => ({
+          _id: m._id,
+          fullName: m.fullName,
+          profilePic: m.profilePic
+        })),
+        originalSender: senderId.toString()
+      }
+    });
     
-    // Obter todos os IDs de sockets do remetente
-    const senderSocketIds = [];
-    if (userSocketsMultiMap && userSocketsMultiMap[senderId.toString()]) {
-      senderSocketIds.push(...userSocketsMultiMap[senderId.toString()]);
-    } else if (userSocketMap && userSocketMap[senderId.toString()]) {
-      senderSocketIds.push(userSocketMap[senderId.toString()]);
-    }
-    
-    // Para cada socket na sala
-    const socketsInRoom = io.sockets.adapter.rooms.get(roomName);
-    if (socketsInRoom) {
-      socketsInRoom.forEach(socketId => {
-        // Verificar se esse socket NÃO pertence ao remetente
-        if (!senderSocketIds.includes(socketId)) {
-          io.to(socketId).emit("newGroupMessage", {
-            message: formattedMessage,
-            group: {
-              _id: group._id,
-              name: group.name,
-              members: group.members.map(m => ({
-                _id: m._id,
-                fullName: m.fullName,
-                profilePic: m.profilePic
-              }))
-            }
-          });
-        }
-      });
-    }
-
-    // Resposta de sucesso
-    res.status(201).json(formattedMessage);
+    res.status(201).json(newMessage);
   } catch (error) {
     console.error("Erro ao enviar mensagem de grupo:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
