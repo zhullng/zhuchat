@@ -102,92 +102,41 @@ const GroupMessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // MELHORADO com interação direta de socket
   const handleSendMessage = async (e) => {
-    // Prevenir o comportamento padrão do formulário 
     e.preventDefault();
     
     if (!text.trim() && !imageData && !fileInfo) return;
     if (isUploading || !selectedGroup) return;
-
+  
     try {
       setIsUploading(true);
       
-      // Mostrar toast de carregamento se houver imagem ou arquivo
-      let toastId;
-      if (fileInfo || imageData) {
-        toastId = toast.loading(
-          fileInfo 
-            ? `Enviando arquivo ${fileInfo.name}...` 
-            : "Enviando imagem..."
-        );
-      }
-
-      // NOVO: Se o socket estiver saudável, enviar diretamente via socket primeiro
-      // para feedback instantâneo, mesmo antes da API responder
-      if (socket && socket.connected && text.trim()) {
-        socket.emit("sendGroupMessage", {
-          groupId: selectedGroup._id,
-          text: text.trim(),
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // Capturar o texto atual e limpar imediatamente
-      const messageText = text;
-      setText("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "40px";
-      }
-
-      // Preparar dados para envio
+      // Preparar dados da mensagem
       const messageData = {
-        text: messageText
-      };
-
-      // Se houver uma imagem, adicionar aos dados
-      if (imageData) {
-        messageData.image = imageData;
-      }
-
-      // Se houver um arquivo, adicionar aos dados
-      if (fileInfo) {
-        messageData.file = {
+        text: text.trim(),
+        image: imageData,
+        file: fileInfo ? {
           data: fileInfo.data,
           type: fileInfo.type,
           name: fileInfo.name
-        };
-      }
-
-      // NOVO: Verificar novamente o socket antes de enviar
-      if (!isSocketHealthy()) {
-        console.log("Socket não está saudável ao enviar mensagem, reconectando...");
-        checkSocketHealth();
-      }
-
+        } : null
+      };
+  
+      // Enviar mensagem usando o método do store
       await sendGroupMessage(selectedGroup._id, messageData);
-
-      // Remover toast de carregamento se existir
-      if (toastId) {
-        toast.dismiss(toastId);
-        toast.success(
-          fileInfo 
-            ? "Arquivo enviado com sucesso!" 
-            : "Imagem enviada com sucesso!"
-        );
-      }
-
-      // Limpar o resto do formulário
+      
+      // Limpar formulário
+      setText("");
       setImagePreview(null);
       setImageData(null);
       setFileInfo(null);
       setLineCount(1);
       
+      if (textareaRef.current) textareaRef.current.style.height = "40px";
       if (imageInputRef.current) imageInputRef.current.value = "";
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
-      toast.error("Erro ao enviar mensagem. Tente novamente.");
     } finally {
       setIsUploading(false);
     }

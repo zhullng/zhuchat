@@ -248,6 +248,12 @@ export const useGroupStore = create((set, get) => ({
       const authUser = useAuthStore.getState().authUser;
       const socket = useAuthStore.getState().socket;
       
+      // Validação de dados
+      if (!groupId || (!messageData.text && !messageData.image && !messageData.file)) {
+        toast.error("Mensagem inválida");
+        return null;
+      }
+      
       // Criar mensagem temporária
       const tempMessage = {
         _id: `temp-${Date.now().toString()}`,
@@ -269,12 +275,11 @@ export const useGroupStore = create((set, get) => ({
         groupMessages: [...state.groupMessages, tempMessage]
       }));
       
-      // NOVO: Verificar se o socket está conectado
+      // Enviar via Socket para feedback instantâneo
       if (socket && socket.connected) {
-        // Enviar direto via Socket para backup
         socket.emit("sendGroupMessage", {
           groupId,
-          text: messageData.text,
+          text: messageData.text || "",
           timestamp: tempMessage.createdAt
         });
       }
@@ -302,21 +307,18 @@ export const useGroupStore = create((set, get) => ({
     } catch (error) {
       console.error("Erro ao enviar mensagem ao grupo:", error);
       
-      // Log detalhado do erro
-      console.log("Detalhes do erro:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
-      
-      toast.error(error.response?.data?.error || "Erro ao enviar mensagem");
-      
       // Remover mensagem temporária em caso de erro
       set(state => ({
         groupMessages: state.groupMessages.filter(msg => 
           !msg._id.toString().startsWith("temp-")
         )
       }));
+      
+      toast.error(
+        error.response?.data?.error || 
+        error.response?.data?.details || 
+        "Erro ao enviar mensagem"
+      );
       
       throw error;
     }
