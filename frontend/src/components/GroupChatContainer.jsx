@@ -243,7 +243,6 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     }
   };
 
-
   // Registrar a função global para destacar mensagens na pesquisa
   useEffect(() => {
     window.highlightAndScrollToGroupMessage = (messageId) => {
@@ -269,6 +268,26 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
       delete window.highlightAndScrollToGroupMessage;
     };
   }, []);
+  
+  // Registra função global para download de fallback
+  useEffect(() => {
+    window.downloadVideoFallback = (messageId) => {
+      const message = groupMessages.find(m => m._id === messageId);
+      if (message && message.fileData) {
+        try {
+          const fileData = JSON.parse(message.fileData);
+          downloadFileFromBase64(fileData);
+        } catch (e) {
+          console.error("Erro ao processar dados para download:", e);
+          toast.error("Erro ao preparar download");
+        }
+      }
+    };
+    
+    return () => {
+      delete window.downloadVideoFallback;
+    };
+  }, [groupMessages]);
 
   if (isGroupMessagesLoading) {
     return (
@@ -288,7 +307,6 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100"
       >
         {groupMessages.map((message) => {
-
           // Verificar se há dados de arquivo
           let fileData = null;
           if (message.fileData) {
@@ -361,7 +379,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                   />
                 </div>
               </div>
-
+          
               <div className={`chat-header mb-1 flex items-center ${isMyMessage ? "justify-end" : "justify-start"}`}>
                 {isMyMessage ? (
                   <>
@@ -408,7 +426,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                   </>
                 )}
               </div>
-
+          
               <div className="chat-bubble flex flex-col relative">
                 {/* Renderizar imagem */}
                 {message.image && (
@@ -505,25 +523,25 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
               </div>
             );
           })}
-        
-        {groupMessages.length === 0 && (
-          <div className="flex items-center justify-center h-full text-base-content/60">
-            <div className="text-center">
-              <div className="mb-2">
-                <Users size={48} className="mx-auto opacity-40" />
+          
+          {groupMessages.length === 0 && (
+            <div className="flex items-center justify-center h-full text-base-content/60">
+              <div className="text-center">
+                <div className="mb-2">
+                  <Users size={48} className="mx-auto opacity-40" />
+                </div>
+                <p>Sem mensagens neste grupo</p>
+                <p className="text-sm mt-1">Seja o primeiro a enviar uma mensagem!</p>
               </div>
-              <p>Sem mensagens neste grupo</p>
-              <p className="text-sm mt-1">Seja o primeiro a enviar uma mensagem!</p>
             </div>
+          )}
+          
+          {/* Referência para o final da lista de mensagens */}
+          <div ref={messageEndRef} id="message-end-ref"></div>
           </div>
-        )}
-        
-        {/* Referência para o final da lista de mensagens */}
-        <div ref={messageEndRef} id="message-end-ref"></div>
-      </div>
-      <GroupMessageInput />
-    </div>
-  );
-};
-
-export default GroupChatContainer;
+          <GroupMessageInput />
+          </div>
+          );
+          };
+          
+          export default GroupChatContainer;
