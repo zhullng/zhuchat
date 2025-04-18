@@ -175,22 +175,22 @@ const GroupMessageInput = () => {
       const messageData = {
         text: text.trim() || ""
       };
-  
+
       // Adicionar imagem se existir
       if (imageData) {
         messageData.image = imageData;
       }
-  
+
       // Adicionar arquivo se existir
       if (fileInfo && fileInfo.data) {
-        messageData.file = {
+        messageData.fileData = JSON.stringify({
           name: fileInfo.name,
           type: fileInfo.type,
           size: fileInfo.size,
           data: fileInfo.data
-        };
+        });
       }
-  
+
       // Enviar mensagem
       await sendGroupMessage(selectedGroup._id, messageData);
       
@@ -210,7 +210,7 @@ const GroupMessageInput = () => {
       setIsUploading(false);
     }
   };
-  
+
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
     if (textareaRef.current) {
@@ -227,210 +227,209 @@ const GroupMessageInput = () => {
         textareaRef.current.style.height = `${scrollHeight}px`;
       } else {
         const newHeight = Math.min(scrollHeight, 80);
-        textareaRef.current.style.height = `${newHeight}px`;
-      }
-    }
-  };
-
-  useEffect(() => {
-    autoResizeTextarea();
-  }, [text]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (optionsRef.current && !optionsRef.current.contains(event.target)) {
-        setShowOptions(false);
+        textareaRef.current.style.height = `${newHeight}px`;}
       }
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+  
+    useEffect(() => {
+      autoResizeTextarea();
+    }, [text]);
+  
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (optionsRef.current && !optionsRef.current.contains(event.target)) {
+          setShowOptions(false);
+        }
+      };
+  
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
+  
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage(e);
+      }
     };
-  }, []);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage(e);
-    }
-  };
-
-  const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText size={24} />;
-    
-    if (fileType.startsWith('image/')) return <Image size={24} />;
-    if (fileType.startsWith('video/')) return <FileVideo size={24} />;
-    if (fileType.startsWith('audio/')) return <FilePlus size={24} />;
-    if (fileType.includes('pdf')) return <FileText size={24} />;
-    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} />;
-    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={24} />;
-    
-    return <FileText size={24} />;
-  };
-
-  return (
-    <div className="p-4 w-full bg-base-100">
-      {/* Preview de arquivo ou imagem */}
-      {(imagePreview || fileInfo) && (
-        <div className="mb-3 flex items-center gap-2">
-          <div className="relative p-2 bg-base-200 rounded-lg border border-base-300">
-            {imagePreview && (
-              <div className="flex items-center">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-20 h-20 object-cover rounded-lg"
-                />
-                <span className="ml-2 text-sm">Imagem anexada</span>
-              </div>
-            )}
+  
+    const getFileIcon = (fileType) => {
+      if (!fileType) return <FileText size={24} />;
+      
+      if (fileType.startsWith('image/')) return <Image size={24} />;
+      if (fileType.startsWith('video/')) return <FileVideo size={24} />;
+      if (fileType.startsWith('audio/')) return <FilePlus size={24} />;
+      if (fileType.includes('pdf')) return <FileText size={24} />;
+      if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} />;
+      if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={24} />;
+      
+      return <FileText size={24} />;
+    };
+  
+    return (
+      <div className="p-4 w-full bg-base-100">
+        {/* Preview de arquivo ou imagem */}
+        {(imagePreview || fileInfo) && (
+          <div className="mb-3 flex items-center gap-2">
+            <div className="relative p-2 bg-base-200 rounded-lg border border-base-300">
+              {imagePreview && (
+                <div className="flex items-center">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-20 h-20 object-cover rounded-lg"
+                  />
+                  <span className="ml-2 text-sm">Imagem anexada</span>
+                </div>
+              )}
+              
+              {fileInfo && (
+                <div className="flex items-center">
+                  {filePreview && fileInfo.type.startsWith('video/') ? (
+                    <div className="flex items-center">
+                      <video
+                        src={filePreview}
+                        className="w-20 h-20 object-cover rounded-lg"
+                        preload="metadata"
+                      />
+                      <span className="ml-2 text-sm">
+                        {!fileInfo.data && isUploading ? (
+                          <span className="flex items-center">
+                            Carregando vídeo
+                            <span className="loading loading-dots loading-xs ml-1"></span>
+                          </span>
+                        ) : (
+                          "Vídeo anexado"
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <div className="p-2 bg-base-100 rounded-lg">
+                        {getFileIcon(fileInfo.type)}
+                      </div>
+                      <div className="ml-2">
+                        <p className="text-sm font-medium truncate max-w-[150px]">
+                          {fileInfo.name}
+                        </p>
+                        <p className="text-xs opacity-70">{fileInfo.size}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleRemoveAttachment}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 
+                    flex items-center justify-center"
+                    type="button"
+                    disabled={isUploading}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+  
+        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              className="btn btn-circle btn-md hover:bg-base-300"
+              onClick={() => setShowOptions(!showOptions)}
+              disabled={isUploading}
+            >
+              <Plus size={22} />
+            </button>
             
-            {fileInfo && (
-              <div className="flex items-center">
-                {filePreview && fileInfo.type.startsWith('video/') ? (
-                  <div className="flex items-center">
-                    <video
-                      src={filePreview}
-                      className="w-20 h-20 object-cover rounded-lg"
-                      preload="metadata"
-                    />
-                    <span className="ml-2 text-sm">
-                      {!fileInfo.data && isUploading ? (
-                        <span className="flex items-center">
-                          Carregando vídeo
-                          <span className="loading loading-dots loading-xs ml-1"></span>
-                        </span>
-                      ) : (
-                        "Vídeo anexado"
-                      )}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <div className="p-2 bg-base-100 rounded-lg">
-                      {getFileIcon(fileInfo.type)}
-                    </div>
-                    <div className="ml-2">
-                      <p className="text-sm font-medium truncate max-w-[150px]">
-                        {fileInfo.name}
-                      </p>
-                      <p className="text-xs opacity-70">{fileInfo.size}</p>
-                    </div>
-                  </div>
-                )}
-                
+            {showOptions && (
+              <div 
+                ref={optionsRef}
+                className="absolute bottom-16 left-0 bg-base-100 rounded-md shadow-md border border-base-300 p-1 z-10 min-w-48"
+              >
                 <button
-                  onClick={handleRemoveAttachment}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 
-                  flex items-center justify-center"
                   type="button"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
+                  onClick={() => {
+                    imageInputRef.current?.click();
+                    setShowOptions(false);
+                  }}
                   disabled={isUploading}
                 >
-                  <X className="size-3" />
+                  <Image size={20} className="text-base-content opacity-70" />
+                  <span>Enviar imagem</span>
+                </button>
+                
+                <button
+                  type="button"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setShowOptions(false);
+                  }}
+                  disabled={isUploading}
+                >
+                  <FileText size={20} className="text-base-content opacity-70" />
+                  <span>Enviar arquivo</span>
                 </button>
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <div className="relative">
+          
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              className={`w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words ${lineCount > 2 ? 'overflow-y-auto max-h-20' : 'overflow-hidden'}`}
+              placeholder="Digite uma mensagem..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              style={{ 
+                height: "40px",
+                scrollbarWidth: "thin",
+                wordWrap: "break-word",
+                overflowWrap: "break-word",
+                whiteSpace: "pre-wrap"
+              }}
+              disabled={isUploading}
+            />
+          </div>
+          
           <button
-            type="button"
-            className="btn btn-circle btn-md hover:bg-base-300"
-            onClick={() => setShowOptions(!showOptions)}
-            disabled={isUploading}
+            type="submit"
+            className="btn btn-sm btn-circle hover:bg-base-300"
+            disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
           >
-            <Plus size={22} />
+            {isUploading ? (
+              <span className="loading loading-spinner loading-xs"></span>
+            ) : (
+              <Send size={22} />
+            )}
           </button>
           
-          {showOptions && (
-            <div 
-              ref={optionsRef}
-              className="absolute bottom-16 left-0 bg-base-100 rounded-md shadow-md border border-base-300 p-1 z-10 min-w-48"
-            >
-              <button
-                type="button"
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
-                onClick={() => {
-                  imageInputRef.current?.click();
-                  setShowOptions(false);
-                }}
-                disabled={isUploading}
-              >
-                <Image size={20} className="text-base-content opacity-70" />
-                <span>Enviar imagem</span>
-              </button>
-              
-              <button
-                type="button"
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
-                onClick={() => {
-                  fileInputRef.current?.click();
-                  setShowOptions(false);
-                }}
-                disabled={isUploading}
-              >
-                <FileText size={20} className="text-base-content opacity-70" />
-                <span>Enviar arquivo</span>
-              </button>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            className={`w-full textarea textarea-bordered rounded-md py-2 px-4 min-h-10 resize-none focus:outline-none focus:ring-0 focus:border-base-300 break-words ${lineCount > 2 ? 'overflow-y-auto max-h-20' : 'overflow-hidden'}`}
-            placeholder="Digite uma mensagem..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            style={{ 
-              height: "40px",
-              scrollbarWidth: "thin",
-              wordWrap: "break-word",
-              overflowWrap: "break-word",
-              whiteSpace: "pre-wrap"
-            }}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={imageInputRef}
+            onChange={handleImageChange}
             disabled={isUploading}
           />
-        </div>
-        
-        <button
-          type="submit"
-          className="btn btn-sm btn-circle hover:bg-base-300"
-          disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
-        >
-          {isUploading ? (
-            <span className="loading loading-spinner loading-xs"></span>
-          ) : (
-            <Send size={22} />
-          )}
-        </button>
-        
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          ref={imageInputRef}
-          onChange={handleImageChange}
-          disabled={isUploading}
-        />
-        
-        <input
-          type="file"
-          className="hidden"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          disabled={isUploading}
-        />
-      </form>
-    </div>
-  );
-};
-
-export default GroupMessageInput;
+          
+          <input
+            type="file"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            disabled={isUploading}
+          />
+        </form>
+      </div>
+    );
+  };
+  
+  export default GroupMessageInput;

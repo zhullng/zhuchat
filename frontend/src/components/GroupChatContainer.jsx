@@ -376,152 +376,150 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                     src={senderPic}
                     alt="profile pic"
                     className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-          
-              <div className={`chat-header mb-1 flex items-center ${isMyMessage ? "justify-end" : "justify-start"}`}>
-                {isMyMessage ? (
-                  <>
-                    <time className="text-xs opacity-50">
-                      {formatMessageTime(message.createdAt)}
-                      {isTemporary && " (enviando...)"}
-                    </time>
-                    <span className="font-semibold text-sm ml-2 flex items-center">
-                      {senderName}
+/>
+</div>
+</div>
+          <div className={`chat-header mb-1 flex items-center ${isMyMessage ? "justify-end" : "justify-start"}`}>
+            {isMyMessage ? (
+              <>
+                <time className="text-xs opacity-50">
+                  {formatMessageTime(message.createdAt)}
+                  {isTemporary && " (enviando...)"}
+                </time>
+                <span className="font-semibold text-sm ml-2 flex items-center">
+                  {senderName}
+                  
+                  {/* Opções de mensagem - apenas para mensagens próprias não temporárias */}
+                  {!isTemporary && (
+                    <div className="message-menu-container ml-1 relative">
+                      <button 
+                        onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
+                        className="p-1 rounded-full hover:bg-base-300 transition-colors"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
                       
-                      {/* Opções de mensagem - apenas para mensagens próprias não temporárias */}
-                      {!isTemporary && (
-                        <div className="message-menu-container ml-1 relative">
-                          <button 
-                            onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
-                            className="p-1 rounded-full hover:bg-base-300 transition-colors"
+                      {activeMessageMenu === message._id && (
+                        <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
+                          <button
+                            onClick={() => handleDeleteMessage(message._id)}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
                           >
-                            <MoreVertical size={14} />
+                            <Trash2 size={16} />
+                            <span>Eliminar</span>
                           </button>
-                          
-                          {activeMessageMenu === message._id && (
-                            <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
-                              <button
-                                onClick={() => handleDeleteMessage(message._id)}
-                                className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
-                              >
-                                <Trash2 size={16} />
-                                <span>Eliminar</span>
-                              </button>
-                            </div>
-                          )}
                         </div>
                       )}
-                    </span>
-                  </>
+                    </div>
+                  )}
+                </span>
+              </>
+            ) : (
+              <>    <span className="font-semibold text-sm">
+              {senderName}
+            </span>
+            <time className="text-xs opacity-50 ml-2">
+              {formatMessageTime(message.createdAt)}
+            </time>
+          </>
+        )}
+      </div>
+  
+      <div className="chat-bubble flex flex-col relative">
+        {/* Renderizar imagem */}
+        {message.image && (
+          <img
+            src={message.image}
+            alt="Imagem anexada"
+            className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
+          />
+        )}
+        
+        {/* Renderizar vídeo ou outro tipo de arquivo */}
+        {fileData && (
+          <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
+            {fileData.type.startsWith('video/') && (
+              <div className="w-full max-w-[500px]">
+                {videoErrors[message._id] ? (
+                  <VideoFallback 
+                    fileData={fileData} 
+                    onDownload={() => downloadFileFromBase64(fileData)}
+                    onRetry={() => handleRetryVideo(message._id)}
+                  />
                 ) : (
-                  <>
-                    <span className="font-semibold text-sm">
-                      {senderName}
-                    </span>
-                    <time className="text-xs opacity-50 ml-2">
-                      {formatMessageTime(message.createdAt)}
-                    </time>
-                  </>
+                  <div className="video-container relative">
+                    {/* Player de vídeo com melhor compatibilidade */}
+                    <video 
+                      controls 
+                      controlsList="nodownload"
+                      className="w-full h-auto rounded-md cursor-pointer object-contain"
+                      onError={(e) => {
+                        console.error("Erro ao carregar vídeo:", e);
+                        handleVideoError(message._id);
+                      }}
+                      preload="metadata"
+                      playsInline
+                    >
+                      {/* Use múltiplas fontes para melhorar compatibilidade */}
+                      <source src={fileData.data} type="video/mp4" />
+                      <source src={fileData.data} type="video/quicktime" />
+                      <source src={fileData.data} type="video/webm" />
+                      {/* Adicione uma mensagem para feedback */}
+                      Seu navegador não suporta reprodução deste vídeo.
+                    </video>
+                  </div>
                 )}
-              </div>
-
-    <div className="chat-bubble flex flex-col relative">
-      {/* Renderizar imagem */}
-      {message.image && (
-        <img
-          src={message.image}
-          alt="Imagem anexada"
-          className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
-        />
-      )}
-      
-      {/* Renderizar vídeo ou outro tipo de arquivo */}
-      {fileData && (
-        <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
-          {fileData.type.startsWith('video/') && (
-            <div className="w-full max-w-[500px]">
-              {videoErrors[message._id] ? (
-                <VideoFallback 
-                  fileData={fileData} 
-                  onDownload={() => downloadFileFromBase64(fileData)}
-                  onRetry={() => handleRetryVideo(message._id)}
-                />
-              ) : (
-                <div className="video-container relative">
-                  {/* Player de vídeo com melhor compatibilidade */}
-                  <video 
-                    controls 
-                    controlsList="nodownload"
-                    className="w-full h-auto rounded-md cursor-pointer object-contain"
-                    onError={(e) => {
-                      console.error("Erro ao carregar vídeo:", e);
-                      handleVideoError(message._id);
-                    }}
-                    preload="metadata"
-                    playsInline
+                
+                {/* Exibir informações do arquivo de vídeo */}
+                <div className="mt-2 flex items-center justify-between px-2">
+                  <div className="flex items-center">
+                    <FileVideo size={16} className="mr-2" />
+                    <span className="text-xs">{fileData.name}</span>
+                  </div>
+                  <button
+                    onClick={() => downloadFileFromBase64(fileData)}
+                    className="btn btn-xs btn-ghost"
+                    title="Baixar vídeo"
                   >
-                    {/* Use múltiplas fontes para melhorar compatibilidade */}
-                    <source src={fileData.data} type="video/mp4" />
-                    <source src={fileData.data} type="video/quicktime" />
-                    <source src={fileData.data} type="video/webm" />
-                    {/* Adicione uma mensagem para feedback */}
-                    Seu navegador não suporta reprodução deste vídeo.
-                  </video>
+                    <Download size={14} />
+                  </button>
                 </div>
-              )}
-              
-              {/* Exibir informações do arquivo de vídeo */}
-              <div className="mt-2 flex items-center justify-between px-2">
-                <div className="flex items-center">
-                  <FileVideo size={16} className="mr-2" />
-                  <span className="text-xs">{fileData.name}</span>
+              </div>
+            )}
+            
+            {!fileData.type.startsWith('video/') && (
+              // Layout existente para outros tipos de arquivo
+              <>
+                <div className="p-2 bg-base-100 rounded-md">
+                  {getFileIcon(fileData.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{fileData.name}</p>
+                  {fileData.size && <p className="text-xs opacity-70">{fileData.size}</p>}
                 </div>
                 <button
                   onClick={() => downloadFileFromBase64(fileData)}
-                  className="btn btn-xs btn-ghost"
-                  title="Baixar vídeo"
+                  className="btn btn-sm btn-circle"
+                  disabled={downloadingFiles[message._id]}
                 >
-                  <Download size={14} />
+                  {downloadingFiles[message._id] ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <Download size={16} />
+                  )}
                 </button>
-              </div>
-            </div>
-          )}
-          
-          {!fileData.type.startsWith('video/') && (
-            // Layout existente para outros tipos de arquivo
-            <>
-              <div className="p-2 bg-base-100 rounded-md">
-                {getFileIcon(fileData.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{fileData.name}</p>
-                <p className="text-xs opacity-70">{fileData.size}</p>
-              </div>
-              <button
-                onClick={() => downloadFileFromBase64(fileData)}
-                className="btn btn-sm btn-circle"
-                disabled={downloadingFiles[message._id]}
-              >
-                {downloadingFiles[message._id] ? (
-                  <span className="loading loading-spinner loading-xs"></span>
-                ) : (
-                  <Download size={16} />
-                )}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-      
-      {/* Renderizar texto */}
-      {message.text && (
-        <p className="break-words whitespace-pre-wrap">{message.text}</p>
-      )}
+              </>
+            )}
+          </div>
+        )}
+        
+        {/* Renderizar texto */}
+        {message.text && (
+          <p className="break-words whitespace-pre-wrap">{message.text}</p>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
 })}
 
 {groupMessages.length === 0 && (
@@ -540,8 +538,6 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
 <div ref={messageEndRef} id="message-end-ref"></div>
 </div>
 <GroupMessageInput />
-</div>
-);
+</div>);
 };
-
 export default GroupChatContainer;
