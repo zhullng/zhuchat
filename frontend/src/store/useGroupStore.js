@@ -315,7 +315,7 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
-  // MELHORADO: Sistema de subscriptions mais robusto com retry
+  
   subscribeToGroupEvents: () => {
     // Primeiro, verifique se já está subscrito para evitar duplicação
     if (get().isSubscribed) {
@@ -365,24 +365,14 @@ export const useGroupStore = create((set, get) => ({
       get().initializeGroups();
     });
     
-    // MELHORADO: Processamento de novas mensagens de grupo
+    // CORRIGIDO: Processamento de novas mensagens de grupo
     socket.on("newGroupMessage", ({ message, group }) => {
       console.log("Nova mensagem de grupo recebida:", message.text);
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
-      // Verificar se a mensagem já está no estado (para evitar duplicação)
-      const messageExists = get().groupMessages.some(msg => 
-        msg._id === message._id || 
-        (msg._id.startsWith('temp-') && msg.text === message.text && 
-         msg.createdAt === message.createdAt)
-      );
+      // REMOVIDO: Verificação de mensagem duplicada que estava causando problemas
       
-      if (messageExists) {
-        console.log("Mensagem já existe no estado, ignorando");
-        return;
-      }
-    
       // Formatar a mensagem
       const formattedMessage = {
         ...message,
@@ -399,6 +389,34 @@ export const useGroupStore = create((set, get) => ({
       set(state => {
         // Se o grupo da mensagem é o grupo atualmente selecionado
         if (currentGroup && currentGroup._id === message.groupId) {
+          // MODIFICADO: Substituir mensagens temporárias em vez de simplesmente adicionar
+          const updatedMessages = [...state.groupMessages];
+          
+          // Verificar se é uma mensagem própria que já existe como temporária
+          if (message.senderId === authUser._id || 
+              (typeof message.senderId === 'object' && message.senderId._id === authUser._id)) {
+            
+            // Procurar uma mensagem temporária com mesmo texto para substituir
+            const tempIndex = updatedMessages.findIndex(msg => 
+              msg._id && msg._id.toString().startsWith('temp-') && 
+              msg.text === formattedMessage.text
+            );
+            
+            if (tempIndex >= 0) {
+              // Substituir a mensagem temporária com a real
+              updatedMessages[tempIndex] = formattedMessage;
+              
+              return {
+                groupMessages: updatedMessages,
+                unreadGroupCounts: {
+                  ...state.unreadGroupCounts,
+                  [message.groupId]: 0
+                }
+              };
+            }
+          }
+          
+          // Se não encontrou para substituir, adiciona normalmente
           return {
             groupMessages: [...state.groupMessages, formattedMessage],
             unreadGroupCounts: {
@@ -436,7 +454,7 @@ export const useGroupStore = create((set, get) => ({
       }, 500);
     });
     
-    // Melhoramento: Também receber mensagens diretas de grupo
+    // CORRIGIDO: Evento directGroupMessage simplificado para evitar duplicações
     socket.on("directGroupMessage", (message) => {
       console.log("Mensagem direta de grupo recebida:", message);
       
@@ -449,25 +467,11 @@ export const useGroupStore = create((set, get) => ({
       
       // Verificar se estamos no grupo correto
       if (currentGroup && currentGroup._id === message.groupId) {
-        // Criar formato de mensagem compatível
-        const formattedMessage = {
-          _id: message._id || `direct-${Date.now()}`,
-          text: message.text || "",
-          groupId: message.groupId,
-          createdAt: message.timestamp || new Date().toISOString(),
-          senderId: {
-            _id: message.senderId,
-            fullName: message.senderName || "Membro do grupo",
-            profilePic: "/avatar.png"
-          },
-          read: []
-        };
-        
-        set(state => ({
-          groupMessages: [...state.groupMessages, formattedMessage]
-        }));
+        // IMPORTANTE: Não adicionar a mensagem diretamente aqui
+        // O evento newGroupMessage já vai tratar isso para evitar duplicações
+        console.log("Mensagem será processada pelo evento newGroupMessage para evitar duplicação");
       } else {
-        // Incrementar contagem não lida
+        // Apenas incrementar contagem não lida
         set(state => ({
           unreadGroupCounts: {
             ...state.unreadGroupCounts,
@@ -476,6 +480,7 @@ export const useGroupStore = create((set, get) => ({
         }));
       }
     });
+    
     
     // Adicionado a um grupo
     socket.on("addedToGroup", (group) => {
