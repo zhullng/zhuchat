@@ -1,9 +1,14 @@
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
-import { io } from "socket.io-client";
 import { useChatStore } from "./useChatStore";
 import { useGroupStore } from "./useGroupStore";
+import { 
+  initializeSocket, 
+  disconnectSocket, 
+  forceReconnect, 
+  isSocketHealthy 
+} from "../services/socket";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -16,6 +21,8 @@ export const useAuthStore = create((set, get) => ({
   isDeletingAccount: false,
   onlineUsers: [],
   socket: null,
+  socketError: null,
+  socketReconnectAttempts: 0,
 
   updatePassword: async (data) => {
     try {
@@ -46,6 +53,7 @@ export const useAuthStore = create((set, get) => ({
       // Inicializar grupos
       useGroupStore.getState().initializeGroups();
       
+      // Conectar socket usando o serviço melhorado
       get().connectSocket();
     } catch (error) {
       console.error("Falha na verificação de autenticação:", error);
@@ -69,6 +77,7 @@ export const useAuthStore = create((set, get) => ({
       // Inicializar conversas visualizadas após registro bem-sucedido
       useChatStore.getState().initializeViewedConversations();
       
+      // Conectar socket
       get().connectSocket();
     } catch (error) {
       toast.error(error.response?.data?.message || "Falha no registo!");
@@ -78,47 +87,68 @@ export const useAuthStore = create((set, get) => ({
   },
 
   login: async (data) => {
-  set({ isLoggingIn: true });
-  try {
-    const res = await axiosInstance.post("/auth/login", data);
-    // Garantir que o saldo está definido
-    if (res.data && res.data.balance === undefined) {
-      res.data.balance = 0;
+    set({ isLoggingIn: true });
+    try {
+      const res = await axiosInstance.post("/auth/login", data);
+      // Garantir que o saldo está definido
+      if (res.data && res.data.balance === undefined) {
+        res.data.balance = 0;
+      }
+      set({ authUser: res.data });
+      toast.success("Sessão iniciada!");
+      
+      // Inicializar conversas visualizadas após login bem-sucedido
+      useChatStore.getState().initializeViewedConversations();
+      
+      // Inicializar grupos
+      useGroupStore.getState().initializeGroups();
+      
+      // Conectar socket
+      get().connectSocket();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Falha no início de sessão!");
+    } finally {
+      set({ isLoggingIn: false });
     }
-    set({ authUser: res.data });
-    toast.success("Sessão iniciada!");
-    
-    // Inicializar conversas visualizadas após login bem-sucedido
-    useChatStore.getState().initializeViewedConversations();
-    
-    // Inicializar grupos
-    useGroupStore.getState().initializeGroups();
-    
-    get().connectSocket();
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Falha no início de sessão!");
-  } finally {
-    set({ isLoggingIn: false });
-  }
-},
+  },
 
-logout: async () => {
-  try {
-    await axiosInstance.post("/auth/logout");
-    
-    // IMPORTANTE: Resetar o estado do chat ao fazer logout
-    useChatStore.getState().resetChatState();
-    
-    // Resetar estado dos grupos
-    useGroupStore.getState().resetGroupState();
-    
-    set({ authUser: null });
-    toast.success("Sessão terminada com sucesso!");
-    get().disconnectSocket();
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
-  }
-},
+  logout: async () => {
+    try {
+      await axiosInstance.post("/auth/logout");
+      
+      // IMPORTANTE: Resetar o estado do chat ao fazer logout
+      useChatStore.getState().resetChatState();
+      
+      // Resetar estado dos grupos
+      useGroupStore.getState().resetGroupState();
+      
+      // Desconectar socket apropriadamente
+      disconnectSocket();
+      
+      set({ 
+        authUser: null,
+        socket: null,
+        socketError: null,
+        socketReconnectAttempts: 0,
+        onlineUsers: []
+      });
+      
+      toast.success("Sessão terminada com sucesso!");
+    } catch (error) {
+      // Mesmo com erro no servidor, limpar estado local e desconectar socket
+      disconnectSocket();
+      
+      set({ 
+        authUser: null,
+        socket: null,
+        socketError: null,
+        socketReconnectAttempts: 0,
+        onlineUsers: []
+      });
+      
+      toast.error(error.response?.data?.message || "Falha ao terminar sessão!");
+    }
+  },
 
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
@@ -165,28 +195,84 @@ logout: async () => {
     }
   },
 
+  // Método connectSocket melhorado
   connectSocket: () => {
     const { authUser } = get();
-    if (!authUser || get().socket?.connected) return;
+    if (!authUser) return null;
 
-    const socket = io(BASE_URL, {
-      query: { userId: authUser._id }
-    });
-    socket.connect();
+    // Usar a versão melhorada do serviço de socket
+    const socket = initializeSocket(authUser);
+    
+    if (socket) {
+      // Resetar contadores de erro
+      set({ 
+        socket,
+        socketError: null,
+        socketReconnectAttempts: 0 
+      });
 
-    set({ socket });
+      // Configurar listener para usuários online
+      socket.on("getOnlineUsers", (userIds) => {
+        set({ onlineUsers: userIds });
+      });
 
-    socket.on("getOnlineUsers", (userIds) => {
-      set({ onlineUsers: userIds });
-    });
+      return socket;
+    }
+    
+    return null;
+  },
+
+  // Método para forçar reconexão do socket
+  reconnectSocket: () => {
+    const { authUser, socketReconnectAttempts } = get();
+    
+    if (!authUser) return false;
+    
+    // Limitar tentativas para evitar loop infinito
+    if (socketReconnectAttempts >= 5) {
+      console.log("Atingido limite de tentativas de reconexão do socket");
+      set({ socketError: "Falha na conexão após várias tentativas" });
+      return false;
+    }
+    
+    console.log("Tentando reconectar socket...");
+    set(state => ({ socketReconnectAttempts: state.socketReconnectAttempts + 1 }));
+    
+    const socket = forceReconnect(authUser);
+    
+    if (socket) {
+      set({ socket, socketError: null });
+      
+      // Reconfigurar listener para usuários online
+      socket.on("getOnlineUsers", (userIds) => {
+        set({ onlineUsers: userIds });
+      });
+      
+      return true;
+    }
+    
+    set({ socketError: "Falha ao criar nova conexão de socket" });
+    return false;
+  },
+
+  // Verificar a saúde do socket
+  checkSocketHealth: () => {
+    const { socket, authUser } = get();
+    
+    if (!authUser) return false;
+    
+    // Se não há socket ou ele não está conectado, tenta reconectar
+    if (!socket || !isSocketHealthy()) {
+      console.log("Socket não está conectado, tentando reconectar...");
+      return get().reconnectSocket();
+    }
+    
+    return true;
   },
 
   disconnectSocket: () => {
-    const socket = get().socket;
-    if (socket?.connected) {
-      socket.disconnect();
-      set({ socket: null });
-    }
+    disconnectSocket();
+    set({ socket: null });
   },
 
   forgotPassword: async (email) => {
@@ -229,47 +315,53 @@ logout: async () => {
     }
   },
 
- // Para eliminar conta diretamente (com verificação de saldo)
-deleteAccount: async () => {
-  set({ isDeletingAccount: true });
-  try {
-    const res = await axiosInstance.delete("/auth/delete-account");
-    
-    // Resetar estado do chat
-    useChatStore.getState().resetChatState();
-    
-    // Limpar dados do utilizador
-    set({ authUser: null });
-    
-    // Desconectar socket
-    get().disconnectSocket();
-    
-    toast.success(res.data.message || "Conta eliminada com sucesso");
-    return { success: true };
-  } catch (error) {
-    console.error("Erro ao eliminar conta:", error);
-    
-    // Verificar se o erro é devido a saldo na conta
-    if (error.response?.data?.hasBalance) {
-      const errorMessage = error.response?.data?.message || 
-        "Não é possível eliminar a conta enquanto tiver saldo. Por favor, transfira ou utilize o seu saldo antes de eliminar a conta.";
+  // Para eliminar conta diretamente (com verificação de saldo)
+  deleteAccount: async () => {
+    set({ isDeletingAccount: true });
+    try {
+      const res = await axiosInstance.delete("/auth/delete-account");
       
+      // Resetar estado do chat
+      useChatStore.getState().resetChatState();
+      
+      // Limpar dados do utilizador
+      set({ authUser: null });
+      
+      // Desconectar socket
+      disconnectSocket();
+      set({ 
+        socket: null,
+        socketError: null,
+        socketReconnectAttempts: 0,
+        onlineUsers: []
+      });
+      
+      toast.success(res.data.message || "Conta eliminada com sucesso");
+      return { success: true };
+    } catch (error) {
+      console.error("Erro ao eliminar conta:", error);
+      
+      // Verificar se o erro é devido a saldo na conta
+      if (error.response?.data?.hasBalance) {
+        const errorMessage = error.response?.data?.message || 
+          "Não é possível eliminar a conta enquanto tiver saldo. Por favor, transfira ou utilize o seu saldo antes de eliminar a conta.";
+        
+        toast.error(errorMessage);
+        
+        return { 
+          success: false, 
+          message: errorMessage, 
+          hasBalance: true, 
+          balance: error.response?.data?.balance || 0 
+        };
+      }
+      
+      // Outros erros
+      const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
       toast.error(errorMessage);
-      
-      return { 
-        success: false, 
-        message: errorMessage, 
-        hasBalance: true, 
-        balance: error.response?.data?.balance || 0 
-      };
+      return { success: false, message: errorMessage };
+    } finally {
+      set({ isDeletingAccount: false });
     }
-    
-    // Outros erros
-    const errorMessage = error.response?.data?.message || "Erro ao eliminar conta";
-    toast.error(errorMessage);
-    return { success: false, message: errorMessage };
-  } finally {
-    set({ isDeletingAccount: false });
   }
-}
 }));

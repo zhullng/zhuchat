@@ -19,43 +19,56 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore"; 
 import { useThemeStore } from "./store/useThemeStore";
 import { useWalletStore } from "./store/useWalletStore";
-import { initializeSocket } from "./services/socket";
+import { enableSocketDebug } from "./services/socket";
 
 import { Loader } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; 
 
 const App = () => {
-  const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
+  const { 
+    authUser, 
+    checkAuth, 
+    isCheckingAuth,
+    checkSocketHealth
+  } = useAuthStore();
   const { theme } = useThemeStore();
   const { setupWalletListeners } = useWalletStore();
   const location = useLocation();
 
-  // Inicializar socket quando usuário estiver autenticado
-  useEffect(() => {
-    if (!authUser) return;
-    
-    const initializeApp = async () => {
-      try {
-        // Inicializar socket
-        const socketInstance = await initializeSocket(authUser);
-        
-        if (socketInstance) {
-          // Configurar ouvintes para atualizações de carteira
-          setupWalletListeners();
-        }
-        
-        console.log("Aplicação inicializada com sucesso");
-      } catch (error) {
-        console.error("Erro ao inicializar app:", error);
-      }
-    };
-    
-    initializeApp();
-  }, [authUser, setupWalletListeners]);
-
+  // Verificação inicial de autenticação
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Monitoramento de saúde do socket e configuração de ouvintes de wallet
+  useEffect(() => {
+    if (!authUser) return;
+    
+    // Em desenvolvimento, ativar logs de debug do socket
+    if (import.meta.env.MODE === "development") {
+      enableSocketDebug();
+    }
+    
+    // Verificação inicial do socket após um curto delay
+    const initialCheck = setTimeout(() => {
+      const socketOk = checkSocketHealth();
+      
+      if (socketOk) {
+        // Configurar ouvintes para atualizações de carteira
+        setupWalletListeners();
+      }
+    }, 2000);
+    
+    // Verificação periódica a cada 30 segundos
+    const intervalId = setInterval(() => {
+      checkSocketHealth();
+    }, 30000);
+    
+    return () => {
+      clearTimeout(initialCheck);
+      clearInterval(intervalId);
+    };
+  }, [authUser, checkSocketHealth, setupWalletListeners]);
 
   if (isCheckingAuth && !authUser) {
     return (
