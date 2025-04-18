@@ -26,6 +26,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [downloadingFile, setDownloadingFile] = useState(null);
 
   // Verificar saúde do socket ao iniciar
   useEffect(() => {
@@ -129,6 +130,79 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     if (fileType.includes('word') || fileType.includes('document')) return <FileText size={20} />;
     
     return <File size={20} />;
+  };
+
+  // Nova função de download que funciona com URLs de Cloudinary
+  const handleFileDownload = async (file, messageId) => {
+    if (!file || !file.url) {
+      toast.error("URL do arquivo não disponível");
+      return;
+    }
+    
+    try {
+      // Marcar este arquivo como baixando
+      setDownloadingFile(messageId);
+      
+      // Exibir toast de carregamento
+      const loadingToast = toast.loading(`Baixando ${file.name || 'arquivo'}...`);
+      
+      // Método 1: Tentar método fetch/blob para compatibilidade máxima
+      const response = await fetch(file.url);
+      
+      if (!response.ok) {
+        throw new Error(`Erro na rede: ${response.status}`);
+      }
+      
+      // Obter o blob
+      const blob = await response.blob();
+      
+      // Criar URL para o blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Criar elemento de link temporário
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = file.name || `arquivo${getFileExtension(file.type)}`;
+      downloadLink.style.display = 'none';
+      
+      // Adicionar, clicar e remover
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      
+      // Limpar recursos após o download
+      setTimeout(() => {
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobUrl);
+        
+        // Remover estado de download e mostrar mensagem de sucesso
+        setDownloadingFile(null);
+        toast.dismiss(loadingToast);
+        toast.success(`Download de ${file.name || 'arquivo'} concluído!`);
+      }, 100);
+    } catch (error) {
+      console.error("Erro ao baixar arquivo:", error);
+      toast.error("Não foi possível baixar o arquivo. Tente novamente mais tarde.");
+      setDownloadingFile(null);
+    }
+  };
+
+  // Função auxiliar para obter extensão de arquivo
+  const getFileExtension = (mimeType) => {
+    if (!mimeType) return '';
+    
+    const mappings = {
+      'video/mp4': '.mp4',
+      'video/quicktime': '.mov',
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'text/plain': '.txt'
+    };
+    
+    return mappings[mimeType] || '';
   };
 
   // Registrar a função global para destacar mensagens na pesquisa
@@ -305,15 +379,17 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                         </video>
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs truncate flex-1">{message.file.name}</span>
-                          <a 
-                            href={message.file.url} 
-                            download={message.file.name}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-xs btn-ghost btn-square"
+                          <button 
+                            onClick={() => handleFileDownload(message.file, message._id)}
+                            disabled={downloadingFile === message._id}
+                            className="btn btn-xs btn-ghost btn-square text-primary"
                           >
-                            <Download size={14} />
-                          </a>
+                            {downloadingFile === message._id ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : (
+                              <Download size={14} />
+                            )}
+                          </button>
                         </div>
                       </div>
                     ) : (
@@ -325,15 +401,17 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                           <p className="text-sm font-medium truncate">{message.file.name}</p>
                           <p className="text-xs opacity-70">{message.file.size}</p>
                         </div>
-                        <a 
-                          href={message.file.url} 
-                          download={message.file.name}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-xs btn-ghost btn-square"
+                        <button 
+                          onClick={() => handleFileDownload(message.file, message._id)}
+                          disabled={downloadingFile === message._id}
+                          className="btn btn-xs btn-ghost btn-square text-primary"
                         >
-                          <Download size={14} />
-                        </a>
+                          {downloadingFile === message._id ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : (
+                            <Download size={14} />
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
