@@ -283,8 +283,8 @@ io.on("connection", (socket) => {
     
     console.log(`Usuário ${userId} está tentando enviar mensagem direta para ${roomName}`);
     
-    // Este é apenas um backup para o fluxo normal da API
-    // para garantir que todos recebam a mensagem
+    // MODIFICADO: Enviar para todos na sala EXCETO o remetente
+    // Isso evita que o remetente receba sua própria mensagem de volta
     socket.to(roomName).emit("directGroupMessage", {
       senderId: userId,
       text,
