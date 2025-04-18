@@ -8,6 +8,7 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { Trash2, MoreVertical, Users } from "lucide-react";
 import { formatMessageTime } from "../lib/utils";
 import toast from "react-hot-toast";
+import { isSocketHealthy } from "../services/socket";
 
 const GroupChatContainer = ({ isMobile = false, onBack }) => {
   const {
@@ -16,14 +17,42 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     selectedGroup,
     getGroupMessages,
     markGroupAsRead,
-    deleteGroupMessage
+    deleteGroupMessage,
+    subscribeToGroupEvents
   } = useGroupStore();
-  const { authUser } = useAuthStore();
+  const { authUser, socket, checkSocketHealth } = useAuthStore();
   const messageEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+
+  // Verificar saúde do socket ao iniciar
+  useEffect(() => {
+    if (!isSocketHealthy() && selectedGroup) {
+      console.log("Socket não está saudável no chat de grupo, tentando reconectar...");
+      checkSocketHealth();
+    }
+  }, [selectedGroup, checkSocketHealth]);
+
+  // Garantir que estamos inscritos nos eventos do grupo
+  useEffect(() => {
+    if (selectedGroup) {
+      console.log("Verificando eventos de grupo...");
+      subscribeToGroupEvents();
+      
+      // Tentar entrar na sala específica do grupo
+      if (socket && socket.connected) {
+        console.log("Entrando na sala do grupo via effect:", selectedGroup._id);
+        socket.emit("joinGroup", selectedGroup._id);
+        
+        // Verificar se conseguimos entrar
+        setTimeout(() => {
+          socket.emit("checkConnection");
+        }, 1000);
+      }
+    }
+  }, [selectedGroup, socket, subscribeToGroupEvents]);
 
   // Efeito para carregar mensagens
   useEffect(() => {
@@ -171,13 +200,16 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
           // Verificar se esta mensagem está destacada
           const isHighlighted = message._id === highlightedMessageId;
           
+          // Verificar se é uma mensagem temporária
+          const isTemporary = message._id && String(message._id).startsWith('temp-');
+          
           return (
             <div
               key={message._id}
               id={`group-message-${message._id}`}
               className={`chat ${isMyMessage ? "chat-end" : "chat-start"} ${
                 isHighlighted ? "bg-base-200 rounded-lg transition-colors duration-500" : ""
-              }`}
+              } ${isTemporary ? "opacity-70" : ""}`}
             >
               <div className="chat-image avatar">
                 <div className="size-10 rounded-full border">
@@ -194,31 +226,34 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                   <>
                     <time className="text-xs opacity-50">
                       {formatMessageTime(message.createdAt)}
+                      {isTemporary && " (enviando...)"}
                     </time>
                     <span className="font-semibold text-sm ml-2 flex items-center">
                       {senderName}
                       
-                      {/* Opções de mensagem */}
-                      <div className="message-menu-container ml-1 relative">
-                        <button 
-                          onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
-                          className="p-1 rounded-full hover:bg-base-300 transition-colors"
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                        
-                        {activeMessageMenu === message._id && (
-                          <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
-                            <button
-                              onClick={() => handleDeleteMessage(message._id)}
-                              className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
-                            >
-                              <Trash2 size={16} />
-                              <span>Eliminar</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      {/* Opções de mensagem - apenas para mensagens próprias não temporárias */}
+                      {!isTemporary && (
+                        <div className="message-menu-container ml-1 relative">
+                          <button 
+                            onClick={() => setActiveMessageMenu(activeMessageMenu === message._id ? null : message._id)} 
+                            className="p-1 rounded-full hover:bg-base-300 transition-colors"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                          
+                          {activeMessageMenu === message._id && (
+                            <div className="absolute right-0 mt-1 bg-base-100 shadow-md rounded-md border border-base-300 z-10">
+                              <button
+                                onClick={() => handleDeleteMessage(message._id)}
+                                className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 text-error w-full text-left whitespace-nowrap"
+                              >
+                                <Trash2 size={16} />
+                                <span>Eliminar</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </span>
                   </>
                 ) : (

@@ -12,6 +12,7 @@ export const useGroupStore = create((set, get) => ({
   isGroupsLoading: false,
   isGroupMessagesLoading: false,
   unreadGroupCounts: {}, // {groupId: count}
+  isSubscribed: false, // Controlar se já subscreveu eventos
   
   // Inicializar
   initializeGroups: async () => {
@@ -22,6 +23,11 @@ export const useGroupStore = create((set, get) => ({
       
       // Calcular mensagens não lidas para cada grupo
       await get().calculateUnreadCounts();
+      
+      // Garantir que estamos subscritos a eventos
+      if (!get().isSubscribed) {
+        get().subscribeToGroupEvents();
+      }
     } catch (error) {
       console.error("Erro ao inicializar grupos:", error);
       toast.error("Erro ao carregar grupos");
@@ -115,17 +121,32 @@ export const useGroupStore = create((set, get) => ({
         console.warn("Não foi possível limpar o usuário selecionado:", error);
       }
       
+      // ATUALIZADO: Garantir que estamos inscritos nos eventos antes de entrar no grupo
+      const { isSubscribed } = get();
+      if (!isSubscribed) {
+        get().subscribeToGroupEvents();
+      }
+      
       // NOVO: Juntar-se à sala do grupo selecionado
       const socket = useAuthStore.getState().socket;
-      if (socket) {
+      if (socket && socket.connected) {
         // Primeiro saia de qualquer sala de grupo anterior
         const prevGroup = get().selectedGroup;
-        if (prevGroup && prevGroup._id !== group._id) {
+        if (prevGroup && prevGroup._id && prevGroup._id !== group._id) {
           socket.emit("leaveGroup", prevGroup._id);
         }
         
         // Então junte-se à nova sala
+        console.log("Entrando na sala do grupo:", group._id);
         socket.emit("joinGroup", group._id);
+        
+        // Verificar se estamos realmente na sala (diagnóstico)
+        setTimeout(() => {
+          socket.emit("checkConnection");
+        }, 500);
+      } else {
+        console.warn("Socket não está conectado ao selecionar grupo. Tentando reconectar...");
+        useAuthStore.getState().reconnectSocket();
       }
       
       // Carregar mensagens e marcar como lidas
@@ -222,6 +243,7 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
+  // MELHORADO: Enviar mensagem de grupo com melhor tratamento
   sendGroupMessage: async (groupId, messageData) => {
     try {
       const authUser = useAuthStore.getState().authUser;
@@ -229,7 +251,7 @@ export const useGroupStore = create((set, get) => ({
       
       // Criar mensagem temporária
       const tempMessage = {
-        _id: `backup-${Date.now().toString()}`,
+        _id: `temp-${Date.now().toString()}`,
         text: messageData.text || "",
         image: messageData.image || null,
         file: messageData.file || null,
@@ -247,6 +269,16 @@ export const useGroupStore = create((set, get) => ({
       set(state => ({
         groupMessages: [...state.groupMessages, tempMessage]
       }));
+      
+      // NOVO: Verificar se o socket está conectado
+      if (socket && socket.connected) {
+        // Enviar direto via Socket para backup
+        socket.emit("sendGroupMessage", {
+          groupId,
+          text: messageData.text,
+          timestamp: tempMessage.createdAt
+        });
+      }
       
       // Enviar via API
       const res = await axiosInstance.post(`/groups/${groupId}/message`, messageData);
@@ -275,7 +307,7 @@ export const useGroupStore = create((set, get) => ({
       // Remover mensagem temporária em caso de erro
       set(state => ({
         groupMessages: state.groupMessages.filter(msg => 
-          !msg._id.toString().startsWith("backup-")
+          !msg._id.toString().startsWith("temp-")
         )
       }));
       
@@ -283,21 +315,35 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
+  // MELHORADO: Sistema de subscriptions mais robusto com retry
   subscribeToGroupEvents: () => {
-    const socket = useAuthStore.getState().socket;
-    if (!socket) return;
+    // Primeiro, verifique se já está subscrito para evitar duplicação
+    if (get().isSubscribed) {
+      console.log("Já está subscrito aos eventos de grupo, pulando...");
+      return;
+    }
     
-    // Remover listeners existentes primeiro
-    socket.off("newGroup");
-    socket.off("newGroupMessage");
-    socket.off("addedToGroup");
-    socket.off("removedFromGroup");
-    socket.off("groupDeleted");
-    socket.off("groupMessageDeleted");
-    socket.off("groupUpdated");
+    const socket = useAuthStore.getState().socket;
+    if (!socket) {
+      console.warn("Socket não disponível para subscrever eventos de grupo");
+      // Tentar reconectar o socket
+      const reconnectSuccess = useAuthStore.getState().reconnectSocket();
+      if (!reconnectSuccess) {
+        // Tentar novamente em 3 segundos
+        setTimeout(() => get().subscribeToGroupEvents(), 3000);
+        return;
+      }
+      return;
+    }
+    
+    console.log("Subscrevendo aos eventos de grupo...");
+    
+    // Remover listeners existentes primeiro para evitar duplicação
+    get().unsubscribeFromGroupEvents();
     
     // Novo grupo criado
     socket.on("newGroup", (group) => {
+      console.log("Novo grupo recebido:", group.name);
       set(state => ({
         groups: [group, ...state.groups]
       }));
@@ -306,6 +352,7 @@ export const useGroupStore = create((set, get) => ({
     
     // Mensagem de grupo eliminada
     socket.on("groupMessageDeleted", ({ messageId, groupId }) => {
+      console.log("Mensagem de grupo eliminada:", messageId);
       const currentGroup = get().selectedGroup;
       
       if (currentGroup && currentGroup._id === groupId) {
@@ -318,18 +365,34 @@ export const useGroupStore = create((set, get) => ({
       get().initializeGroups();
     });
     
+    // MELHORADO: Processamento de novas mensagens de grupo
     socket.on("newGroupMessage", ({ message, group }) => {
+      console.log("Nova mensagem de grupo recebida:", message.text);
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
+      
+      // Verificar se a mensagem já está no estado (para evitar duplicação)
+      const messageExists = get().groupMessages.some(msg => 
+        msg._id === message._id || 
+        (msg._id.startsWith('temp-') && msg.text === message.text && 
+         msg.createdAt === message.createdAt)
+      );
+      
+      if (messageExists) {
+        console.log("Mensagem já existe no estado, ignorando");
+        return;
+      }
     
       // Formatar a mensagem
       const formattedMessage = {
         ...message,
-        senderId: {
-          _id: message.senderId._id || message.senderId,
-          fullName: message.senderId.fullName || 'Membro do grupo',
-          profilePic: message.senderId.profilePic || '/avatar.png'
-        }
+        senderId: typeof message.senderId === 'object' 
+          ? message.senderId 
+          : {
+              _id: message.senderId,
+              fullName: message.senderName || 'Membro do grupo',
+              profilePic: message.senderProfilePic || '/avatar.png'
+            }
       };
     
       // Adicionar a mensagem independente do grupo selecionado
@@ -354,14 +417,69 @@ export const useGroupStore = create((set, get) => ({
         };
       });
       
+      // NOVO: Tocar som de notificação para grupos não selecionados
+      if (!currentGroup || currentGroup._id !== message.groupId) {
+        if (message.senderId !== authUser._id) {
+          try {
+            const notificationSound = new Audio('/notification.mp3');
+            notificationSound.volume = 0.5;
+            notificationSound.play().catch(err => console.log('Erro ao tocar som:', err));
+          } catch (err) {
+            console.log('Erro ao criar áudio:', err);
+          }
+        }
+      }
+      
       // Atualizar lista de grupos
       setTimeout(() => {
         get().initializeGroups();
       }, 500);
     });
     
+    // Melhoramento: Também receber mensagens diretas de grupo
+    socket.on("directGroupMessage", (message) => {
+      console.log("Mensagem direta de grupo recebida:", message);
+      
+      // Ignorar mensagens próprias (já estão no estado)
+      if (message.senderId === useAuthStore.getState().authUser._id) {
+        return;
+      }
+      
+      const currentGroup = get().selectedGroup;
+      
+      // Verificar se estamos no grupo correto
+      if (currentGroup && currentGroup._id === message.groupId) {
+        // Criar formato de mensagem compatível
+        const formattedMessage = {
+          _id: message._id || `direct-${Date.now()}`,
+          text: message.text || "",
+          groupId: message.groupId,
+          createdAt: message.timestamp || new Date().toISOString(),
+          senderId: {
+            _id: message.senderId,
+            fullName: message.senderName || "Membro do grupo",
+            profilePic: "/avatar.png"
+          },
+          read: []
+        };
+        
+        set(state => ({
+          groupMessages: [...state.groupMessages, formattedMessage]
+        }));
+      } else {
+        // Incrementar contagem não lida
+        set(state => ({
+          unreadGroupCounts: {
+            ...state.unreadGroupCounts,
+            [message.groupId]: (state.unreadGroupCounts[message.groupId] || 0) + 1
+          }
+        }));
+      }
+    });
+    
     // Adicionado a um grupo
     socket.on("addedToGroup", (group) => {
+      console.log("Adicionado ao grupo:", group.name);
       set(state => ({
         groups: [group, ...state.groups]
       }));
@@ -406,10 +524,20 @@ export const useGroupStore = create((set, get) => ({
       
       toast.info(`O grupo "${updatedGroup.name}" foi atualizado`);
     });
+    
+    // Marcar como inscrito
+    set({ isSubscribed: true });
+    console.log("Subscrito com sucesso aos eventos de grupo");
+    
+    // NOVO: Verificar se há salas de grupo para entrar
+    const currentGroup = get().selectedGroup;
+    if (currentGroup) {
+      console.log("Entrando na sala do grupo atual:", currentGroup._id);
+      socket.emit("joinGroup", currentGroup._id);
+    }
   },
 
-  // Restante das funções permanece igual...
-  // [Todo o código anterior permanece o mesmo, e continua a partir daqui]
+  // Resto do código permanece igual, com as funções que estão abaixo
 
   addGroupMembers: async (groupId, members) => {
     try {
@@ -433,7 +561,6 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
-  // Remover membro do grupo
   removeGroupMember: async (groupId, memberId) => {
     try {
       console.log("Tentando remover membro:", { groupId, memberId });
@@ -505,7 +632,6 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
-  // Sair de um grupo
   leaveGroup: async (groupId) => {
     try {
       await axiosInstance.delete(`/groups/${groupId}/leave`);
@@ -541,7 +667,6 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
-  // Versão final da função deleteGroup
   deleteGroup: async (groupId) => {
     try {
       const loadingToast = toast.loading("Excluindo grupo...");
@@ -632,7 +757,7 @@ export const useGroupStore = create((set, get) => ({
     }
   },
 
-  // Função para eliminar mensagem de grupo - CORRIGIDA
+  // Função para eliminar mensagem de grupo
   deleteGroupMessage: async (messageId) => {
     try {
       // Obter o grupo selecionado
@@ -641,7 +766,7 @@ export const useGroupStore = create((set, get) => ({
         throw new Error("Nenhum grupo selecionado");
       }
       
-      // Fazer chamada para excluir a mensagem - ROTA CORRIGIDA
+      // Fazer chamada para excluir a mensagem
       const response = await axiosInstance.delete(`/groups/${selectedGroup._id}/messages/${messageId}`);
       
       // Atualizar estado removendo a mensagem local
@@ -654,7 +779,7 @@ export const useGroupStore = create((set, get) => ({
       
       // Notificar outros membros via WebSocket (o backend já faz isso, mas mantemos por redundância)
       const socket = useAuthStore.getState().socket;
-      if (socket) {
+      if (socket && socket.connected) {
         socket.emit("groupMessageDeleted", {
           messageId,
           groupId: selectedGroup._id
@@ -681,22 +806,29 @@ export const useGroupStore = create((set, get) => ({
 
     socket.off("newGroup");
     socket.off("newGroupMessage");
+    socket.off("directGroupMessage");
     socket.off("addedToGroup");
     socket.off("removedFromGroup");
     socket.off("groupDeleted");
     socket.off("groupMessageDeleted");
     socket.off("groupUpdated");
+    
+    set({ isSubscribed: false });
   },
 
   // Resetar estado (para logout)
   resetGroupState: () => {
+    // Cancelar subscrições primeiro
+    get().unsubscribeFromGroupEvents();
+    
     set({
       groups: [],
       selectedGroup: null,
       groupMessages: [],
       isGroupsLoading: false,
       isGroupMessagesLoading: false,
-      unreadGroupCounts: {}
+      unreadGroupCounts: {},
+      isSubscribed: false
     });
   }
 }));

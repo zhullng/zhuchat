@@ -1,8 +1,10 @@
 // components/GroupMessageInput.jsx
 import { useRef, useState, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
 import toast from "react-hot-toast";
+import { isSocketHealthy } from "../services/socket";
 
 const GroupMessageInput = () => {
   const [text, setText] = useState("");
@@ -16,7 +18,17 @@ const GroupMessageInput = () => {
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
   const textareaRef = useRef(null);
+  
   const { sendGroupMessage, selectedGroup } = useGroupStore();
+  const { socket, checkSocketHealth } = useAuthStore();
+
+  // Verificar saúde do socket quando o componente carrega
+  useEffect(() => {
+    if (!isSocketHealthy() && selectedGroup) {
+      console.log("Socket não saudável no input de mensagem do grupo, verificando...");
+      checkSocketHealth();
+    }
+  }, [selectedGroup, checkSocketHealth]);
 
   // Função para converter tamanho de arquivo para formato legível
   const formatFileSize = (bytes) => {
@@ -90,10 +102,9 @@ const GroupMessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ATUALIZADO
+  // MELHORADO com interação direta de socket
   const handleSendMessage = async (e) => {
-    // Importante: Previnir o comportamento padrão do formulário 
-    // para evitar refresh da página
+    // Prevenir o comportamento padrão do formulário 
     e.preventDefault();
     
     if (!text.trim() && !imageData && !fileInfo) return;
@@ -112,7 +123,17 @@ const GroupMessageInput = () => {
         );
       }
 
-      // ATUALIZADO: Capturar o texto atual e limpar imediatamente para melhor feedback
+      // NOVO: Se o socket estiver saudável, enviar diretamente via socket primeiro
+      // para feedback instantâneo, mesmo antes da API responder
+      if (socket && socket.connected && text.trim()) {
+        socket.emit("sendGroupMessage", {
+          groupId: selectedGroup._id,
+          text: text.trim(),
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Capturar o texto atual e limpar imediatamente
       const messageText = text;
       setText("");
       if (textareaRef.current) {
@@ -138,8 +159,12 @@ const GroupMessageInput = () => {
         };
       }
 
-      // Importante: Não recarregamos as mensagens inteiras após o envio
-      // para evitar resets na interface
+      // NOVO: Verificar novamente o socket antes de enviar
+      if (!isSocketHealthy()) {
+        console.log("Socket não está saudável ao enviar mensagem, reconectando...");
+        checkSocketHealth();
+      }
+
       await sendGroupMessage(selectedGroup._id, messageData);
 
       // Remover toast de carregamento se existir
@@ -337,7 +362,11 @@ const GroupMessageInput = () => {
           className="btn btn-sm btn-circle hover:bg-base-300"
           disabled={(!text.trim() && !imageData && !fileInfo) || isUploading}
         >
-          <Send size={22} />
+          {isUploading ? (
+            <span className="loading loading-spinner loading-xs"></span>
+          ) : (
+            <Send size={22} />
+          )}
         </button>
         
         <input
