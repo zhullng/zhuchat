@@ -115,12 +115,12 @@ export const getGroupById = async (req, res) => {
 
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { text, image, file } = req.body;
+    const { text, image, fileData } = req.body;
     const { id: groupId } = req.params;
     const senderId = req.user._id;
     
     // Validações iniciais
-    if (!text && !image && !file) {
+    if (!text && !image && !fileData) {
       return res.status(400).json({ error: "Mensagem vazia" });
     }
     
@@ -134,7 +134,8 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(403).json({ error: "Você não é membro deste grupo" });
     }
     
-    let imageUrl, fileData = null;
+    let imageUrl = null;
+    let parsedFileData = null;
     
     // Upload de imagem
     if (image && image.startsWith('data:')) {
@@ -144,18 +145,19 @@ export const sendGroupMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
     
-    // Upload de arquivo
-    if (file && file.data && file.data.startsWith('data:')) {
-      const uploadResponse = await cloudinary.uploader.upload(file.data, {
-        resource_type: "auto",
-        public_id: `group_chat_files/${Date.now()}_${file.name.replace(/\s+/g, '_')}`
-      });
-      
-      fileData = {
-        url: uploadResponse.secure_url,
-        type: file.type || "application/octet-stream",
-        name: file.name || "arquivo"
-      };
+    // Processar fileData (arquivo)
+    if (fileData) {
+      try {
+        // Se for uma string JSON, armazenar diretamente
+        if (typeof fileData === 'string') {
+          parsedFileData = fileData;
+        } else {
+          // Se já for um objeto, converter para string
+          parsedFileData = JSON.stringify(fileData);
+        }
+      } catch (error) {
+        console.error("Erro ao processar dados do arquivo:", error);
+      }
     }
     
     // Criar a mensagem
@@ -164,7 +166,7 @@ export const sendGroupMessage = async (req, res) => {
       senderId,
       text: text || "",
       image: imageUrl,
-      file: fileData,
+      fileData: parsedFileData,
       read: [{ userId: senderId }]
     });
     
@@ -185,29 +187,36 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-  // Broadcast para todos na sala do grupo, EXCETO o remetente
-  const roomName = `group-${groupId}`;
-  io.to(roomName).except(req.user._id.toString()).emit("newGroupMessage", {
-    message: formattedMessage,
-    group: {
-      _id: group._id,
-      name: group.name,
-      members: group.members.map(m => ({
-        _id: m._id,
-        fullName: m.fullName,
-        profilePic: m.profilePic
-      }))
-    }
-  });
-  
-  res.status(201).json(newMessage);
-} catch (error) {
-  console.error("Erro ao enviar mensagem de grupo:", error);
-  res.status(500).json({ 
-    error: "Erro interno do servidor", 
-    details: error.message 
-  });
-}
+    // Broadcast para todos na sala do grupo, EXCETO o remetente
+    const roomName = `group-${groupId}`;
+    io.to(roomName).except(req.user._id.toString()).emit("newGroupMessage", {
+      message: formattedMessage,
+      group: {
+        _id: group._id,
+        name: group.name,
+        members: group.members.map(m => ({
+          _id: m._id,
+          fullName: m.fullName,
+          profilePic: m.profilePic
+        }))
+      }
+    });
+    
+    // Log para depuração
+    console.log("Mensagem enviada com sucesso:", {
+      id: newMessage._id,
+      hasFile: !!parsedFileData,
+      fileSize: parsedFileData ? parsedFileData.length : 0
+    });
+    
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error("Erro ao enviar mensagem de grupo:", error);
+    res.status(500).json({ 
+      error: "Erro interno do servidor", 
+      details: error.message 
+    });
+  }
 };
 
 // Atualizar informações do grupo

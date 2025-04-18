@@ -19,17 +19,11 @@ const groupMessageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
-    file: {
-      url: {
-        type: String
+       // Informações de arquivo codificadas como JSON
+       fileData: {
+        type: String, // Armazena o JSON do arquivo
       },
-      type: {
-        type: String
-      },
-      name: {
-        type: String
-      }
-    },
+      
     read: [{
       userId: {
         type: mongoose.Schema.Types.ObjectId,

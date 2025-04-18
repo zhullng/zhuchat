@@ -192,72 +192,64 @@ const GroupMessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Enviar mensagem
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
+ // Enviar mensagem - função handleSendMessage
+const handleSendMessage = async (e) => {
+  e.preventDefault();
+  
+  if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
+    return;
+  }
+  
+  try {
+    setIsUploading(true);
     
-    if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
-      return;
+    const messageData = {
+      text: text.trim() || ""
+    };
+
+    // Adicionar imagem se existir
+    if (imageData) {
+      messageData.image = imageData;
     }
+
+    // Adicionar arquivo se existir
+    if (fileInfo && fileInfo.data) {
+      // Verificar se os dados do arquivo estão em um formato válido
+      if (typeof fileInfo.data !== 'string') {
+        throw new Error("Formato de dados do arquivo inválido");
+      }
+      
+      // Garantir que estamos enviando um objeto com a estrutura esperada
+      const fileDataStr = JSON.stringify({
+        name: fileInfo.name || "arquivo",
+        type: fileInfo.type || "application/octet-stream",
+        size: fileInfo.size || "",
+        data: fileInfo.data
+      });
+      
+      // Atribuir como string para garantir consistência
+      messageData.fileData = fileDataStr;
+    }
+
+    // Enviar mensagem
+    await sendGroupMessage(selectedGroup._id, messageData);
     
-    try {
-      setIsUploading(true);
-      
-      const messageData = {
-        text: text.trim() || ""
-      };
-
-      // Adicionar imagem se existir
-      if (imageData) {
-        messageData.image = imageData;
-      }
-
-      // Adicionar arquivo se existir
-      if (fileInfo && fileInfo.data) {
-        // Verificar se os dados do arquivo estão em um formato válido
-        if (typeof fileInfo.data !== 'string') {
-          throw new Error("Formato de dados do arquivo inválido");
-        }
-        
-        // Garantir que estamos enviando um objeto com a estrutura esperada
-        const fileDataStr = JSON.stringify({
-          name: fileInfo.name || "arquivo",
-          type: fileInfo.type || "application/octet-stream",
-          size: fileInfo.size || "",
-          data: fileInfo.data
-        });
-        
-        // Atribuir como string para garantir consistência
-        messageData.fileData = fileDataStr;
-        
-        // Log para depuração (remover em produção)
-        console.log("Enviando arquivo:", {
-          name: fileInfo.name,
-          type: fileInfo.type,
-          size: fileInfo.size,
-          dataLength: fileInfo.data ? fileInfo.data.length : 0
-        });
-      }
-
-      // Enviar mensagem
-      await sendGroupMessage(selectedGroup._id, messageData);
-      
-      // Limpar formulário
-      setText("");
-      handleRemoveAttachment();
-      setLineCount(1);
-      
-      // Resetar altura do textarea
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "40px";
-      }
-    } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-      toast.error("Erro ao enviar mensagem. Tente novamente.");
-    } finally {
-      setIsUploading(false);
+    // Limpar formulário
+    setText("");
+    handleRemoveAttachment();
+    setLineCount(1);
+    
+    // Resetar altura do textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
     }
-  };
+  } catch (error) {
+    console.error("Erro ao enviar mensagem:", error);
+    toast.error("Erro ao enviar mensagem. Tente novamente.");
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
