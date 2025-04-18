@@ -175,12 +175,12 @@ const GroupMessageInput = () => {
       const messageData = {
         text: text.trim() || ""
       };
-
+  
       // Adicionar imagem se existir
       if (imageData) {
         messageData.image = imageData;
       }
-
+  
       // Adicionar arquivo se existir
       if (fileInfo && fileInfo.data) {
         messageData.file = {
@@ -190,7 +190,7 @@ const GroupMessageInput = () => {
           data: fileInfo.data
         };
       }
-
+  
       // Enviar mensagem
       await sendGroupMessage(selectedGroup._id, messageData);
       
@@ -210,7 +210,7 @@ const GroupMessageInput = () => {
       setIsUploading(false);
     }
   };
-
+  
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
     if (textareaRef.current) {

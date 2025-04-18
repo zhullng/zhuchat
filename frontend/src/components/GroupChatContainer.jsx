@@ -426,122 +426,122 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                   </>
                 )}
               </div>
-          
-              <div className="chat-bubble flex flex-col relative">
-                {/* Renderizar imagem */}
-                {message.image && (
-                  <img
-                    src={message.image}
-                    alt="Imagem anexada"
-                    className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
-                  />
-                )}
-                
-                {/* Renderizar vídeo ou outro tipo de arquivo */}
-                  {fileData && (
-                    <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
-                      {fileData.type.startsWith('video/') && (
-                        <div className="w-full max-w-[500px]">
-                          {videoErrors[message._id] ? (
-                            <VideoFallback 
-                              fileData={fileData} 
-                              onDownload={() => downloadFileFromBase64(fileData)}
-                              onRetry={() => handleRetryVideo(message._id)}
-                            />
-                          ) : (
-                            <div className="video-container relative">
-                              {/* Player de vídeo com melhor compatibilidade */}
-                              <video 
-                                controls 
-                                controlsList="nodownload"
-                                className="w-full h-auto rounded-md cursor-pointer object-contain"
-                                onError={(e) => {
-                                  console.error("Erro ao carregar vídeo:", e);
-                                  handleVideoError(message._id);
-                                }}
-                                preload="metadata"
-                                playsInline
-                              >
-                                {/* Use múltiplas fontes para melhorar compatibilidade */}
-                                <source src={fileData.data} type="video/mp4" />
-                                <source src={fileData.data} type="video/quicktime" />
-                                <source src={fileData.data} type="video/webm" />
-                                {/* Adicione uma mensagem para feedback */}
-                                Seu navegador não suporta reprodução deste vídeo.
-                              </video>
-                            </div>
-                          )}
-                          
-                          {/* Exibir informações do arquivo de vídeo */}
-                          <div className="mt-2 flex items-center justify-between px-2">
-                            <div className="flex items-center">
-                              <FileVideo size={16} className="mr-2" />
-                              <span className="text-xs">{fileData.name}</span>
-                            </div>
-                            <button
-                              onClick={() => downloadFileFromBase64(fileData)}
-                              className="btn btn-xs btn-ghost"
-                              title="Baixar vídeo"
-                            >
-                              <Download size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {!fileData.type.startsWith('video/') && (
-                        // Layout existente para outros tipos de arquivo
-                        <>
-                          <div className="p-2 bg-base-100 rounded-md">
-                            {getFileIcon(fileData.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{fileData.name}</p>
-                            <p className="text-xs opacity-70">{fileData.size}</p>
-                          </div>
-                          <button
-                            onClick={() => downloadFileFromBase64(fileData)}
-                            className="btn btn-sm btn-circle"
-                            disabled={downloadingFiles[message._id]}
-                          >
-                            {downloadingFiles[message._id] ? (
-                              <span className="loading loading-spinner loading-xs"></span>
-                            ) : (
-                              <Download size={16} />
-                            )}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Renderizar texto */}
-                  {message.text && (
-                    <p className="break-words whitespace-pre-wrap">{message.text}</p>
-                  )}
+
+    <div className="chat-bubble flex flex-col relative">
+      {/* Renderizar imagem */}
+      {message.image && (
+        <img
+          src={message.image}
+          alt="Imagem anexada"
+          className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
+        />
+      )}
+      
+      {/* Renderizar vídeo ou outro tipo de arquivo */}
+      {fileData && (
+        <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
+          {fileData.type.startsWith('video/') && (
+            <div className="w-full max-w-[500px]">
+              {videoErrors[message._id] ? (
+                <VideoFallback 
+                  fileData={fileData} 
+                  onDownload={() => downloadFileFromBase64(fileData)}
+                  onRetry={() => handleRetryVideo(message._id)}
+                />
+              ) : (
+                <div className="video-container relative">
+                  {/* Player de vídeo com melhor compatibilidade */}
+                  <video 
+                    controls 
+                    controlsList="nodownload"
+                    className="w-full h-auto rounded-md cursor-pointer object-contain"
+                    onError={(e) => {
+                      console.error("Erro ao carregar vídeo:", e);
+                      handleVideoError(message._id);
+                    }}
+                    preload="metadata"
+                    playsInline
+                  >
+                    {/* Use múltiplas fontes para melhorar compatibilidade */}
+                    <source src={fileData.data} type="video/mp4" />
+                    <source src={fileData.data} type="video/quicktime" />
+                    <source src={fileData.data} type="video/webm" />
+                    {/* Adicione uma mensagem para feedback */}
+                    Seu navegador não suporta reprodução deste vídeo.
+                  </video>
                 </div>
-              </div>
-            );
-          })}
-          
-          {groupMessages.length === 0 && (
-            <div className="flex items-center justify-center h-full text-base-content/60">
-              <div className="text-center">
-                <div className="mb-2">
-                  <Users size={48} className="mx-auto opacity-40" />
+              )}
+              
+              {/* Exibir informações do arquivo de vídeo */}
+              <div className="mt-2 flex items-center justify-between px-2">
+                <div className="flex items-center">
+                  <FileVideo size={16} className="mr-2" />
+                  <span className="text-xs">{fileData.name}</span>
                 </div>
-                <p>Sem mensagens neste grupo</p>
-                <p className="text-sm mt-1">Seja o primeiro a enviar uma mensagem!</p>
+                <button
+                  onClick={() => downloadFileFromBase64(fileData)}
+                  className="btn btn-xs btn-ghost"
+                  title="Baixar vídeo"
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
           )}
           
-          {/* Referência para o final da lista de mensagens */}
-          <div ref={messageEndRef} id="message-end-ref"></div>
-          </div>
-          <GroupMessageInput />
-          </div>
-          );
-          };
-          
-          export default GroupChatContainer;
+          {!fileData.type.startsWith('video/') && (
+            // Layout existente para outros tipos de arquivo
+            <>
+              <div className="p-2 bg-base-100 rounded-md">
+                {getFileIcon(fileData.type)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{fileData.name}</p>
+                <p className="text-xs opacity-70">{fileData.size}</p>
+              </div>
+              <button
+                onClick={() => downloadFileFromBase64(fileData)}
+                className="btn btn-sm btn-circle"
+                disabled={downloadingFiles[message._id]}
+              >
+                {downloadingFiles[message._id] ? (
+                  <span className="loading loading-spinner loading-xs"></span>
+                ) : (
+                  <Download size={16} />
+                )}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      
+      {/* Renderizar texto */}
+      {message.text && (
+        <p className="break-words whitespace-pre-wrap">{message.text}</p>
+      )}
+    </div>
+  </div>
+);
+})}
+
+{groupMessages.length === 0 && (
+  <div className="flex items-center justify-center h-full text-base-content/60">
+    <div className="text-center">
+      <div className="mb-2">
+        <Users size={48} className="mx-auto opacity-40" />
+      </div>
+      <p>Sem mensagens neste grupo</p>
+      <p className="text-sm mt-1">Seja o primeiro a enviar uma mensagem!</p>
+    </div>
+  </div>
+)}
+
+{/* Referência para o final da lista de mensagens */}
+<div ref={messageEndRef} id="message-end-ref"></div>
+</div>
+<GroupMessageInput />
+</div>
+);
+};
+
+export default GroupChatContainer;
