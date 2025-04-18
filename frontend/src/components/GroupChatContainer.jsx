@@ -182,57 +182,29 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     }));
   };
 
-  // Função para baixar arquivo do Cloudinary
-  const downloadCloudinaryFile = async (file, messageId) => {
-    try {
-      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
-      
-      // Mostrar toast de progresso
-      const toastId = toast.loading("Preparando download...");
-      
-      // Tentar fazer download direto via URL
-      try {
-        const response = await fetch(file.url);
-        
-        if (!response.ok) {
-          throw new Error(`Erro de rede: ${response.status}`);
-        }
-        
-        // Obter o blob
-        const blob = await response.blob();
-        
-        // Criar URL para o blob
-        const blobUrl = URL.createObjectURL(blob);
-        
-        // Criar elemento de link temporário
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = file.name || `arquivo${getFileExtension(file.type)}`;
-        downloadLink.style.display = 'none';
-        
-        // Adicionar, clicar e remover
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        
-        // Limpar recursos após o download
-        setTimeout(() => {
-          document.body.removeChild(downloadLink);
-          URL.revokeObjectURL(blobUrl);
-        }, 100);
-        
-        // Atualizar toast para sucesso
-        toast.success("Download concluído", { id: toastId });
-      } catch (error) {
-        console.error("Erro ao baixar via fetch, abrindo em nova aba:", error);
-        window.open(file.url, '_blank');
-        toast.success("Arquivo aberto em nova aba", { id: toastId });
-      }
-    } catch (error) {
-      console.error("Erro ao baixar arquivo:", error);
-      toast.error("Erro ao baixar arquivo. Tente novamente.");
-    } finally {
+  // Função simplificada para abrir/baixar qualquer tipo de arquivo
+  const handleFileDownload = (file, messageId) => {
+    // Log detalhado para debug
+    console.log("Tentando baixar arquivo:", { 
+      name: file.name, 
+      type: file.type, 
+      url: file.url 
+    });
+    
+    // Atualizar estado
+    setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
+    
+    // Mostrar toast de progresso
+    const toastId = toast.loading("Preparando arquivo...");
+    
+    // Abrir em nova aba (método mais confiável)
+    window.open(file.url, '_blank');
+    
+    // Atualizar toast e estado após um curto período
+    setTimeout(() => {
+      toast.success("Arquivo aberto em nova aba", { id: toastId });
       setDownloadingFiles(prev => ({ ...prev, [messageId]: false }));
-    }
+    }, 1000);
   };
 
   // Função auxiliar para obter extensão de arquivo
@@ -421,7 +393,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                         {videoErrors[message._id] ? (
                           <VideoFallback 
                             fileData={message.file} 
-                            onDownload={() => downloadCloudinaryFile(message.file, message._id)}
+                            onDownload={() => handleFileDownload(message.file, message._id)}
                             onRetry={() => handleRetryVideo(message._id)}
                           />
                         ) : (
@@ -455,11 +427,16 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                             <span className="text-xs">{message.file.name}</span>
                           </div>
                           <button
-                            onClick={() => downloadCloudinaryFile(message.file, message._id)}
+                            onClick={() => handleFileDownload(message.file, message._id)}
                             className="btn btn-xs btn-ghost"
-                            title="Baixar vídeo"
+                            title="Abrir vídeo"
+                            disabled={downloadingFiles[message._id]}
                           >
-                            <Download size={14} />
+                            {downloadingFiles[message._id] ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : (
+                              <Download size={14} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -474,7 +451,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                           <p className="text-xs opacity-70">{message.file.size}</p>
                         </div>
                         <button
-                          onClick={() => downloadCloudinaryFile(message.file, message._id)}
+                          onClick={() => handleFileDownload(message.file, message._id)}
                           className="btn btn-sm btn-circle"
                           disabled={downloadingFiles[message._id]}
                         >
