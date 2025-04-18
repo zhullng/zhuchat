@@ -182,29 +182,53 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     }));
   };
 
-  // Função simplificada para abrir/baixar qualquer tipo de arquivo
-  const handleFileDownload = (file, messageId) => {
-    // Log detalhado para debug
-    console.log("Tentando baixar arquivo:", { 
-      name: file.name, 
-      type: file.type, 
-      url: file.url 
-    });
-    
-    // Atualizar estado
-    setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
-    
-    // Mostrar toast de progresso
-    const toastId = toast.loading("Preparando arquivo...");
-    
-    // Abrir em nova aba (método mais confiável)
-    window.open(file.url, '_blank');
-    
-    // Atualizar toast e estado após um curto período
-    setTimeout(() => {
-      toast.success("Arquivo aberto em nova aba", { id: toastId });
+  // NOVA IMPLEMENTAÇÃO: Função para baixar arquivo diretamente
+  const handleFileDownload = async (file, messageId) => {
+    try {
+      // Atualizar estado de download
+      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
+      
+      // Mostrar toast de progresso
+      const toastId = toast.loading("Preparando download...");
+      
+      // Fazer fetch da URL do arquivo
+      const response = await fetch(file.url);
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao baixar arquivo: ${response.status}`);
+      }
+      
+      // Obter o blob do arquivo
+      const blob = await response.blob();
+      
+      // Criar URL do objeto Blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Criar elemento de link para download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = file.name || `arquivo${getFileExtension(file.type)}`;
+      link.style.display = 'none';
+      
+      // Adicionar ao documento e clicar para iniciar download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpar
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(link);
+      }, 100);
+      
+      // Atualizar toast e estado
+      toast.success("Download concluído", { id: toastId });
+    } catch (error) {
+      console.error("Erro ao baixar arquivo:", error);
+      toast.error("Erro ao baixar o arquivo. Tente novamente.");
+    } finally {
+      // Resetar estado de download
       setDownloadingFiles(prev => ({ ...prev, [messageId]: false }));
-    }, 1000);
+    }
   };
 
   // Função auxiliar para obter extensão de arquivo
@@ -429,7 +453,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                           <button
                             onClick={() => handleFileDownload(message.file, message._id)}
                             className="btn btn-xs btn-ghost"
-                            title="Abrir vídeo"
+                            title="Baixar vídeo"
                             disabled={downloadingFiles[message._id]}
                           >
                             {downloadingFiles[message._id] ? (
