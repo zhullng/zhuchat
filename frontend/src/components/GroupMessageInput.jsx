@@ -1,8 +1,7 @@
-// components/GroupMessageInput.jsx
 import { useRef, useState, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Image, Send, X, Plus, FileText, FilePlus } from "lucide-react";
+import { Image, Send, X, Plus, FileText, FilePlus, FileVideo, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { isSocketHealthy } from "../services/socket";
 
@@ -11,9 +10,11 @@ const GroupMessageInput = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageData, setImageData] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [lineCount, setLineCount] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
+
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const optionsRef = useRef(null);
@@ -22,7 +23,7 @@ const GroupMessageInput = () => {
   const { sendGroupMessage, selectedGroup } = useGroupStore();
   const { socket, checkSocketHealth } = useAuthStore();
 
-  // Verificar saúde do socket quando o componente carrega
+  // Verificar saúde do socket
   useEffect(() => {
     if (!isSocketHealthy() && selectedGroup) {
       console.log("Socket não saudável no input de mensagem do grupo, verificando...");
@@ -30,7 +31,7 @@ const GroupMessageInput = () => {
     }
   }, [selectedGroup, checkSocketHealth]);
 
-  // Função para converter tamanho de arquivo para formato legível
+  // Função para converter tamanho de arquivo
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' bytes';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -38,109 +39,177 @@ const GroupMessageInput = () => {
     else return (bytes / 1073741824).toFixed(1) + ' GB';
   };
 
+  // Verificar tamanho máximo de arquivo
+  const isFileTooLarge = (file) => {
+    const isVideo = file.type.startsWith('video/') || 
+                    file.name.toLowerCase().endsWith('.mov') || 
+                    file.name.toLowerCase().endsWith('.mp4');
+    
+    // Limite para vídeos: 50MB
+    if (isVideo && file.size > 50 * 1024 * 1024) {
+      return true;
+    }
+    
+    // Limite para imagens: 15MB
+    if (file.type.startsWith('image/') && file.size > 15 * 1024 * 1024) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Upload de imagem com validações
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
     if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione um arquivo de imagem");
+      toast.error("Por favor, selecione um arquivo de imagem válido");
       return;
     }
 
-    // Verificar tamanho do arquivo (limite de 15MB)
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 15MB");
+    if (isFileTooLarge(file)) {
+      toast.error("A imagem é muito grande. Limite: 15MB");
       return;
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-      setImageData(reader.result);
-      // Limpar qualquer arquivo previamente selecionado
+    reader.onload = (event) => {
+      setImagePreview(event.target.result);
+      setImageData(event.target.result);
       setFileInfo(null);
+      setFilePreview(null);
       setShowOptions(false);
     };
     reader.readAsDataURL(file);
   };
 
+  // Upload de arquivo com suporte a vídeos
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Verificar tamanho do arquivo (limite de 25MB)
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error("O arquivo deve ter no máximo 25MB");
+    const isVideo = file.type.startsWith('video/') || 
+                    file.name.toLowerCase().endsWith('.mov') || 
+                    file.name.toLowerCase().endsWith('.mp4');
+    
+    // Validar tipos de arquivo
+    if (!isVideo && 
+        !file.type.startsWith('image/') && 
+        !file.type.includes('pdf') && 
+        !file.type.includes('word') && 
+        !file.type.includes('text/plain')) {
+      toast.error("Tipo de arquivo não permitido");
+      return;
+    }
+    
+    // Verificar tamanho
+    if (isFileTooLarge(file)) {
+      toast.error("Arquivo muito grande. Por favor, escolha um arquivo menor.");
       return;
     }
 
+    setIsUploading(true);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      // Guardar informações do arquivo
+    
+    reader.onload = (event) => {
+      // Criar preview para vídeos
+      if (isVideo) {
+        try {
+          const previewUrl = URL.createObjectURL(file);
+          setFilePreview(previewUrl);
+        } catch (previewError) {
+          console.error("Erro ao criar preview:", previewError);
+        }
+      }
+      
       setFileInfo({
         name: file.name,
-        type: file.type,
+        type: isVideo ? 'video/mp4' : file.type,
         size: formatFileSize(file.size),
-        data: reader.result
+        data: event.target.result,
+        originalType: file.type
       });
-      // Limpar qualquer imagem previamente selecionada
+      
       setImagePreview(null);
       setImageData(null);
       setShowOptions(false);
+      setIsUploading(false);
     };
+    
+    reader.onerror = (error) => {
+      console.error("Erro ao ler arquivo:", error);
+      toast.error("Erro ao processar arquivo. Tente novamente.");
+      setIsUploading(false);
+    };
+    
     reader.readAsDataURL(file);
   };
 
-  const removeImage = () => {
-    setImagePreview(null);
-    setImageData(null);
-    if (imageInputRef.current) imageInputRef.current.value = "";
-  };
-
-  const removeFile = () => {
-    setFileInfo(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-const handleSendMessage = async (e) => {
-  e.preventDefault();
-  
-  if (!text.trim() && !imageData && !fileInfo) return;
-  if (isUploading || !selectedGroup) return;
-
-  try {
-    setIsUploading(true);
-    
-    // Preparar dados da mensagem
-    const messageData = {
-      text: text.trim(),
-      image: imageData,
-      file: fileInfo ? {
-        data: fileInfo.data,
-        type: fileInfo.type,
-        name: fileInfo.name
-      } : null
-    };
-
-    // Enviar mensagem usando o método do store
-    await sendGroupMessage(selectedGroup._id, messageData);
-    
-    // Limpar formulário
-    setText("");
+  // Remover anexos
+  const handleRemoveAttachment = () => {
     setImagePreview(null);
     setImageData(null);
     setFileInfo(null);
-    setLineCount(1);
     
-    if (textareaRef.current) textareaRef.current.style.height = "40px";
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+      setFilePreview(null);
+    }
+    
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
-  } catch (error) {
-    console.error("Erro ao enviar mensagem:", error);
-  } finally {
-    setIsUploading(false);
-  }
-};
+  };
+
+  // Enviar mensagem
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
+      return;
+    }
+    
+    try {
+      setIsUploading(true);
+      
+      const messageData = {
+        text: text.trim() || ""
+      };
+
+      // Adicionar imagem se existir
+      if (imageData) {
+        messageData.image = imageData;
+      }
+
+      // Adicionar arquivo se existir
+      if (fileInfo && fileInfo.data) {
+        messageData.file = {
+          name: fileInfo.name,
+          type: fileInfo.type,
+          size: fileInfo.size,
+          data: fileInfo.data
+        };
+      }
+
+      // Enviar mensagem
+      await sendGroupMessage(selectedGroup._id, messageData);
+      
+      // Limpar formulário
+      setText("");
+      handleRemoveAttachment();
+      setLineCount(1);
+      
+      // Resetar altura do textarea
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "40px";
+      }
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
@@ -181,7 +250,6 @@ const handleSendMessage = async (e) => {
   }, []);
 
   const handleKeyDown = (e) => {
-    // Também previne o comportamento padrão aqui ao pressionar Enter para enviar
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
@@ -192,7 +260,7 @@ const handleSendMessage = async (e) => {
     if (!fileType) return <FileText size={24} />;
     
     if (fileType.startsWith('image/')) return <Image size={24} />;
-    if (fileType.startsWith('video/')) return <FilePlus size={24} />;
+    if (fileType.startsWith('video/')) return <FileVideo size={24} />;
     if (fileType.startsWith('audio/')) return <FilePlus size={24} />;
     if (fileType.includes('pdf')) return <FileText size={24} />;
     if (fileType.includes('word') || fileType.includes('document')) return <FileText size={24} />;
@@ -207,7 +275,7 @@ const handleSendMessage = async (e) => {
       {(imagePreview || fileInfo) && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative p-2 bg-base-200 rounded-lg border border-base-300">
-            {imagePreview ? (
+            {imagePreview && (
               <div className="flex items-center">
                 <img
                   src={imagePreview}
@@ -216,27 +284,53 @@ const handleSendMessage = async (e) => {
                 />
                 <span className="ml-2 text-sm">Imagem anexada</span>
               </div>
-            ) : fileInfo ? (
-              <div className="flex items-center">
-                <div className="p-2 bg-base-100 rounded-lg">
-                  {getFileIcon(fileInfo.type)}
-                </div>
-                <div className="ml-2">
-                  <p className="text-sm font-medium truncate max-w-[150px]">{fileInfo.name}</p>
-                  <p className="text-xs opacity-70">{fileInfo.size}</p>
-                </div>
-              </div>
-            ) : null}
+            )}
             
-            <button
-              onClick={imagePreview ? removeImage : removeFile}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
-              flex items-center justify-center"
-              type="button"
-              disabled={isUploading}
-            >
-              <X className="size-3" />
-            </button>
+            {fileInfo && (
+              <div className="flex items-center">
+                {filePreview && fileInfo.type.startsWith('video/') ? (
+                  <div className="flex items-center">
+                    <video
+                      src={filePreview}
+                      className="w-20 h-20 object-cover rounded-lg"
+                      preload="metadata"
+                    />
+                    <span className="ml-2 text-sm">
+                      {!fileInfo.data && isUploading ? (
+                        <span className="flex items-center">
+                          Carregando vídeo
+                          <span className="loading loading-dots loading-xs ml-1"></span>
+                        </span>
+                      ) : (
+                        "Vídeo anexado"
+                      )}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <div className="p-2 bg-base-100 rounded-lg">
+                      {getFileIcon(fileInfo.type)}
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-sm font-medium truncate max-w-[150px]">
+                        {fileInfo.name}
+                      </p>
+                      <p className="text-xs opacity-70">{fileInfo.size}</p>
+                    </div>
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleRemoveAttachment}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 
+                  flex items-center justify-center"
+                  type="button"
+                  disabled={isUploading}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
