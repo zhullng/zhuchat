@@ -5,10 +5,40 @@ import { useAuthStore } from "../store/useAuthStore";
 import GroupChatHeader from "./GroupChatHeader";
 import GroupMessageInput from "./GroupMessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import { Trash2, MoreVertical, Users, FileText, FileVideo, Image, File, Download, ExternalLink } from "lucide-react";
-import { formatMessageTime } from "../lib/utils";
+import { Trash2, MoreVertical, Users, FileText, FileVideo, Image, File, Download, FileAudio, FileBadge } from "lucide-react";
+import { formatMessageTime, normalizeVideoDataURI } from "../lib/utils";
 import toast from "react-hot-toast";
 import { isSocketHealthy } from "../services/socket";
+
+// Componente de fallback para vídeos que não reproduzem
+const VideoFallback = ({ fileData, onDownload, onRetry }) => {
+  return (
+    <div className="flex flex-col items-center gap-3 p-4 border border-base-300 rounded-lg bg-base-200">
+      <div className="flex items-center justify-center bg-base-100 p-6 rounded-lg">
+        <FileVideo size={48} />
+      </div>
+      <p className="text-center">
+        <span className="font-medium">Não foi possível reproduzir o vídeo.</span><br />
+        <span className="text-sm opacity-70">Formato não suportado por este navegador.</span>
+      </p>
+      <div className="flex gap-2">
+        <button 
+          onClick={onDownload}
+          className="btn btn-sm btn-primary"
+        >
+          <Download size={16} />
+          <span>Baixar Vídeo</span>
+        </button>
+        <button 
+          onClick={onRetry}
+          className="btn btn-sm btn-outline"
+        >
+          <span>Tentar novamente</span>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const GroupChatContainer = ({ isMobile = false, onBack }) => {
   const {
@@ -26,7 +56,8 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [activeMessageMenu, setActiveMessageMenu] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
-  const [downloadingFile, setDownloadingFile] = useState(null);
+  const [downloadingFiles, setDownloadingFiles] = useState({});
+  const [videoErrors, setVideoErrors] = useState({});
 
   // Verificar saúde do socket ao iniciar
   useEffect(() => {
@@ -64,6 +95,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
       // Resetar estado de scroll inicial
       setInitialScrollDone(false);
       setActiveMessageMenu(null);
+      setVideoErrors({});
     }
   }, [selectedGroup?._id, getGroupMessages, markGroupAsRead]);
 
@@ -120,45 +152,86 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     }
   };
 
-  // Função para obter o ícone do tipo de arquivo
+  // Função para determinar ícone apropriado para o tipo de arquivo
   const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText size={20} />;
+    if (!fileType) return <File size={22} />;
     
-    if (fileType.startsWith('image/')) return <Image size={20} />;
-    if (fileType.startsWith('video/')) return <FileVideo size={20} />;
-    if (fileType.includes('pdf')) return <FileText size={20} />;
-    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={20} />;
+    if (fileType.startsWith('image/')) return <Image size={22} />;
+    if (fileType.startsWith('video/')) return <FileVideo size={22} />;
+    if (fileType.startsWith('audio/')) return <FileAudio size={22} />;
+    if (fileType.includes('pdf')) return <FileBadge size={22} />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText size={22} />;
+    if (fileType.includes('excel') || fileType.includes('sheet')) return <FileText size={22} />;
     
-    return <File size={20} />;
+    return <FileText size={22} />;
   };
 
-  // Função simplificada para visualizar arquivos
-  const handleFileView = (file, messageId) => {
-    if (!file || !file.url) {
-      toast.error("URL do arquivo não disponível");
-      return;
-    }
-    
+  // Função para lidar com erros de vídeo
+  const handleVideoError = (messageId) => {
+    setVideoErrors(prev => ({
+      ...prev,
+      [messageId]: true
+    }));
+  };
+
+  // Função para tentar reproduzir o vídeo novamente
+  const handleRetryVideo = (messageId) => {
+    setVideoErrors(prev => ({
+      ...prev,
+      [messageId]: false
+    }));
+  };
+
+  // Função para baixar arquivo do Cloudinary
+  const downloadCloudinaryFile = async (file, messageId) => {
     try {
-      // Indicar que está processando
-      setDownloadingFile(messageId);
+      setDownloadingFiles(prev => ({ ...prev, [messageId]: true }));
       
-      // Mostrar toast
-      const loadingToast = toast.loading(`Abrindo ${file.name || 'arquivo'}...`);
+      // Mostrar toast de progresso
+      const toastId = toast.loading("Preparando download...");
       
-      // Abrir em nova aba
-      window.open(file.url, '_blank');
-      
-      // Atualizar interface após curto período
-      setTimeout(() => {
-        setDownloadingFile(null);
-        toast.dismiss(loadingToast);
-        toast.success(`${file.name || 'Arquivo'} aberto em nova aba`);
-      }, 1000);
+      // Tentar fazer download direto via URL
+      try {
+        const response = await fetch(file.url);
+        
+        if (!response.ok) {
+          throw new Error(`Erro de rede: ${response.status}`);
+        }
+        
+        // Obter o blob
+        const blob = await response.blob();
+        
+        // Criar URL para o blob
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Criar elemento de link temporário
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = file.name || `arquivo${getFileExtension(file.type)}`;
+        downloadLink.style.display = 'none';
+        
+        // Adicionar, clicar e remover
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        
+        // Limpar recursos após o download
+        setTimeout(() => {
+          document.body.removeChild(downloadLink);
+          URL.revokeObjectURL(blobUrl);
+        }, 100);
+        
+        // Atualizar toast para sucesso
+        toast.success("Download concluído", { id: toastId });
+      } catch (error) {
+        console.error("Erro ao baixar via fetch, abrindo em nova aba:", error);
+        window.open(file.url, '_blank');
+        toast.success("Arquivo aberto em nova aba", { id: toastId });
+      }
     } catch (error) {
-      console.error("Erro ao abrir arquivo:", error);
-      toast.error("Não foi possível abrir o arquivo");
-      setDownloadingFile(null);
+      console.error("Erro ao baixar arquivo:", error);
+      toast.error("Erro ao baixar arquivo. Tente novamente.");
+    } finally {
+      setDownloadingFiles(prev => ({ ...prev, [messageId]: false }));
     }
   };
 
@@ -336,61 +409,82 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
                   <img
                     src={message.image}
                     alt="Imagem anexada"
-                    className="sm:max-w-[200px] max-w-full rounded-md mb-2"
+                    className="sm:max-w-[300px] max-w-[200px] rounded-md mb-2"
                   />
                 )}
                 
                 {/* Renderizar vídeo ou outro tipo de arquivo */}
                 {message.file && (
-                  <div className="bg-base-300 rounded-md p-2 mb-2 w-full max-w-xs">
+                  <div className="flex items-center gap-2 bg-base-200 p-2 rounded-md mb-2">
                     {message.file.type && message.file.type.startsWith('video/') ? (
-                      <div className="flex flex-col gap-1">
-                        <video 
-                          src={message.file.url} 
-                          controls
-                          className="rounded-md w-full max-w-xs max-h-48 object-contain"
-                        >
-                          <source src={message.file.url} type={message.file.type} />
-                          Seu navegador não suporta vídeos.
-                        </video>
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs truncate flex-1">{message.file.name}</span>
-                          <button 
-                            onClick={() => handleFileView(message.file, message._id)}
-                            disabled={downloadingFile === message._id}
-                            className="btn btn-xs btn-ghost btn-square text-primary"
-                            title="Abrir em nova aba"
+                      <div className="w-full max-w-[500px]">
+                        {videoErrors[message._id] ? (
+                          <VideoFallback 
+                            fileData={message.file} 
+                            onDownload={() => downloadCloudinaryFile(message.file, message._id)}
+                            onRetry={() => handleRetryVideo(message._id)}
+                          />
+                        ) : (
+                          <div className="video-container relative">
+                            {/* Player de vídeo com melhor compatibilidade */}
+                            <video 
+                              controls 
+                              controlsList="nodownload"
+                              className="w-full h-auto rounded-md cursor-pointer object-contain"
+                              onError={(e) => {
+                                console.error("Erro ao carregar vídeo:", e);
+                                handleVideoError(message._id);
+                              }}
+                              preload="metadata"
+                              playsInline
+                              src={message.file.url}
+                            >
+                              <source src={message.file.url} type={message.file.type} />
+                              <source src={message.file.url} type="video/mp4" />
+                              <source src={message.file.url} type="video/quicktime" />
+                              <source src={message.file.url} type="video/webm" />
+                              Seu navegador não suporta reprodução deste vídeo.
+                            </video>
+                          </div>
+                        )}
+                        
+                        {/* Exibir informações do arquivo de vídeo */}
+                        <div className="mt-2 flex items-center justify-between px-2">
+                          <div className="flex items-center">
+                            <FileVideo size={16} className="mr-2" />
+                            <span className="text-xs">{message.file.name}</span>
+                          </div>
+                          <button
+                            onClick={() => downloadCloudinaryFile(message.file, message._id)}
+                            className="btn btn-xs btn-ghost"
+                            title="Baixar vídeo"
                           >
-                            {downloadingFile === message._id ? (
-                              <span className="loading loading-spinner loading-xs"></span>
-                            ) : (
-                              <ExternalLink size={14} />
-                            )}
+                            <Download size={14} />
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-base-200 rounded-md">
+                      // Layout existente para outros tipos de arquivo
+                      <>
+                        <div className="p-2 bg-base-100 rounded-md">
                           {getFileIcon(message.file.type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{message.file.name}</p>
                           <p className="text-xs opacity-70">{message.file.size}</p>
                         </div>
-                        <button 
-                          onClick={() => handleFileView(message.file, message._id)}
-                          disabled={downloadingFile === message._id}
-                          className="btn btn-xs btn-ghost btn-square text-primary"
-                          title="Abrir em nova aba"
+                        <button
+                          onClick={() => downloadCloudinaryFile(message.file, message._id)}
+                          className="btn btn-sm btn-circle"
+                          disabled={downloadingFiles[message._id]}
                         >
-                          {downloadingFile === message._id ? (
+                          {downloadingFiles[message._id] ? (
                             <span className="loading loading-spinner loading-xs"></span>
                           ) : (
-                            <ExternalLink size={14} />
+                            <Download size={16} />
                           )}
                         </button>
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
