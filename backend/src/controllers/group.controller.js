@@ -185,9 +185,8 @@ export const sendGroupMessage = async (req, res) => {
       }
     };
     
-    // Broadcast para todos na sala do grupo
     const roomName = `group-${groupId}`;
-    io.to(roomName).emit("newGroupMessage", {
+    io.to(roomName).except(req.user._id.toString()).emit("newGroupMessage", {
       message: formattedMessage,
       group: {
         _id: group._id,

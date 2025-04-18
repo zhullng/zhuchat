@@ -359,7 +359,10 @@ export const useGroupStore = create((set, get) => ({
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
-      // REMOVIDO: Verificação de mensagem duplicada que estava causando problemas
+       // Ignorar mensagens do próprio usuário
+  if (message.senderId._id === authUser._id) {
+    return;
+  }
       
       // Formatar a mensagem
       const formattedMessage = {
