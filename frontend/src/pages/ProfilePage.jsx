@@ -4,6 +4,12 @@ import { Mail, User, ShieldCheck, Clock, Shield } from "lucide-react";
 const ProfilePage = () => {
   const { authUser } = useAuthStore();
 
+  // Função para converter o valor do gênero para exibição em português
+  const getGenderDisplay = (gender) => {
+    if (!gender) return "Não especificado";
+    return gender === "male" ? "Masculino" : "Feminino";
+  };
+
   return (
     <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
       <div className="max-w-2xl mx-auto p-4 py-8">
@@ -52,7 +58,7 @@ const ProfilePage = () => {
                 <div>
                   <p className="text-sm font-medium">Género</p>
                   <p className="text-base-content/70 capitalize">
-                    {authUser?.gender || "Não especificado"}
+                    {getGenderDisplay(authUser?.gender)}
                   </p>
                 </div>
               </div>
@@ -85,7 +91,7 @@ const ProfilePage = () => {
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2">
                   <Shield className="size-4 text-primary/70" />
-                  <span className="text-sm">Status da Conta</span>
+                  <span className="text-sm">Estado da Conta</span>
                 </div>
                 <span className="text-sm font-medium text-green-500">Ativa</span>
               </div>
