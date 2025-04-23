@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { getAIResponse } from "../../../backend/src/lib/ai";
 import { useAuthStore } from "../store/useAuthStore";
-import { Bot, Send, X, Copy, Check } from "lucide-react";
+import { Bot, Send, X, Copy, Check, Trash } from "lucide-react";
 
 const AIChat = ({ setSelectedUser }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
+  const [showClearModal, setShowClearModal] = useState(false);
   const messagesEndRef = useRef(null);
   const { authUser } = useAuthStore();
 
@@ -102,12 +103,16 @@ const AIChat = ({ setSelectedUser }) => {
   };
 
   const clearChatHistory = () => {
-    if (window.confirm("Tem a certeza que deseja limpar o histórico da conversa?")) {
-      setMessages([]);
-      if (authUser) {
-        localStorage.removeItem(`aiChat_${authUser._id}`);
-      }
+    // Em vez de usar window.confirm, ativamos o modal personalizado
+    setShowClearModal(true);
+  };
+
+  const confirmClearChat = () => {
+    setMessages([]);
+    if (authUser) {
+      localStorage.removeItem(`aiChat_${authUser._id}`);
     }
+    setShowClearModal(false);
   };
 
   return (
@@ -239,6 +244,40 @@ const AIChat = ({ setSelectedUser }) => {
           </div>
         </form>
       </div>
+
+      {/* Modal de confirmação para limpar chat */}
+      {showClearModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4 shadow-lg">
+            <div className="text-center mb-4">
+              <div className="flex justify-center mb-3">
+                <div className="p-3 bg-error/10 rounded-full">
+                  <Trash className="size-8 text-error" />
+                </div>
+              </div>
+              <h3 className="text-lg font-medium mb-2">Limpar conversa</h3>
+              <p className="text-sm text-base-content/70">
+                Tem a certeza que deseja limpar o histórico da conversa?
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => setShowClearModal(false)}
+                className="btn btn-ghost"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmClearChat}
+                className="btn btn-error"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
