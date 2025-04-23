@@ -12,7 +12,8 @@ import {
   ArrowLeft,
   Check,
   X,
-  Trash
+  Trash,
+  AlertCircle
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ReactCrop from 'react-image-crop';
@@ -46,6 +47,7 @@ const SettingsProfilePage = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
+  const [showNoChangesAlert, setShowNoChangesAlert] = useState(false);
 
   // Inicializar os dados do formulário quando o utilizador estiver disponível
   useEffect(() => {
@@ -91,6 +93,17 @@ const SettingsProfilePage = () => {
       crop.height
     );
   }, [completedCrop]);
+
+  // Efeito para esconder o alerta após 3 segundos
+  useEffect(() => {
+    if (showNoChangesAlert) {
+      const timer = setTimeout(() => {
+        setShowNoChangesAlert(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showNoChangesAlert]);
 
   const validateImage = (file) => {
     // Aumentando para 50MB para permitir imagens de alta qualidade
@@ -266,8 +279,38 @@ const SettingsProfilePage = () => {
 
       // Se não houver alterações
       if (Object.keys(updatedFields).length === 0) {
-        toast.info("Nenhuma alteração detetada");
-        setIsModalOpen(false);
+        setShowNoChangesAlert(true);
+        toast.custom((t) => (
+          <div className={`${
+            t.visible ? 'animate-enter' : 'animate-leave'
+          } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex`}>
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <AlertCircle className="h-6 w-6 text-yellow-500" />
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    Nenhuma alteração detetada
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Modifique algum campo para guardar alterações.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-gray-200">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        ), { duration: 5000 });
+        
+        setIsSubmitting(false);
         return;
       }
 
@@ -285,6 +328,7 @@ const SettingsProfilePage = () => {
 
       setIsModalOpen(false);
       setErrors({});
+      toast.success('Perfil atualizado com sucesso!');
 
     } catch (error) {
       console.error("Erro na atualização:", error);
@@ -302,6 +346,15 @@ const SettingsProfilePage = () => {
 
   // Verificar se o utilizador tem foto de perfil
   const hasProfilePic = Boolean(selectedImg || authUser?.profilePic);
+
+  // Verificar se houve alterações no formulário
+  const hasFormChanges = () => {
+    return (
+      formData.fullName.trim() !== (authUser?.fullName || "") ||
+      formData.email.trim() !== (authUser?.email || "") ||
+      formData.gender !== (authUser?.gender || "")
+    );
+  };
 
   return (
     <div className="h-screen pl-16 sm:pl-20 overflow-auto bg-base-100">
@@ -578,6 +631,17 @@ const SettingsProfilePage = () => {
                   </button>
                 </div>
                 
+                {/* Alerta de nenhuma alteração */}
+                {showNoChangesAlert && (
+                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 mb-4 flex items-start">
+                    <AlertCircle className="size-5 text-warning mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-warning-content">Nenhuma alteração detetada</p>
+                      <p className="text-sm text-base-content/70">Modifique algum dos campos para guardar alterações.</p>
+                    </div>
+                  </div>
+                )}
+                
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="label">
@@ -589,6 +653,7 @@ const SettingsProfilePage = () => {
                       onChange={(e) => {
                         setFormData(prev => ({...prev, fullName: e.target.value}));
                         setErrors(prev => ({...prev, fullName: ""}));
+                        setShowNoChangesAlert(false);
                       }}
                       className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`}
                       placeholder="O seu nome completo"
@@ -608,6 +673,7 @@ const SettingsProfilePage = () => {
                       onChange={(e) => {
                         setFormData(prev => ({...prev, email: e.target.value}));
                         setErrors(prev => ({...prev, email: ""}));
+                        setShowNoChangesAlert(false);
                       }}
                       className={`input input-bordered w-full ${errors.email ? 'input-error' : ''}`}
                       placeholder="seu.email@exemplo.com"
@@ -626,6 +692,7 @@ const SettingsProfilePage = () => {
                       onChange={(e) => {
                         setFormData(prev => ({...prev, gender: e.target.value}));
                         setErrors(prev => ({...prev, gender: ""}));
+                        setShowNoChangesAlert(false);
                       }}
                       className={`select select-bordered w-full ${errors.gender ? 'select-error' : ''}`}
                     >
@@ -644,6 +711,7 @@ const SettingsProfilePage = () => {
                       onClick={() => {
                         setIsModalOpen(false);
                         setErrors({});
+                        setShowNoChangesAlert(false);
                         setFormData({
                           fullName: authUser.fullName || "",
                           email: authUser.email || "",
