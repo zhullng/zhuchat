@@ -1,27 +1,35 @@
-import React from "react";
+import { MessageCircle, Users, Image, Video, Smile, Send, Phone, Share2, Heart } from "lucide-react";
 
 const AuthImagePattern = ({ title, subtitle }) => {
+  // Ícones para usar no padrão
+  const icons = [
+    <MessageCircle size={24} />,
+    <Users size={24} />,
+    <Image size={24} />,
+    <Video size={24} />,
+    <Smile size={24} />,
+    <Send size={24} />,
+    <Phone size={24} />,
+    <Share2 size={24} />,
+    <Heart size={24} />
+  ];
+
   return (
-    <div className="hidden lg:flex items-center justify-center bg-base-200 p-12">
+    <div className="hidden lg:flex flex-col items-center justify-center bg-base-200 p-12">
       <div className="max-w-md text-center">
-        {/* Padrão em formato de cruz com 5 quadrados principais */}
-        <div className="relative w-72 h-72 mx-auto mb-8">
-          {/* Quadrado central */}
-          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-primary/10 rounded-2xl animate-pulse" />
-          
-          {/* Quadrado superior */}
-          <div className="absolute left-1/2 top-0 transform -translate-x-1/2 w-24 h-24 bg-primary/10 rounded-2xl" />
-          
-          {/* Quadrado inferior */}
-          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 w-24 h-24 bg-primary/10 rounded-2xl animate-pulse" />
-          
-          {/* Quadrado esquerdo */}
-          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-24 h-24 bg-primary/10 rounded-2xl" />
-          
-          {/* Quadrado direito */}
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-24 h-24 bg-primary/10 rounded-2xl animate-pulse" />
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          {icons.map((icon, i) => (
+            <div
+              key={i}
+              className={`aspect-square rounded-2xl bg-primary/10 flex items-center justify-center 
+                ${i % 2 === 0 ? "animate-pulse" : ""}`}
+            >
+              <div className="text-primary/70">
+                {icon}
+              </div>
+            </div>
+          ))}
         </div>
-        
         <h2 className="text-2xl font-bold mb-4">{title}</h2>
         <p className="text-base-content/60">{subtitle}</p>
       </div>
