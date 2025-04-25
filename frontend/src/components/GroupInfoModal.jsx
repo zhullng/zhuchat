@@ -69,7 +69,6 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
   const handleRemoveMember = async (memberId) => {
     try {
       await removeGroupMember(selectedGroup._id, memberId);
-      toast.success("Membro removido com sucesso");
     } catch (error) {
       console.error("Erro ao remover membro:", error);
     }

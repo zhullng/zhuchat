@@ -516,8 +516,6 @@ export const useGroupStore = create((set, get) => ({
         // Se o grupo selecionado é este, atualizá-lo também
         selectedGroup: state.selectedGroup?._id === groupId ? res.data : state.selectedGroup
       }));
-      
-      toast.success("Membros adicionados com sucesso!");
       return res.data;
     } catch (error) {
       console.error("Erro ao adicionar membros:", error);
