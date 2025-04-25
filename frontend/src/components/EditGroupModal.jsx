@@ -32,6 +32,7 @@ const EditGroupModal = ({ isOpen, onClose }) => {
   // Estado para modal de remoção de foto
   const [isRemovePhotoModalOpen, setIsRemovePhotoModalOpen] = useState(false);
   const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
+  const [photoWasRemoved, setPhotoWasRemoved] = useState(false);
 
   // Atualizar estados quando o grupo selecionado mudar
   useEffect(() => {
@@ -39,6 +40,7 @@ const EditGroupModal = ({ isOpen, onClose }) => {
       setName(selectedGroup.name || "");
       setDescription(selectedGroup.description || "");
       setProfilePic(selectedGroup.profilePic || "");
+      setPhotoWasRemoved(false); // Reset o estado de remoção quando o grupo muda
     }
   }, [selectedGroup]);
 
@@ -147,6 +149,7 @@ const EditGroupModal = ({ isOpen, onClose }) => {
       
       // Atualizar o preview
       setProfilePic(croppedImage);
+      setPhotoWasRemoved(false); // Resetar flag ao adicionar nova foto
       
       toast.success('Imagem recortada com sucesso!');
     } catch (error) {
@@ -172,10 +175,15 @@ const EditGroupModal = ({ isOpen, onClose }) => {
   const handleRemovePhoto = () => {
     setIsRemovingPhoto(true);
     
-    // Apenas remover a imagem do estado
+    // Remover a imagem do estado
     setProfilePic("");
+    // Marcar que a foto foi removida explicitamente
+    setPhotoWasRemoved(true);
+    
     setIsRemovePhotoModalOpen(false);
     setIsRemovingPhoto(false);
+    
+    toast.success("Foto do grupo removida");
   };
 
   const handleSubmit = async (e) => {
@@ -192,8 +200,22 @@ const EditGroupModal = ({ isOpen, onClose }) => {
       const updateData = {
         name: name.trim(),
         description: description.trim(),
-        profilePic: profilePic
       };
+      
+      // Se a foto foi alterada ou removida, enviar o profilePic
+      if (photoWasRemoved) {
+        // Quando a foto foi explicitamente removida, enviar string vazia
+        updateData.profilePic = "";
+      } else if (profilePic !== selectedGroup.profilePic) {
+        // Quando a foto foi alterada para uma nova
+        updateData.profilePic = profilePic;
+      }
+      
+      console.log("Enviando dados para atualização:", {
+        ...updateData,
+        photoWasRemoved,
+        hasProfilePicField: 'profilePic' in updateData
+      });
       
       await updateGroupInfo(selectedGroup._id, updateData);
       onClose();
@@ -299,6 +321,13 @@ const EditGroupModal = ({ isOpen, onClose }) => {
               placeholder="Digite uma descrição para o grupo"
             />
           </div>
+          
+          {/* Estado de depuração (remover em produção) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-2 bg-base-200 rounded text-xs">
+              <p>Debug: {photoWasRemoved ? 'Foto marcada para remoção' : 'Foto não marcada para remoção'}</p>
+            </div>
+          )}
           
           {/* Botões de ação */}
           <div className="flex justify-end gap-2">
