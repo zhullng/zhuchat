@@ -1,4 +1,4 @@
-// components/GroupItem.jsx - versão simplificada
+// components/GroupItem.jsx - versão simplificada e modificada
 import { useState } from "react";
 import { Users, MoreVertical, LogOut, Trash2 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
@@ -30,24 +30,22 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
     }
   };
 
-  // Manipular saída do grupo
+  // Manipular saída do grupo - MODIFICADO
   const handleLeaveGroup = async (e) => {
     e.stopPropagation();
     setShowMenu(false);
     
-    if (confirm(`Tem certeza que deseja sair do grupo "${group.name}"?`)) {
-      await leaveGroup(group._id);
-    }
+    // Remover confirm e executar ação diretamente
+    await leaveGroup(group._id);
   };
 
-  // Manipular exclusão do grupo
+  // Manipular exclusão do grupo - MODIFICADO
   const handleDeleteGroup = async (e) => {
     e.stopPropagation();
     setShowMenu(false);
     
-    if (confirm(`Tem certeza que deseja excluir o grupo "${group.name}"? Esta ação não pode ser desfeita.`)) {
-      await deleteGroup(group._id);
-    }
+    // Remover confirm e executar ação diretamente
+    await deleteGroup(group._id);
   };
 
   return (

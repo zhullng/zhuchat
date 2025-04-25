@@ -4,28 +4,6 @@ import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 import { useChatStore } from "./useChatStore";
 
-// Criar um store separado para gerenciar modais
-export const useGroupModalStore = create((set) => ({
-  showDeleteLocallyModal: false,
-  groupToDeleteLocally: null,
-  previousGroups: null,
-  previousSelected: null,
-  
-  openDeleteLocallyModal: (groupId, previousGroups, previousSelected) => set({ 
-    showDeleteLocallyModal: true, 
-    groupToDeleteLocally: groupId,
-    previousGroups,
-    previousSelected
-  }),
-  
-  closeDeleteLocallyModal: () => set({ 
-    showDeleteLocallyModal: false, 
-    groupToDeleteLocally: null,
-    previousGroups: null,
-    previousSelected: null
-  }),
-}));
-
 export const useGroupStore = create((set, get) => ({
   // Estado
   groups: [],
@@ -694,41 +672,15 @@ export const useGroupStore = create((set, get) => ({
           console.error("Ambas as rotas falharam:", normalError);
           toast.dismiss(loadingToast);
           
-          // Abrir o modal em vez de window.confirm
-          useGroupModalStore.getState().openDeleteLocallyModal(
-            groupId, 
-            previousGroups, 
-            previousSelected
-          );
+          // Remover o confirm e sempre manter a remoção do grupo localmente
+          // Nenhuma decisão do usuário é necessária aqui
+          toast.success("Grupo removido localmente");
         }
       }
     } catch (unexpectedError) {
       toast.error("Erro inesperado ao processar sua solicitação");
       console.error("Erro inesperado ao excluir grupo:", unexpectedError);
     }
-  },
-
-  // Nova função para confirmar a remoção local do grupo
-  confirmLocalGroupDeletion: () => {
-    // O grupo já foi removido localmente quando abrimos o modal
-    toast.success("Grupo removido localmente");
-    useGroupModalStore.getState().closeDeleteLocallyModal();
-  },
-  
-  // Nova função para cancelar a remoção local do grupo
-  cancelLocalGroupDeletion: () => {
-    // Restaurar o grupo na lista
-    const { previousGroups, previousSelected } = useGroupModalStore.getState();
-    
-    if (previousGroups) {
-      set({ 
-        groups: previousGroups,
-        selectedGroup: previousSelected
-      });
-    }
-    
-    toast.error("Operação cancelada");
-    useGroupModalStore.getState().closeDeleteLocallyModal();
   },
 
   updateGroupInfo: async (groupId, updateData) => {

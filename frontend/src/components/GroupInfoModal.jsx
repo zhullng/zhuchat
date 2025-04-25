@@ -45,37 +45,31 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
   // Lista de membros formatada
   const members = selectedGroup?.members || [];
 
-  // Função para lidar com saída do grupo
+  // Função para lidar com saída do grupo - MODIFICADA
   const handleLeaveGroup = async () => {
     try {
-      if (confirm(`Tem certeza que deseja sair do grupo "${selectedGroup.name}"?`)) {
-        await leaveGroup(selectedGroup._id);
-        onClose();
-      }
+      await leaveGroup(selectedGroup._id);
+      onClose();
     } catch (error) {
       console.error("Erro ao sair do grupo:", error);
     }
   };
 
-  // Função para lidar com exclusão do grupo
+  // Função para lidar com exclusão do grupo - MODIFICADA
   const handleDeleteGroup = async () => {
     try {
-      if (confirm(`Tem certeza que deseja excluir o grupo "${selectedGroup.name}"? Esta ação não pode ser desfeita.`)) {
-        await deleteGroup(selectedGroup._id);
-        onClose();
-      }
+      await deleteGroup(selectedGroup._id);
+      onClose();
     } catch (error) {
       console.error("Erro ao excluir grupo:", error);
     }
   };
 
-  // Função para remover um membro
+  // Função para remover um membro - MODIFICADA
   const handleRemoveMember = async (memberId) => {
     try {
-      if (confirm(`Tem certeza que deseja remover este membro do grupo?`)) {
-        await removeGroupMember(selectedGroup._id, memberId);
-        toast.success("Membro removido com sucesso");
-      }
+      await removeGroupMember(selectedGroup._id, memberId);
+      toast.success("Membro removido com sucesso");
     } catch (error) {
       console.error("Erro ao remover membro:", error);
     }
