@@ -80,9 +80,13 @@ export const useGroupStore = create((set, get) => ({
       const res = await axiosInstance.post("/groups/create", groupData);
       const newGroup = res.data;
       
+      // Armazenar o ID do grupo criado em uma variável de estado temporária
+      // para que possamos ignorar o evento de socket correspondente
       set(state => ({
         groups: [newGroup, ...state.groups],
-        selectedGroup: newGroup
+        selectedGroup: newGroup,
+        // Adicionar uma flag para ignorar o próximo evento addedToGroup para este grupo
+        justCreatedGroupId: newGroup._id
       }));
       
       // Limpar qualquer chat selecionado quando um novo grupo é criado
@@ -95,7 +99,14 @@ export const useGroupStore = create((set, get) => ({
         console.warn("Não foi possível limpar o usuário selecionado:", error);
       }
       
+      // Mostrar apenas o toast de criação, não de adição
       toast.success("Grupo criado com sucesso!");
+      
+      // Remover a flag após 3 segundos (tempo suficiente para o evento do socket chegar)
+      setTimeout(() => {
+        set({ justCreatedGroupId: null });
+      }, 3000);
+      
       return newGroup;
     } catch (error) {
       console.error("Erro ao criar grupo:", error);
@@ -332,6 +343,14 @@ export const useGroupStore = create((set, get) => ({
     // Novo grupo criado
     socket.on("newGroup", (group) => {
       console.log("Novo grupo recebido:", group.name);
+      
+      // Verificar se este é o grupo que acabamos de criar
+      const justCreatedGroupId = get().justCreatedGroupId;
+      if (justCreatedGroupId === group._id) {
+        console.log("Ignorando evento newGroup para o grupo recém-criado:", group.name);
+        return; // Ignorar o evento
+      }
+      
       set(state => ({
         groups: [group, ...state.groups]
       }));
@@ -445,6 +464,14 @@ export const useGroupStore = create((set, get) => ({
     // Adicionado a um grupo
     socket.on("addedToGroup", (group) => {
       console.log("Adicionado ao grupo:", group.name);
+      
+      // Verificar se este é o grupo que acabamos de criar
+      const justCreatedGroupId = get().justCreatedGroupId;
+      if (justCreatedGroupId === group._id) {
+        console.log("Ignorando evento addedToGroup para o grupo recém-criado:", group.name);
+        return; // Ignorar o evento
+      }
+      
       set(state => ({
         groups: [group, ...state.groups]
       }));
