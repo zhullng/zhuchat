@@ -712,6 +712,15 @@ export const useGroupStore = create((set, get) => ({
     try {
       const loadingToast = toast.loading("Atualizando grupo...");
       
+      // Log para depuração
+      console.log("Dados enviados para atualização:", JSON.stringify(updateData));
+      
+      // Garantir que profilePic é enviado explicitamente como chave no objeto,
+      // mesmo quando for uma string vazia
+      if (Object.prototype.hasOwnProperty.call(updateData, 'profilePic')) {
+        console.log(`Enviando profilePic: "${updateData.profilePic}"`);
+      }
+      
       // Fazer solicitação para atualizar o grupo
       const res = await axiosInstance.patch(`/groups/${groupId}/update`, updateData);
       
@@ -729,6 +738,15 @@ export const useGroupStore = create((set, get) => ({
       return res.data;
     } catch (error) {
       console.error("Erro ao atualizar grupo:", error);
+      
+      // Log detalhado para ajudar na depuração
+      if (error.response) {
+        console.error("Resposta de erro:", {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      
       toast.error(error.response?.data?.error || "Erro ao atualizar grupo");
       throw error;
     }

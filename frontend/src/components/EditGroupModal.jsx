@@ -200,28 +200,22 @@ const EditGroupModal = ({ isOpen, onClose }) => {
       const updateData = {
         name: name.trim(),
         description: description.trim(),
+        // Sempre incluir profilePic no objeto para garantir que o backend receba o valor
+        // mesmo que seja uma string vazia
+        profilePic: photoWasRemoved ? "" : profilePic
       };
       
-      // Se a foto foi alterada ou removida, enviar o profilePic
-      if (photoWasRemoved) {
-        // Quando a foto foi explicitamente removida, enviar string vazia
-        updateData.profilePic = "";
-      } else if (profilePic !== selectedGroup.profilePic) {
-        // Quando a foto foi alterada para uma nova
-        updateData.profilePic = profilePic;
-      }
-      
+      // Log para depuração
       console.log("Enviando dados para atualização:", {
         ...updateData,
         photoWasRemoved,
-        hasProfilePicField: 'profilePic' in updateData
+        profilePicLength: updateData.profilePic.length
       });
       
       await updateGroupInfo(selectedGroup._id, updateData);
       onClose();
     } catch (error) {
       console.error("Erro ao atualizar grupo:", error);
-    } finally {
       setIsLoading(false);
     }
   };

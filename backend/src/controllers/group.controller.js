@@ -243,13 +243,17 @@ export const updateGroupInfo = async (req, res) => {
     if (description !== undefined) group.description = description;
     
     // Atualizar foto de perfil, se fornecida
-    if (req.body.profilePic) {
+    if ('profilePic' in req.body) {
+      console.log(`Recebido profilePic: "${req.body.profilePic}"`);
+      
       if (req.body.profilePic.startsWith('data:')) {
+        console.log("Atualizando com nova imagem");
         const uploadResponse = await cloudinary.uploader.upload(req.body.profilePic, {
           resource_type: "auto"
         });
         group.profilePic = uploadResponse.secure_url;
       } else if (req.body.profilePic === "") {
+        console.log("Removendo a foto de perfil (string vazia recebida)");
         // Remover a foto de perfil
         group.profilePic = "";
       }
