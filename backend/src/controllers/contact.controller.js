@@ -1,5 +1,6 @@
 import Contact from "../models/contact.model.js";
 import User from "../models/user.model.js";
+import { sendToAllUserSockets } from "../lib/socket.js";
 import mongoose from "mongoose";
 
 // Adicionar um contacto por email
@@ -84,6 +85,14 @@ export const addContact = async (req, res) => {
 
     // Guardar o contacto na base de dados
     await newContact.save();
+
+    sendToAllUserSockets(contactUser._id.toString(), "newContactRequest", {
+      requestId: newContact._id,
+      userId: req.user._id,
+      fullName: req.user.fullName,
+      email: req.user.email,
+      profilePic: req.user.profilePic
+    });
 
     res.status(201).json({ 
       message: "Pedido de contacto enviado com sucesso", 
@@ -179,6 +188,21 @@ export const respondToRequest = async (req, res) => {
     contact.status = status;
     await contact.save();
 
+    if (status === "accepted") {
+      sendToAllUserSockets(contact.userId.toString(), "contactAccepted", {
+        contactId: contact._id,
+        userId: req.user._id,
+        fullName: req.user.fullName,
+        email: req.user.email,
+        profilePic: req.user.profilePic
+      });
+    } else if (status === "rejected") {
+      // Opcional: enviar notificação de rejeição
+      sendToAllUserSockets(contact.userId.toString(), "contactRejected", {
+        contactId: contact._id
+      });
+    }
+
     res.status(200).json({ 
       message: `Pedido de contacto ${status === "accepted" ? "aceite" : "rejeitado"} com sucesso.`,
       contact
@@ -207,6 +231,14 @@ export const removeContact = async (req, res) => {
     if (!deletedContact) {
       return res.status(404).json({ error: "Contacto não encontrado." });
     }
+
+    const otherUserId = deletedContact.userId.toString() === userId.toString() 
+  ? deletedContact.contactId.toString() 
+  : deletedContact.userId.toString();
+
+sendToAllUserSockets(otherUserId, "contactRemoved", {
+  contactId: deletedContact._id
+});
 
     res.status(200).json({ message: "Contacto removido com sucesso." });
   } catch (error) {

@@ -1,5 +1,9 @@
 // components/Sidebar.jsx
 import { useEffect, useState, useCallback, useRef } from "react";
+import { 
+  subscribeToContactEvents, 
+  unsubscribeFromContactEvents 
+} from "../services/contactSocketService";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -201,7 +205,8 @@ const Sidebar = () => {
     initializeGroups();
     subscribeToMessages();
     subscribeToGroupEvents();
-    
+    subscribeToContactEvents();
+
     // Configurar atualização periódica
     updateIntervalRef.current = setInterval(() => {
       getConversations();
@@ -215,6 +220,7 @@ const Sidebar = () => {
       window.removeEventListener('resize', checkMobile);
       unsubscribeFromMessages();
       unsubscribeFromGroupEvents();
+      unsubscribeFromContactEvents();
       
       if (updateIntervalRef.current) {
         clearInterval(updateIntervalRef.current);
@@ -228,15 +234,15 @@ const Sidebar = () => {
   
   useEffect(() => {
     setForceUpdate(prev => prev + 1);
-  }, [conversations, unreadCounts]);
+  }, [conversations, unreadCounts, users]);
 
   const handleSearchChange = debounce((query) => {
     setSearchQuery(query);
   }, 300);
 
   // Função para atualizar contactos
-  const refreshContacts = () => {
-    getUsers();
+  const refreshContacts = async () => {
+    await getUsers();
   };
 
   // Função para lidar com a remoção de contacto

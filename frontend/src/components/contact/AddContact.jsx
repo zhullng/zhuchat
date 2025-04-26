@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { axiosInstance } from "../../lib/axios";
 import toast from "react-hot-toast";
+import { useChatStore } from "../../store/useChatStore";
 
 const AddContact = ({ onContactAdded }) => {
+  const { getUsers } = useChatStore();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -17,25 +19,24 @@ const AddContact = ({ onContactAdded }) => {
     setIsLoading(true);
     
     try {
+      // Enviar o pedido de contacto
       await axiosInstance.post("/api/contacts/add", { email });
       toast.success("Pedido de contacto enviado com sucesso");
       setEmail("");
       
+      // Atualizar a lista de utilizadores imediatamente
+      await getUsers();
+      
+      // Também chamar o callback, caso exista
       if (onContactAdded) {
         onContactAdded();
       }
     } catch (error) {
       // Mensagem de erro mais clara para o utilizador
-      const errorMessage = error.response?.data?.error || "Erro ao adicionar contacto";
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          "Erro ao adicionar contacto";
       toast.error(errorMessage);
-      
-      // Se o erro for de bloqueio ou rejeição, podemos exibir uma mensagem mais específica
-      if (errorMessage.includes("bloqueado") || errorMessage.includes("rejeitado")) {
-        toast("Tente novamente mais tarde ou contacte o utilizador por outros meios.", {
-          icon: "ℹ️",
-          duration: 5000,
-        });
-      }
     } finally {
       setIsLoading(false);
     }
@@ -43,6 +44,7 @@ const AddContact = ({ onContactAdded }) => {
 
   return (
     <div className="mb-4">
+      <h3 className="text-sm font-medium mb-2">Adicionar Contacto</h3>
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <input
           type="email"

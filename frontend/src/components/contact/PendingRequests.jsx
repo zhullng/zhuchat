@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { axiosInstance } from "../../lib/axios";
 import toast from "react-hot-toast";
 import { Check, XCircle } from "lucide-react";
+import { useChatStore } from "../../store/useChatStore";
 
 const PendingRequests = ({ onRequestResponded }) => {
+  const { getUsers } = useChatStore();
   const [pendingRequests, setPendingRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [processingIds, setProcessingIds] = useState([]); // Para rastrear quais solicitações estão sendo processadas
+  const [processingIds, setProcessingIds] = useState([]);
 
   const fetchPendingRequests = async () => {
     setIsLoading(true);
@@ -44,6 +46,12 @@ const PendingRequests = ({ onRequestResponded }) => {
         : "Pedido de contacto rejeitado"
       );
       
+      // Atualizar a lista de utilizadores imediatamente se aceitamos o contacto
+      if (status === "accepted") {
+        await getUsers();
+      }
+      
+      // Também chamar o callback, caso exista
       if (onRequestResponded) {
         onRequestResponded();
       }
