@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Transaction from "../models/transaction.model.js";
 import { validateCard } from "../lib/paymentValidation.js";
+import { checkDailyLimit } from "./utils/simpleLimits.js";
 
 // Função para criar ou atualizar cliente de pagamento
 const ensurePaymentCustomer = async (user) => {
@@ -37,6 +38,15 @@ export const depositFunds = async (req, res) => {
       return res.status(400).json({ message: "Montante inválido" });
     }
 
+    // Verificar limite diário
+    const limitInfo = await checkDailyLimit(userId, "deposit");
+    if (limitInfo.exceeded || amount > limitInfo.remaining) {
+      return res.status(400).json({ 
+        message: `Limite diário de €${limitInfo.limit} excedido. Disponível: €${limitInfo.remaining}`,
+        limitInfo
+      });
+    }
+
     // Validar detalhes do cartão
     if (!validateCard(cardDetails)) {
       return res.status(400).json({ message: "Detalhes do cartão inválidos" });
@@ -69,7 +79,8 @@ export const depositFunds = async (req, res) => {
 
     res.status(201).json({
       message: "Depósito efetuado com sucesso",
-      transaction
+      transaction,
+      limitInfo
     });
   } catch (error) {
     console.log("Error in depositFunds controller: ", error.message);
@@ -86,6 +97,15 @@ export const depositWithOtherMethod = async (req, res) => {
     // Validar montante
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: "Montante inválido" });
+    }
+
+    // Verificar limite diário
+    const limitInfo = await checkDailyLimit(userId, "deposit");
+    if (limitInfo.exceeded || amount > limitInfo.remaining) {
+      return res.status(400).json({ 
+        message: `Limite diário de €${limitInfo.limit} excedido. Disponível: €${limitInfo.remaining}`,
+        limitInfo
+      });
     }
 
     // Validar método
@@ -115,10 +135,17 @@ export const depositWithOtherMethod = async (req, res) => {
 
     res.status(201).json({
       message: initialStatus === "pending" ? "Depósito pendente de aprovação" : "Depósito efetuado com sucesso",
-      transaction
+      transaction,
+      limitInfo
     });
   } catch (error) {
     console.log("Error in depositWithOtherMethod controller: ", error.message);
     res.status(500).json({ message: "Erro no servidor" });
   }
+};
+
+// Exportar métodos
+export default {
+  depositFunds,
+  depositWithOtherMethod
 };

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
-import { CreditCard } from 'lucide-react';
+import { ArrowDownCircle, CreditCard, AlertCircle } from 'lucide-react';
 import CardDetailsForm from '../CardDetailsForm';
+import axios from 'axios';
 
 const DepositTab = ({ refreshData }) => {
   const [amount, setAmount] = useState('');
@@ -12,8 +13,44 @@ const DepositTab = ({ refreshData }) => {
     name: ''
   });
   const [errors, setErrors] = useState({});
+  const [dailyLimit, setDailyLimit] = useState({
+    limit: 1000,
+    used: 0,
+    remaining: 1000
+  });
   
   const { deposit, isLoading } = useWalletStore();
+
+  useEffect(() => {
+    // Buscar informações sobre o limite diário atual
+    const fetchLimitInfo = async () => {
+      try {
+        // Obter todas as transações
+        const response = await axios.get('/api/transactions');
+        
+        // Filtrar apenas depósitos de hoje
+        const today = new Date().toISOString().split('T')[0];
+        const todayDeposits = response.data.filter(tx => {
+          const txDate = new Date(tx.createdAt).toISOString().split('T')[0];
+          return tx.type === 'deposit' && txDate === today;
+        });
+        
+        // Calcular total usado hoje
+        const totalUsed = todayDeposits.reduce((sum, tx) => sum + tx.amount, 0);
+        
+        // Atualizar estado com informações de limite
+        setDailyLimit({
+          limit: 1000, // Valor fixo do limite diário
+          used: totalUsed,
+          remaining: Math.max(0, 1000 - totalUsed)
+        });
+      } catch (error) {
+        console.error('Erro ao buscar informações de limite:', error);
+      }
+    };
+    
+    fetchLimitInfo();
+  }, []);
 
   const validateAmount = () => {
     let valid = true;
@@ -21,6 +58,9 @@ const DepositTab = ({ refreshData }) => {
     
     if (!amount || amount <= 0) {
       newErrors.amount = 'Insira um valor válido';
+      valid = false;
+    } else if (amount > dailyLimit.remaining) {
+      newErrors.amount = `Limite diário excedido. Disponível: €${dailyLimit.remaining.toFixed(2)}`;
       valid = false;
     } else {
       delete newErrors.amount;
@@ -74,12 +114,25 @@ const DepositTab = ({ refreshData }) => {
     }
     
     try {
-      await deposit(parseFloat(amount), 'card', cardDetails);
+      const result = await deposit(parseFloat(amount), 'card', cardDetails);
+      
+      // Atualizar limite restante se a transação for bem-sucedida
+      if (result) {
+        setDailyLimit(prev => ({
+          ...prev,
+          used: prev.used + parseFloat(amount),
+          remaining: Math.max(0, prev.remaining - parseFloat(amount))
+        }));
+      }
       
       resetForm();
       if (refreshData) refreshData();
     } catch (error) {
       console.error(error);
+      // Se o erro contiver informações de limite, atualizar o estado
+      if (error.response?.data?.limitInfo) {
+        setDailyLimit(error.response.data.limitInfo);
+      }
     }
   };
 
@@ -94,8 +147,25 @@ const DepositTab = ({ refreshData }) => {
     setErrors({});
   };
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-PT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(value);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {dailyLimit.remaining < dailyLimit.limit && (
+        <div className="alert alert-warning">
+          <AlertCircle className="size-5 mr-2" />
+          <div>
+            <p>Limite diário: {formatCurrency(dailyLimit.limit)}</p>
+            <p>Disponível hoje: {formatCurrency(dailyLimit.remaining)}</p>
+          </div>
+        </div>
+      )}
+      
       <div className="form-control">
         <label className="label">
           <span className="label-text">Montante (€)</span>
@@ -105,6 +175,7 @@ const DepositTab = ({ refreshData }) => {
           className={`input input-bordered w-full ${errors.amount ? 'input-error' : ''}`}
           placeholder="0.00"
           min="1"
+          max={dailyLimit.remaining}
           step="0.01"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}

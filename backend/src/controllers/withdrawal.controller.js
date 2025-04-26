@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Transaction from "../models/transaction.model.js";
 import { validateCard } from "../lib/paymentValidation.js";
+import { checkDailyLimit } from "./utils/simpleLimits.js";
 
 // Função para levantar fundos para cartão
 const withdrawFunds = async (req, res) => {
@@ -34,6 +35,16 @@ const withdrawFunds = async (req, res) => {
 
     console.log("User encontrado:", user.username || user.email);
     console.log("Saldo do User:", user.balance);
+
+    // Verificar limite diário
+    const limitInfo = await checkDailyLimit(userId, "withdrawal");
+    if (limitInfo.exceeded || amount > limitInfo.remaining) {
+      console.log("Limite diário excedido:", limitInfo);
+      return res.status(400).json({ 
+        message: `Limite diário de €${limitInfo.limit} excedido. Disponível: €${limitInfo.remaining}`,
+        limitInfo
+      });
+    }
 
     // Verificar saldo
     if (user.balance < amount) {
@@ -87,7 +98,8 @@ const withdrawFunds = async (req, res) => {
 
     res.status(201).json({
       message: "Levantamento efetuado com sucesso",
-      transaction
+      transaction,
+      limitInfo
     });
   } catch (error) {
     console.error("Error in withdrawFunds controller: ", error);
@@ -141,6 +153,16 @@ const withdrawWithOtherMethod = async (req, res) => {
     console.log("User encontrado:", user.username || user.email);
     console.log("Saldo do User:", user.balance);
 
+    // Verificar limite diário
+    const limitInfo = await checkDailyLimit(userId, "withdrawal");
+    if (limitInfo.exceeded || amount > limitInfo.remaining) {
+      console.log("Limite diário excedido:", limitInfo);
+      return res.status(400).json({ 
+        message: `Limite diário de €${limitInfo.limit} excedido. Disponível: €${limitInfo.remaining}`,
+        limitInfo
+      });
+    }
+
     // Verificar saldo
     if (user.balance < amount) {
       console.log("Saldo insuficiente");
@@ -185,7 +207,8 @@ const withdrawWithOtherMethod = async (req, res) => {
 
     res.status(201).json({
       message: "Pedido de levantamento submetido com sucesso",
-      transaction
+      transaction,
+      limitInfo
     });
   } catch (error) {
     console.error("Error in withdrawWithOtherMethod controller: ", error);

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWalletStore } from '../../store/useWalletStore';
-import { ArrowUpCircle, Wallet } from 'lucide-react';
+import { ArrowUpCircle, Wallet, AlertCircle } from 'lucide-react';
 import CardDetailsForm from '../CardDetailsForm';
+import axios from 'axios';
 
 const WithdrawTab = ({ refreshData, balance }) => {
   const [amount, setAmount] = useState('');
@@ -12,8 +13,44 @@ const WithdrawTab = ({ refreshData, balance }) => {
     name: ''
   });
   const [errors, setErrors] = useState({});
+  const [dailyLimit, setDailyLimit] = useState({
+    limit: 1000,
+    used: 0,
+    remaining: 1000
+  });
   
   const { withdraw, isLoading } = useWalletStore();
+
+  useEffect(() => {
+    // Buscar informações sobre o limite diário atual
+    const fetchLimitInfo = async () => {
+      try {
+        // Obter todas as transações
+        const response = await axios.get('/api/transactions');
+        
+        // Filtrar apenas levantamentos de hoje
+        const today = new Date().toISOString().split('T')[0];
+        const todayWithdrawals = response.data.filter(tx => {
+          const txDate = new Date(tx.createdAt).toISOString().split('T')[0];
+          return tx.type === 'withdrawal' && txDate === today;
+        });
+        
+        // Calcular total usado hoje
+        const totalUsed = todayWithdrawals.reduce((sum, tx) => sum + tx.amount, 0);
+        
+        // Atualizar estado com informações de limite
+        setDailyLimit({
+          limit: 1000, // Valor fixo do limite diário
+          used: totalUsed,
+          remaining: Math.max(0, 1000 - totalUsed)
+        });
+      } catch (error) {
+        console.error('Erro ao buscar informações de limite:', error);
+      }
+    };
+    
+    fetchLimitInfo();
+  }, []);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-PT', {
@@ -31,6 +68,9 @@ const WithdrawTab = ({ refreshData, balance }) => {
       valid = false;
     } else if (amount > balance) {
       newErrors.amount = 'Saldo insuficiente';
+      valid = false;
+    } else if (amount > dailyLimit.remaining) {
+      newErrors.amount = `Limite diário excedido. Disponível: €${dailyLimit.remaining.toFixed(2)}`;
       valid = false;
     } else {
       delete newErrors.amount;
@@ -84,12 +124,25 @@ const WithdrawTab = ({ refreshData, balance }) => {
     }
     
     try {
-      await withdraw(parseFloat(amount), 'card', cardDetails);
+      const result = await withdraw(parseFloat(amount), 'card', cardDetails);
+      
+      // Atualizar limite restante se a transação for bem-sucedida
+      if (result) {
+        setDailyLimit(prev => ({
+          ...prev,
+          used: prev.used + parseFloat(amount),
+          remaining: Math.max(0, prev.remaining - parseFloat(amount))
+        }));
+      }
       
       resetForm();
       if (refreshData) refreshData();
     } catch (error) {
       console.error(error);
+      // Se o erro contiver informações de limite, atualizar o estado
+      if (error.response?.data?.limitInfo) {
+        setDailyLimit(error.response.data.limitInfo);
+      }
     }
   };
 
@@ -104,6 +157,10 @@ const WithdrawTab = ({ refreshData, balance }) => {
     setErrors({});
   };
 
+  const getMaxWithdrawAmount = () => {
+    return Math.min(balance, dailyLimit.remaining);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="alert alert-info">
@@ -112,6 +169,16 @@ const WithdrawTab = ({ refreshData, balance }) => {
           <p>Saldo disponível: <strong>{formatCurrency(balance)}</strong></p>
         </div>
       </div>
+      
+      {dailyLimit.remaining < dailyLimit.limit && (
+        <div className="alert alert-warning">
+          <AlertCircle className="size-5 mr-2" />
+          <div>
+            <p>Limite diário: {formatCurrency(dailyLimit.limit)}</p>
+            <p>Disponível hoje: {formatCurrency(dailyLimit.remaining)}</p>
+          </div>
+        </div>
+      )}
       
       <div className="form-control">
         <label className="label">
@@ -122,6 +189,7 @@ const WithdrawTab = ({ refreshData, balance }) => {
           className={`input input-bordered w-full ${errors.amount ? 'input-error' : ''}`}
           placeholder="0.00"
           min="1"
+          max={getMaxWithdrawAmount()}
           step="0.01"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
