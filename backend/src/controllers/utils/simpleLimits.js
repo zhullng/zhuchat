@@ -2,8 +2,8 @@ import Transaction from "../../models/transaction.model.js";
 
 // Limites diários simples
 const DAILY_LIMITS = {
-  deposit: 10000,   
-  withdrawal: 10000 
+  deposit: 1000,   
+  withdrawal: 1000 
 };
 
 // Função para verificar se o usuário já atingiu o limite diário
