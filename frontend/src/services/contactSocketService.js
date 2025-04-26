@@ -32,6 +32,16 @@ export const subscribeToContactEvents = () => {
     toast.success(`${data.fullName || 'Um utilizador'} aceitou o seu pedido de contacto`);
   });
   
+  // Contacto foi aceite pelo destinatário - nova notificação específica para quem enviou o pedido
+  socket.on('contactRequestAccepted', (data) => {
+    console.log('Pedido de contacto que enviaste foi aceite:', data);
+    // Atualizar a lista de utilizadores
+    useChatStore.getState().getUsers();
+    
+    // Exibir uma notificação
+    toast.success(`${data.fullName || 'Um utilizador'} foi adicionado aos teus contactos`);
+  });
+  
   // Contacto foi rejeitado
   socket.on('contactRejected', () => {
     console.log('Pedido de contacto rejeitado');
@@ -58,6 +68,7 @@ export const unsubscribeFromContactEvents = () => {
   
   socket.off('newContactRequest');
   socket.off('contactAccepted');
+  socket.off('contactRequestAccepted');
   socket.off('contactRejected');
   socket.off('contactRemoved');
   

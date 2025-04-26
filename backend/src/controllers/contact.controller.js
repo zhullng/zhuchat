@@ -189,12 +189,22 @@ export const respondToRequest = async (req, res) => {
     await contact.save();
 
     if (status === "accepted") {
+      // Evento para o utilizador que recebeu o pedido (já existente)
       sendToAllUserSockets(contact.userId.toString(), "contactAccepted", {
         contactId: contact._id,
         userId: req.user._id,
         fullName: req.user.fullName,
         email: req.user.email,
         profilePic: req.user.profilePic
+      });
+      
+      // Novo evento para o utilizador que enviou o pedido
+      sendToAllUserSockets(req.user._id.toString(), "contactRequestAccepted", {
+        contactId: contact._id,
+        userId: contact.userId._id,
+        fullName: contact.userId.fullName || contact.email,
+        email: contact.email,
+        profilePic: contact.userId?.profilePic
       });
     } else if (status === "rejected") {
       // Opcional: enviar notificação de rejeição
