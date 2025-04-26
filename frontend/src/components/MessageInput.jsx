@@ -27,10 +27,13 @@ const MessageInput = () => {
     setIsIOS(isIOSDevice());
   }, []);
 
-  // Focar no textarea quando o componente monta ou quando o usuário selecionado muda
+  // Foco inicial quando o componente monta ou o usuário selecionado muda
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.focus();
+    if (textareaRef.current && selectedUser) {
+      // Pequeno atraso para garantir que o DOM esteja pronto
+      setTimeout(() => {
+        textareaRef.current.focus();
+      }, 100);
     }
   }, [selectedUser]);
 
@@ -151,6 +154,13 @@ const MessageInput = () => {
       setFileInfo(null);
       setFilePreview(null);
       setShowOptions(false);
+      
+      // Refocus no textarea após selecionar imagem
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 100);
     };
     
     reader.onerror = (error) => {
@@ -235,6 +245,13 @@ const MessageInput = () => {
                 data: event.target.result
               }));
               setIsUploading(false);
+              
+              // Refocus no textarea após processar arquivo
+              setTimeout(() => {
+                if (textareaRef.current) {
+                  textareaRef.current.focus();
+                }
+              }, 100);
             };
             
             reader.onerror = (error) => {
@@ -289,6 +306,13 @@ const MessageInput = () => {
           setImagePreview(null);
           setImageData(null);
           setShowOptions(false);
+          
+          // Refocus no textarea após processar arquivo
+          setTimeout(() => {
+            if (textareaRef.current) {
+              textareaRef.current.focus();
+            }
+          }, 100);
         } catch (error) {
           console.error("Erro ao processar arquivo:", error);
           toast.error("Erro ao processar arquivo. Tente novamente.");
@@ -325,6 +349,13 @@ const MessageInput = () => {
     
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
+    
+    // Refocus no textarea após remover anexo
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 50);
   };
 
   // Função para enviar mensagem simplificada e corrigida
@@ -380,12 +411,21 @@ const MessageInput = () => {
       handleRemoveAttachment();
       setLineCount(1);
       
-      // Resetar altura do textarea
+      // Resetar altura do textarea e garantir o foco
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
         
-        // Focar novamente no textarea após limpá-lo
-        textareaRef.current.focus();
+        // Garantir que o foco seja mantido após enviar mensagem
+        // Usar setTimeout para dar tempo ao DOM de atualizar
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            
+            // Em alguns navegadores, pode ser necessário mover o cursor para o final
+            const length = 0;
+            textareaRef.current.setSelectionRange(length, length);
+          }
+        }, 50);
       }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
@@ -482,7 +522,10 @@ const MessageInput = () => {
               <button
                 type="button"
                 className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
-                onClick={() => imageInputRef.current?.click()}
+                onClick={() => {
+                  imageInputRef.current?.click();
+                  setShowOptions(false);
+                }}
                 disabled={isUploading}
               >
                 <Image size={20} className="text-base-content opacity-70" />
@@ -492,7 +535,10 @@ const MessageInput = () => {
               <button
                 type="button"
                 className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-base-200 rounded-sm transition-colors"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setShowOptions(false);
+                }}
                 disabled={isUploading}
               >
                 <FileText size={20} className="text-base-content opacity-70" />
@@ -538,6 +584,7 @@ const MessageInput = () => {
               msOverflowStyle: "none"
             }}
             disabled={isUploading}
+            autoComplete="off"
           />
         </div>
 

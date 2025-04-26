@@ -31,6 +31,16 @@ const GroupMessageInput = () => {
     }
   }, [selectedGroup, checkSocketHealth]);
 
+  // Foco inicial e quando o grupo selecionado muda
+  useEffect(() => {
+    if (textareaRef.current && selectedGroup) {
+      // Pequeno atraso para garantir que o DOM esteja pronto
+      setTimeout(() => {
+        textareaRef.current.focus();
+      }, 100);
+    }
+  }, [selectedGroup]);
+
   // Função para converter tamanho de arquivo
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' bytes';
@@ -85,6 +95,13 @@ const GroupMessageInput = () => {
       setFileInfo(null);
       setFilePreview(null);
       setShowOptions(false);
+      
+      // Refocus no textarea após selecionar imagem
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 100);
     };
     reader.onerror = () => {
       toast.error("Erro ao ler a imagem");
@@ -159,6 +176,13 @@ const GroupMessageInput = () => {
       setShowOptions(false);
       setIsUploading(false);
       
+      // Refocus no textarea após processar arquivo
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 100);
+      
       // Log para depuração (remover em produção)
       console.log("Arquivo processado:", {
         name: file.name,
@@ -190,6 +214,13 @@ const GroupMessageInput = () => {
     
     if (imageInputRef.current) imageInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
+    
+    // Refocus no textarea após remover anexo
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 50);
   };
 
   // Enviar mensagem - função handleSendMessage
@@ -239,12 +270,21 @@ const GroupMessageInput = () => {
       handleRemoveAttachment();
       setLineCount(1);
       
-      // Resetar altura do textarea
+      // Resetar altura do textarea e garantir o foco
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
         
-        // Focar novamente no textarea após limpá-lo
-        textareaRef.current.focus();
+        // Garantir que o foco seja mantido após enviar mensagem
+        // Usar setTimeout para dar tempo ao DOM de atualizar
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            
+            // Em alguns navegadores, pode ser necessário mover o cursor para o final
+            const length = 0;
+            textareaRef.current.setSelectionRange(length, length);
+          }
+        }, 50);
       }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
@@ -275,12 +315,10 @@ const GroupMessageInput = () => {
     }
   };
   
-  // Auto-resize textarea quando o texto muda
   useEffect(() => {
     autoResizeTextarea();
   }, [text]);
   
-  // Manipulador para cliques fora do menu de opções
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (optionsRef.current && !optionsRef.current.contains(event.target)) {
@@ -293,13 +331,6 @@ const GroupMessageInput = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-  
-  // Foco no textarea quando o componente monta
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  }, [selectedGroup]);
   
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -449,6 +480,7 @@ const GroupMessageInput = () => {
               whiteSpace: "pre-wrap"
             }}
             disabled={isUploading}
+            autoComplete="off"
           />
         </div>
         
