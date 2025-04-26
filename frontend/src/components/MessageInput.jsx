@@ -27,6 +27,13 @@ const MessageInput = () => {
     setIsIOS(isIOSDevice());
   }, []);
 
+  // Focar no textarea quando o componente monta ou quando o usuário selecionado muda
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [selectedUser]);
+
   // Função auxiliar para formatar tamanho do arquivo
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' bytes';
@@ -376,6 +383,9 @@ const MessageInput = () => {
       // Resetar altura do textarea
       if (textareaRef.current) {
         textareaRef.current.style.height = "40px";
+        
+        // Focar novamente no textarea após limpá-lo
+        textareaRef.current.focus();
       }
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);

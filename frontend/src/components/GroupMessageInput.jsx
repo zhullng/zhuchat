@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Image, Send, X, Plus, FileText, FilePlus, FileVideo, Download } from "lucide-react";
+import { Image, Send, X, Plus, FileText, FileVideo, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { isSocketHealthy } from "../services/socket";
 
@@ -192,64 +192,67 @@ const GroupMessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
- // Enviar mensagem - função handleSendMessage
-const handleSendMessage = async (e) => {
-  e.preventDefault();
-  
-  if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
-    return;
-  }
-  
-  try {
-    setIsUploading(true);
+  // Enviar mensagem - função handleSendMessage
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
     
-    const messageData = {
-      text: text.trim() || ""
-    };
-
-    // Adicionar imagem se existir
-    if (imageData) {
-      messageData.image = imageData;
+    if ((!text.trim() && !imageData && !fileInfo) || isUploading) {
+      return;
     }
+    
+    try {
+      setIsUploading(true);
+      
+      const messageData = {
+        text: text.trim() || ""
+      };
 
-    // Adicionar arquivo se existir
-    if (fileInfo && fileInfo.data) {
-      // Verificar se os dados do arquivo estão em um formato válido
-      if (typeof fileInfo.data !== 'string') {
-        throw new Error("Formato de dados do arquivo inválido");
+      // Adicionar imagem se existir
+      if (imageData) {
+        messageData.image = imageData;
       }
-      
-      // Garantir que estamos enviando um objeto com a estrutura esperada
-      const fileDataStr = JSON.stringify({
-        name: fileInfo.name || "arquivo",
-        type: fileInfo.type || "application/octet-stream",
-        size: fileInfo.size || "",
-        data: fileInfo.data
-      });
-      
-      // Atribuir como string para garantir consistência
-      messageData.fileData = fileDataStr;
-    }
 
-    // Enviar mensagem
-    await sendGroupMessage(selectedGroup._id, messageData);
-    
-    // Limpar formulário
-    setText("");
-    handleRemoveAttachment();
-    setLineCount(1);
-    
-    // Resetar altura do textarea
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "40px";
+      // Adicionar arquivo se existir
+      if (fileInfo && fileInfo.data) {
+        // Verificar se os dados do arquivo estão em um formato válido
+        if (typeof fileInfo.data !== 'string') {
+          throw new Error("Formato de dados do arquivo inválido");
+        }
+        
+        // Garantir que estamos enviando um objeto com a estrutura esperada
+        const fileDataStr = JSON.stringify({
+          name: fileInfo.name || "arquivo",
+          type: fileInfo.type || "application/octet-stream",
+          size: fileInfo.size || "",
+          data: fileInfo.data
+        });
+        
+        // Atribuir como string para garantir consistência
+        messageData.fileData = fileDataStr;
+      }
+
+      // Enviar mensagem
+      await sendGroupMessage(selectedGroup._id, messageData);
+      
+      // Limpar formulário
+      setText("");
+      handleRemoveAttachment();
+      setLineCount(1);
+      
+      // Resetar altura do textarea
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "40px";
+        
+        // Focar novamente no textarea após limpá-lo
+        textareaRef.current.focus();
+      }
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setIsUploading(false);
     }
-  } catch (error) {
-    console.error("Erro ao enviar mensagem:", error);
-    toast.error("Erro ao enviar mensagem. Tente novamente.");
-  } finally {
-    setIsUploading(false);
-  }
-};
+  };
 
   // Função para ajustar a altura do textarea automaticamente
   const autoResizeTextarea = () => {
@@ -272,10 +275,12 @@ const handleSendMessage = async (e) => {
     }
   };
   
+  // Auto-resize textarea quando o texto muda
   useEffect(() => {
     autoResizeTextarea();
   }, [text]);
   
+  // Manipulador para cliques fora do menu de opções
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (optionsRef.current && !optionsRef.current.contains(event.target)) {
@@ -288,6 +293,13 @@ const handleSendMessage = async (e) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  
+  // Foco no textarea quando o componente monta
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [selectedGroup]);
   
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
