@@ -17,8 +17,9 @@ const AuthImagePattern = ({ title, subtitle }) => {
 
   return (
     <div className="hidden lg:flex items-center justify-center bg-base-200 p-12">
-      <div className="flex flex-col items-center justify-center max-w-md text-center">
-        <div className="grid grid-cols-3 gap-3 mb-8 w-full max-w-xs mx-auto">
+      <div className="flex flex-col items-center max-w-sm w-full">
+        {/* Grid de padrões com largura fixa equivalente ao texto */}
+        <div className="grid grid-cols-3 gap-3 mb-8 w-full">
           {[...Array(9)].map((_, i) => (
             <div
               key={i}
@@ -30,8 +31,12 @@ const AuthImagePattern = ({ title, subtitle }) => {
             />
           ))}
         </div>
-        <h2 className="text-2xl font-bold mb-4">{title}</h2>
-        <p className="text-base-content/60">{subtitle}</p>
+        
+        {/* Texto também com largura total para alinhar perfeitamente com o grid */}
+        <div className="text-center w-full">
+          <h2 className="text-2xl font-bold mb-4">{title}</h2>
+          <p className="text-base-content/60">{subtitle}</p>
+        </div>
       </div>
     </div>
   );
