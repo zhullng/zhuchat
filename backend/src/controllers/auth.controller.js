@@ -17,16 +17,16 @@ export const updatePassword = async (req, res) => {
     // Verificar se o utilizador existe
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "Utilizador não encontrado" });
+      return res.status(404).json({ message: "Utilizador não foi encontrado" });
     }
 
-    // Verificar se a senha atual está correta
+    // Verificar se a password atual está correta
     const isPasswordMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordMatch) {
       return res.status(400).json({ message: "Palavra-passe atual incorreta" });
     }
 
-    // Atualizar a senha
+    // Atualizar a password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
     user.password = hashedPassword;
@@ -49,7 +49,7 @@ export const signup = async (req, res) => {
     }
 
     if (password.length < 6) {
-      return res.status(422).json({ message: "A palavra-passe deve ter pelo menos 6 caracteres" });
+      return res.status(422).json({ message: "Palavra-passe deve ter pelo menos 6 caracteres" });
     }
 
     // Verifica se o e-mail já existe na BD
@@ -58,7 +58,7 @@ export const signup = async (req, res) => {
       return res.status(409).json({ message: "Este email já está registado" });
     }
 
-    // Cria e encripta a senha
+    // Cria e encripta a password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -86,7 +86,7 @@ export const signup = async (req, res) => {
       }
     }
 
-    // Preparar objeto do usuário
+    // Preparar objeto do user
     const userData = {
       fullName,
       gender,
@@ -164,7 +164,7 @@ export const login = async (req, res) => {
       }
     }
 
-    // Gera o token JWT e faz login normalmente
+    // Cria o token JWT e faz login normalmente
     generateToken(user._id, res);
 
     res.status(200).json({

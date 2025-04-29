@@ -5,7 +5,7 @@ export const generateAIResponse = async (req, res) => {
     const { message } = req.body;
 
     if (!message) {
-      return res.status(400).json({ error: "Mensagem não pode estar vazia" });
+      return res.status(400).json({ error: "A mensagem não pode estar vazia" });
     }
 
     const apiKey = process.env.AI_API_KEY;

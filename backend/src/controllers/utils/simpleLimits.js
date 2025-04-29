@@ -6,7 +6,7 @@ const DAILY_LIMITS = {
   withdrawal: 1000 
 };
 
-// Função para verificar se o usuário já atingiu o limite diário
+// Função para verificar se o utilizador já atingiu o limite diário
 export const checkDailyLimit = async (userId, transactionType) => {
   try {
     // Obter a data de início do dia atual (00:00:00)
@@ -17,7 +17,7 @@ export const checkDailyLimit = async (userId, transactionType) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Buscar todas as transações do mesmo tipo feitas pelo usuário hoje
+    // Procurar todas as transações do mesmo tipo feitas pelo utilizador hoje
     const transactions = await Transaction.find({
       user: userId,
       type: transactionType,
@@ -31,7 +31,7 @@ export const checkDailyLimit = async (userId, transactionType) => {
     // Calcular o total já movimentado hoje
     const totalToday = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
     
-    // Retornar informações sobre o limite
+    // Devolver informações sobre o limite
     return {
       limit: DAILY_LIMITS[transactionType],
       used: totalToday,
@@ -40,7 +40,7 @@ export const checkDailyLimit = async (userId, transactionType) => {
     };
   } catch (error) {
     console.error(`Erro ao verificar limite diário para ${transactionType}:`, error);
-    // Em caso de erro, retornar valores que permitam a transação
+    // Em caso de erro, devolver valores que permitam a transação
     return {
       limit: DAILY_LIMITS[transactionType],
       used: 0,

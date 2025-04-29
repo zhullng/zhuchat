@@ -1,3 +1,5 @@
+import React from "react";
+
 const AuthImagePattern = ({ title, subtitle }) => {
   // Animation delay values for each square in the grid
   const animationDelays = [
@@ -15,8 +17,8 @@ const AuthImagePattern = ({ title, subtitle }) => {
 
   return (
     <div className="hidden lg:flex items-center justify-center bg-base-200 p-12">
-      <div className="max-w-md text-center">
-        <div className="grid grid-cols-3 gap-3 mb-8">
+      <div className="max-w-md text-center flex flex-col items-center justify-center">
+        <div className="grid grid-cols-3 gap-3 mb-8 w-full max-w-xs mx-auto">
           {[...Array(9)].map((_, i) => (
             <div
               key={i}
