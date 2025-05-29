@@ -44,7 +44,7 @@ const EditGroupModal = ({ isOpen, onClose }) => {
     }
   }, [selectedGroup]);
 
-  // Efeito para desenhar a pré-visualização do corte
+  // Efeito para dePalavra-passer a pré-visualização do corte
   useEffect(() => {
     if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
       return;

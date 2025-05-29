@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Para armazenar tokens de redefinição de senha temporariamente
+// Para armazenar tokens de redefinição de Palavra-passe temporariamente
 const passwordResetTokens = {};
 
 // Criar transportador para envio de email
@@ -57,7 +57,7 @@ export const forgotPassword = async (req, res) => {
       expires: tokenExpires
     };
 
-    // URL do frontend para redefinição de senha
+    // URL do frontend para redefinição de Palavra-passe
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
 
     // Conteúdo do email
@@ -164,7 +164,7 @@ export const resetPassword = async (req, res) => {
       return res.status(404).json({ message: "Utilizador não encontrado" });
     }
     
-    // Atualizar a senha
+    // Atualizar a Palavra-passe
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     
@@ -184,7 +184,7 @@ export const resetPassword = async (req, res) => {
 // Função de inicialização para testar a configuração de email
 export const initializePasswordController = async () => {
   try {
-    console.log("🚀 Inicializando controlador de recuperação de senha...");
+    console.log("🚀 Inicializando controlador de recuperação de Palavra-passe...");
     const transporter = createTransporter();
     const isEmailConfigured = await transporter.verify().catch(e => false);
     console.log("📧 Configuração de email:", isEmailConfigured ? "✅ Funcionando" : "⚠️ Com problemas");

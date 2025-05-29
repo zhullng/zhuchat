@@ -19,7 +19,7 @@ router.put("/update-password", protectRoute, updatePassword);
 
 router.get("/check", protectRoute, checkAuth);
 
-// Rotas para recuperação de senha
+// Rotas para recuperação de Palavra-passe
 router.post("/forgot-password", forgotPassword);
 router.get("/reset-password/:token", verifyResetToken);
 router.post("/reset-password/:token", resetPassword);

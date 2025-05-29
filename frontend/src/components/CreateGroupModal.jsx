@@ -40,7 +40,7 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Efeito para desenhar a pré-visualização do corte
+  // Efeito para dePalavra-passer a pré-visualização do corte
   useEffect(() => {
     if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
       return;

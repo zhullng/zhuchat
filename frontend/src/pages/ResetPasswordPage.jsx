@@ -87,7 +87,7 @@ const ResetPasswordPage = () => {
 
       toast.success(response.data.message || "Palavra-passe redefinida com sucesso!");
       
-      // Redirecionar para a página de login após redefinir a senha
+      // Redirecionar para a página de login após redefinir a Palavra-passe
       setTimeout(() => {
         navigate("/login");
       }, 2000);

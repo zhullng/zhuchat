@@ -50,7 +50,7 @@ const SettingsPage = () => {
   const securitySubMenu = [
     {
       id: 'password',
-      label: 'Alterar Senha',
+      label: 'Alterar Palavra-passe',
       icon: <KeyRound className="size-4" />,
       onClick: () => navigate('/security/password')
     },

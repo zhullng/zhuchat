@@ -281,8 +281,8 @@ export const useAuthStore = create((set, get) => ({
       toast.success(res.data.message);
       return { success: true, data: res.data };
     } catch (error) {
-      console.error("Erro ao solicitar recuperação de senha:", error);
-      const errorMessage = error.response?.data?.message || "Erro ao solicitar recuperação de senha";
+      console.error("Erro ao solicitar recuperação de Palavra-passe:", error);
+      const errorMessage = error.response?.data?.message || "Erro ao solicitar recuperação de Palavra-passe";
       toast.error(errorMessage);
       return { success: false, message: errorMessage };
     }
