@@ -284,7 +284,7 @@ export const updateGroupInfo = async (req, res) => {
 
 // Adicionar ao controllers/group.controller.js
 
-// Excluir mensagem de grupo
+// Eliminar mensagem de grupo
 export const deleteGroupMessage = async (req, res) => {
   try {
     const { groupId, messageId } = req.params;
@@ -314,10 +314,10 @@ export const deleteGroupMessage = async (req, res) => {
     const isSender = message.senderId.toString() === userId.toString();
     
     if (!isSender && !isAdmin && !isCreator) {
-      return res.status(403).json({ error: "Você não tem permissão para excluir esta mensagem" });
+      return res.status(403).json({ error: "Você não tem permissão para Eliminar esta mensagem" });
     }
     
-    // Excluir a mensagem
+    // Eliminar a mensagem
     await GroupMessage.findByIdAndDelete(messageId);
     
     // Notificar membros do grupo sobre a exclusão
@@ -330,7 +330,7 @@ export const deleteGroupMessage = async (req, res) => {
     
     res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Erro ao excluir mensagem de grupo:", error);
+    console.error("Erro ao Eliminar mensagem de grupo:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
@@ -618,10 +618,10 @@ export const deleteGroup = async (req, res) => {
     
     // Verificar se o usuário é o criador
     if (stringUserId !== stringCreatorId) {
-      return res.status(403).json({ error: "Apenas o criador pode excluir o grupo" });
+      return res.status(403).json({ error: "Apenas o criador pode Eliminar o grupo" });
     }
     
-    // Excluir mensagens relacionadas
+    // Eliminar mensagens relacionadas
     await GroupMessage.deleteMany({ groupId });
     
     // Usar deleteOne em vez de findByIdAndDelete (pode ser mais estável)
@@ -629,7 +629,7 @@ export const deleteGroup = async (req, res) => {
     
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Erro ao excluir grupo:", error);
+    console.error("Erro ao Eliminar grupo:", error);
     return res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
@@ -640,7 +640,7 @@ export const deleteEmptyGroup = async (req, res) => {
     const groupId = req.params.id;
     const userId = req.user._id;
     
-    console.log("🔍 Tentando excluir grupo vazio:", { groupId, userId: String(userId) });
+    console.log("🔍 Tentando Eliminar grupo vazio:", { groupId, userId: String(userId) });
     
     // Buscar o grupo
     const group = await Group.findById(groupId);
@@ -665,7 +665,7 @@ export const deleteEmptyGroup = async (req, res) => {
     // Verificar se o usuário é o criador
     if (stringUserId !== stringCreatorId) {
       console.log("❌ Usuário não é o criador:", { userId: stringUserId, creatorId: stringCreatorId });
-      return res.status(403).json({ error: "Apenas o criador pode excluir o grupo" });
+      return res.status(403).json({ error: "Apenas o criador pode Eliminar o grupo" });
     }
     
     // REMOVER A VERIFICAÇÃO DE ÚNICO MEMBRO - Vamos permitir a exclusão mesmo se houver outros membros
@@ -673,7 +673,7 @@ export const deleteEmptyGroup = async (req, res) => {
     if (Array.isArray(group.members)) {
       const otherMembers = group.members.filter(m => String(m) !== stringUserId);
       if (otherMembers.length > 0) {
-        console.log("⚠️ Aviso: Grupo tem outros membros, mas vamos excluir mesmo assim:", 
+        console.log("⚠️ Aviso: Grupo tem outros membros, mas vamos Eliminar mesmo assim:", 
           { otherMembersCount: otherMembers.length });
       } else {
         console.log("✅ Grupo tem apenas o criador como membro");
@@ -681,17 +681,17 @@ export const deleteEmptyGroup = async (req, res) => {
     }
     
     console.log("🗑️ Excluindo mensagens do grupo");
-    // Excluir mensagens primeiro
+    // Eliminar mensagens primeiro
     await GroupMessage.deleteMany({ groupId });
     
     console.log("🗑️ Excluindo o grupo");
-    // Excluir o grupo usando deleteOne
+    // Eliminar o grupo usando deleteOne
     await Group.deleteOne({ _id: groupId });
     
     console.log("✅ Grupo excluído com sucesso");
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error("❌ Erro ao excluir grupo vazio:", error);
+    console.error("❌ Erro ao Eliminar grupo vazio:", error);
     return res.status(500).json({ error: "Erro interno do servidor" });
   }
 };

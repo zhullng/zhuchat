@@ -676,7 +676,7 @@ export const useGroupStore = create((set, get) => ({
       
       // Tentativa principal: rota de grupo vazio
       try {
-        console.log("Tentando excluir grupo (rota para grupos vazios)");
+        console.log("Tentando Eliminar grupo (rota para grupos vazios)");
         await axiosInstance.delete(`/groups/${groupId}/empty-delete`);
         
         toast.dismiss(loadingToast);
@@ -704,7 +704,7 @@ export const useGroupStore = create((set, get) => ({
       }
     } catch (unexpectedError) {
       toast.error("Erro inesperado ao processar sua solicitação");
-      console.error("Erro inesperado ao excluir grupo:", unexpectedError);
+      console.error("Erro inesperado ao Eliminar grupo:", unexpectedError);
     }
   },
 
@@ -761,7 +761,7 @@ export const useGroupStore = create((set, get) => ({
         throw new Error("Nenhum grupo selecionado");
       }
       
-      // Fazer chamada para excluir a mensagem
+      // Fazer chamada para Eliminar a mensagem
       const response = await axiosInstance.delete(`/groups/${selectedGroup._id}/messages/${messageId}`);
       
       // Atualizar estado removendo a mensagem local

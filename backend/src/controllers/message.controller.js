@@ -168,12 +168,12 @@ export const deleteMessage = async (req, res) => {
       return res.status(404).json({ error: "Mensagem não encontrada" });
     }
     
-    // Verificar permissão de exclusão (apenas o remetente pode excluir)
+    // Verificar permissão de exclusão (apenas o remetente pode Eliminar)
     if (message.senderId.toString() !== userId.toString()) {
-      return res.status(403).json({ error: "Sem permissão para excluir esta mensagem" });
+      return res.status(403).json({ error: "Sem permissão para Eliminar esta mensagem" });
     }
     
-    // Excluir mensagem do banco de dados
+    // Eliminar mensagem do banco de dados
     await Message.findByIdAndDelete(messageId);
     
     // Notificar o destinatário via WebSocket se estiver online
@@ -188,7 +188,7 @@ export const deleteMessage = async (req, res) => {
       message: "Mensagem excluída com sucesso" 
     });
   } catch (error) {
-    console.error("Erro ao excluir mensagem:", error);
+    console.error("Erro ao Eliminar mensagem:", error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };

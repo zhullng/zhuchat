@@ -16,7 +16,7 @@ router.get("/users", protectRoute, getUsersForSidebar);
 router.get("/conversations", protectRoute, getConversations);
 router.patch("/read/:id", protectRoute, markConversationAsRead);
 
-// Rota para excluir mensagem
+// Rota para Eliminar mensagem
 router.delete("/:id", protectRoute, deleteMessage);
 
 // Rotas com parâmetros dinâmicos depois

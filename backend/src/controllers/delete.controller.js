@@ -30,12 +30,12 @@ export const deleteAccount = async (req, res) => {
       try {
         await stripe.customers.del(user.stripeCustomerId);
       } catch (stripeError) {
-        console.error("Erro ao excluir cliente no Stripe:", stripeError);
+        console.error("Erro ao Eliminar cliente no Stripe:", stripeError);
         // Continuar com a exclusão mesmo se houver erro no Stripe
       }
     }
 
-    // Excluir o utilizador
+    // Eliminar o utilizador
     await User.findByIdAndDelete(userId);
     
     // Limpar cookie JWT

@@ -132,7 +132,7 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
     };
   }, [activeMessageMenu]);
 
-  // Função para excluir mensagem
+  // Função para Eliminar mensagem
   const handleDeleteMessage = async (messageId) => {
     try {
       // Mostrar toast de carregamento

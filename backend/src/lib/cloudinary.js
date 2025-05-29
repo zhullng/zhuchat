@@ -50,7 +50,7 @@ const uploadToCloudinary = async (fileData, folder = "chat_uploads", options = {
     throw error;
   }
 };
-// Função para excluir um arquivo do Cloudinary
+// Função para Eliminar um arquivo do Cloudinary
 const deleteFromCloudinary = async (publicId, resourceType = "image") => {
   try {
     const result = await cloudinary.uploader.destroy(publicId, { 
@@ -59,7 +59,7 @@ const deleteFromCloudinary = async (publicId, resourceType = "image") => {
     
     return { success: result === "ok" || result.result === "ok" };
   } catch (error) {
-    console.error("Erro ao excluir do Cloudinary:", error);
+    console.error("Erro ao Eliminar do Cloudinary:", error);
     return { success: false, error };
   }
 };

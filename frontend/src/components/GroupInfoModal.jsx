@@ -61,7 +61,7 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
       await deleteGroup(selectedGroup._id);
       onClose();
     } catch (error) {
-      console.error("Erro ao excluir grupo:", error);
+      console.error("Erro ao Eliminar grupo:", error);
     }
   };
 
@@ -190,7 +190,7 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
                 className="btn btn-error w-full gap-2"
               >
                 <Trash2 size={18} />
-                Excluir Grupo
+                Eliminar Grupo
               </button>
             ) : (
               <button

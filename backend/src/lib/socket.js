@@ -339,7 +339,7 @@ export function broadcastToGroup(groupId, eventName, data, excludeUserId = null)
     const roomName = `group-${groupId}`;
     
     if (excludeUserId) {
-      // Se tivermos que excluir um usuário específico e ele tem múltiplos sockets
+      // Se tivermos que Eliminar um usuário específico e ele tem múltiplos sockets
       if (userSocketsMultiMap[excludeUserId] && userSocketsMultiMap[excludeUserId].size > 0) {
         const socketIds = Array.from(userSocketsMultiMap[excludeUserId]);
         

@@ -106,7 +106,7 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
                 className="flex items-center gap-2 px-3 py-2 hover:bg-base-200 w-full text-left text-error"
               >
                 <Trash2 size={16} />
-                <span>Excluir grupo</span>
+                <span>Eliminar grupo</span>
               </button>
             ) : (
               <button
