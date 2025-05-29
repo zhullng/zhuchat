@@ -87,7 +87,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
               Grupo: {selectedGroup.name}
             </h3>
             <p className="text-xs text-base-content/70">
-              Selecione os contatos que Eu deseja adicionar ao grupo
+              Selecione os contatos que desejas adicionar ao grupo
             </p>
           </div>
           
