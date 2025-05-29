@@ -78,7 +78,7 @@ export const sendMessage = async (req, res) => {
       messageData.fileData = JSON.stringify(fileInfo);
     }
 
-    // Criar e salvar a mensagem
+    // Criar e Guardar a mensagem
     const newMessage = new Message(messageData);
     await newMessage.save();
 

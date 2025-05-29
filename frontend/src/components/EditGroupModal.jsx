@@ -339,7 +339,7 @@ const EditGroupModal = ({ isOpen, onClose }) => {
               className="btn btn-primary"
               disabled={isLoading}
             >
-              {isLoading ? "Salvando..." : "Salvar Alterações"}
+              {isLoading ? "A guardar..." : "Guardar Alterações"}
             </button>
           </div>
         </form>

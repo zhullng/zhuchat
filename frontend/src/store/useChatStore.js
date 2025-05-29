@@ -14,12 +14,12 @@ const loadViewedConversations = (userId) => {
   }
 };
 
-// Função auxiliar para salvar conversas visualizadas no localStorage
+// Função auxiliar para Guardar conversas visualizadas no localStorage
 const saveViewedConversations = (userId, viewedConversations) => {
   try {
     localStorage.setItem(`viewed_conversations_${userId}`, JSON.stringify(viewedConversations));
   } catch (error) {
-    console.error("Erro ao salvar conversas visualizadas:", error);
+    console.error("Erro ao Guardar conversas visualizadas:", error);
   }
 };
 

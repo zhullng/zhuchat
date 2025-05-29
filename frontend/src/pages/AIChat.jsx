@@ -31,7 +31,7 @@ const AIChat = ({ setSelectedUser }) => {
     }
   }, [authUser]);
 
-  // Salvar mensagens no localStorage quando elas mudarem
+  // Guardar mensagens no localStorage quando elas mudarem
   useEffect(() => {
     if (authUser && messages.length > 0) {
       localStorage.setItem(`aiChat_${authUser._id}`, JSON.stringify(messages));
