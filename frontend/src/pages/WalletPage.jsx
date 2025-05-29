@@ -66,7 +66,7 @@ const WalletPage = () => {
     },
     { 
       id: 3, 
-      label: 'Transações', 
+      label: 'Transferências', 
       icon: <Receipt className="size-6" />,
       tooltip: 'Histórico'
     },
@@ -74,7 +74,7 @@ const WalletPage = () => {
 
   // Tratar a mudança de tab
   const handleTabChange = (tabId) => {
-    // Se estiver indo para a tab de transações, recarregar os dados
+    // Se estiver indo para a tab de Transferências, recarregar os dados
     if (tabId === 3) {
       fetchWalletData();
     }
@@ -135,7 +135,7 @@ const WalletPage = () => {
                       />
                     ) : (
                       <div className="text-center py-8">
-                        <p>Por favor, faça login para visualizar o histórico de transações</p>
+                        <p>Por favor, faça login para visualizar o histórico de Transferências</p>
                       </div>
                     )
                   )}

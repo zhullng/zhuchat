@@ -17,7 +17,7 @@ export const useWalletStore = create((set, get) => ({
       
       const userResponse = await axios.get('/api/auth/check');
       
-      // Obter histórico de transações
+      // Obter histórico de Transferências
       const transactionsResponse = await axios.get('/api/transactions');
       
       // Obter histórico de transferências

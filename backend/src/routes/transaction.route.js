@@ -13,7 +13,7 @@ router.post("/deposits/other", protectRoute, depositWithOtherMethod);
 router.post("/withdrawals/card", protectRoute, withdrawFunds);
 router.post("/withdrawals/other", protectRoute, withdrawWithOtherMethod);
 
-// Histórico de transações
+// Histórico de Transferências
 router.get("/history", protectRoute, getTransactionHistory);
 
 export default router;

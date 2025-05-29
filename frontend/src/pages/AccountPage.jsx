@@ -135,10 +135,10 @@ const AccountPage = () => {
           </button>
         </div>
 
-        <h2 className="text-xl font-semibold text-gray-800">Transações</h2>
+        <h2 className="text-xl font-semibold text-gray-800">Transferências</h2>
         <div className="space-y-4 bg-gray-50 p-4 rounded-lg max-h-80 overflow-y-auto">
           {transfers.length === 0 ? (
-            <p className="text-center text-gray-500">Nenhuma transação encontrada</p>
+            <p className="text-center text-gray-500">Nenhuma Transferência encontrada</p>
           ) : (
             transfers.map((transfer) => (
               <div key={transfer._id} className="flex justify-between p-2 border-b border-gray-300">

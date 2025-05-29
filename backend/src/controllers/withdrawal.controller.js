@@ -70,7 +70,7 @@ const withdrawFunds = async (req, res) => {
       return res.status(500).json({ message: "Erro interno do servidor" });
     }
 
-    // Criar transação
+    // Criar Transferência
     const transaction = new Transaction({
       user: userId,
       type: "withdrawal",
@@ -82,10 +82,10 @@ const withdrawFunds = async (req, res) => {
       status: "completed"
     });
 
-    console.log("Transação criada:", transaction);
+    console.log("Transferência criada:", transaction);
 
     await transaction.save();
-    console.log("Transação salva com sucesso");
+    console.log("Transferência salva com sucesso");
 
     // Atualizar saldo do utilizador
     const updatedUser = await User.findByIdAndUpdate(
@@ -181,7 +181,7 @@ const withdrawWithOtherMethod = async (req, res) => {
       return res.status(500).json({ message: "Erro interno do servidor" });
     }
 
-    // Criar transação
+    // Criar Transferência
     const transaction = new Transaction({
       user: userId,
       type: "withdrawal",
@@ -191,10 +191,10 @@ const withdrawWithOtherMethod = async (req, res) => {
       status: "pending" // Levantamentos não-cartão começam pendentes
     });
 
-    console.log("Transação criada:", transaction);
+    console.log("Transferência criada:", transaction);
 
     await transaction.save();
-    console.log("Transação salva com sucesso");
+    console.log("Transferência salva com sucesso");
 
     // Reservar o montante (reduzir do saldo disponível)
     const updatedUser = await User.findByIdAndUpdate(
@@ -229,7 +229,7 @@ const withdrawWithOtherMethod = async (req, res) => {
   }
 };
 
-// Obter histórico de transações
+// Obter histórico de Transferências
 const getTransactionHistory = async (req, res) => {
   console.log("getTransactionHistory iniciado");
   try {
@@ -252,7 +252,7 @@ const getTransactionHistory = async (req, res) => {
     const transactions = await Transaction.find({ user: userId })
       .sort({ createdAt: -1 });
 
-    console.log(`Encontradas ${transactions.length} transações`);
+    console.log(`Encontradas ${transactions.length} Transferências`);
 
     res.status(200).json(transactions);
   } catch (error) {

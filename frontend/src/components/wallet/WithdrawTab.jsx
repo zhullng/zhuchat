@@ -25,7 +25,7 @@ const WithdrawTab = ({ refreshData, balance }) => {
     // Buscar informações sobre o limite diário atual
     const fetchLimitInfo = async () => {
       try {
-        // Obter todas as transações
+        // Obter todas as Transferências
         const response = await axios.get('/api/transactions');
         
         // Filtrar apenas levantamentos de hoje
@@ -126,7 +126,7 @@ const WithdrawTab = ({ refreshData, balance }) => {
     try {
       const result = await withdraw(parseFloat(amount), 'card', cardDetails);
       
-      // Atualizar limite restante se a transação for bem-sucedida
+      // Atualizar limite restante se a Transferência for bem-sucedida
       if (result) {
         setDailyLimit(prev => ({
           ...prev,

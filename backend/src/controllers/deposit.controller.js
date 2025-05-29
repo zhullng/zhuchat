@@ -59,7 +59,7 @@ export const depositFunds = async (req, res) => {
     // Para este exemplo, simularemos um pagamento bem-sucedido
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
-    // Criar transação
+    // Criar Transferência
     const transaction = new Transaction({
       user: userId,
       type: "deposit",
@@ -116,7 +116,7 @@ export const depositWithOtherMethod = async (req, res) => {
     // Determinar status inicial
     const initialStatus = method === "bank_transfer" ? "pending" : "completed";
 
-    // Criar transação
+    // Criar Transferência
     const transaction = new Transaction({
       user: userId,
       type: "deposit",
@@ -128,7 +128,7 @@ export const depositWithOtherMethod = async (req, res) => {
 
     await transaction.save();
 
-    // Atualizar saldo apenas para transações completas
+    // Atualizar saldo apenas para Transferências completas
     if (initialStatus === "completed") {
       await User.findByIdAndUpdate(userId, { $inc: { balance: amount } });
     }

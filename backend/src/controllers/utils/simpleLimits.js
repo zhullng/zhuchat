@@ -17,7 +17,7 @@ export const checkDailyLimit = async (userId, transactionType) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Procurar todas as transações do mesmo tipo feitas pelo utilizador hoje
+    // Procurar todas as Transferências do mesmo tipo feitas pelo utilizador hoje
     const transactions = await Transaction.find({
       user: userId,
       type: transactionType,
@@ -40,7 +40,7 @@ export const checkDailyLimit = async (userId, transactionType) => {
     };
   } catch (error) {
     console.error(`Erro ao verificar limite diário para ${transactionType}:`, error);
-    // Em caso de erro, devolver valores que permitam a transação
+    // Em caso de erro, devolver valores que permitam a Transferência
     return {
       limit: DAILY_LIMITS[transactionType],
       used: 0,

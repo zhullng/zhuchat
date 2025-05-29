@@ -40,7 +40,7 @@ export const withdrawByOtherMethod = async (withdrawData) => {
   }
 };
 
-// Histórico de transações
+// Histórico de Transferências
 export const getTransactions = async () => {
   try {
     const response = await axios.get(`${API_URL}/transactions`);
