@@ -55,7 +55,7 @@ export const useChatStore = create((set, get) => ({
       // Log detalhado do erro
       console.error("Erro ao eliminar mensagem:", error);
       
-      // Notificação de erro para o usuário
+      // Notificação de erro para o Utilizador
       toast.error(error.response?.data?.error || "Erro ao eliminar mensagem");
       
       // Propagar o erro para tratamento adicional, se necessário
@@ -83,7 +83,7 @@ export const useChatStore = create((set, get) => ({
           ? blockedRes.data.map(user => user._id)
           : [];
       } catch (blockedError) {
-        console.warn("Erro ao obter usuários bloqueados:", blockedError);
+        console.warn("Erro ao obter Utilizadors bloqueados:", blockedError);
       }
 
       try {

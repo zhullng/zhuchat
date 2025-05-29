@@ -49,12 +49,12 @@ export function getReceiverSocketId(userId) {
 // Mapa para armazenar os users online
 const userSocketMap = {}; // Exemplo: {userId: socketId}
 
-// Mapa para múltiplas conexões por usuário
+// Mapa para múltiplas conexões por Utilizador
 const userSocketsMultiMap = {}; // Exemplo: {userId: Set[socketId1, socketId2...]}
 
-// Função para reassociar usuários às suas salas (executada a cada X minutos)
+// Função para reassociar Utilizadors às suas salas (executada a cada X minutos)
 const reassociateUsersToRooms = async () => {
-  console.log("Verificando e reassociando usuários às suas salas de grupo...");
+  console.log("Verificando e reassociando Utilizadors às suas salas de grupo...");
   
   for (const [userId, socketId] of Object.entries(userSocketMap)) {
     try {
@@ -71,7 +71,7 @@ const reassociateUsersToRooms = async () => {
             console.log(`Reconnected user ${userId} to room ${roomName}`);
           }
         }
-        console.log(`Verificado: Usuário ${userId} está em ${groups.length} salas de grupo`);
+        console.log(`Verificado: Utilizador ${userId} está em ${groups.length} salas de grupo`);
       }
     } catch (err) {
       console.error(`Error reassociating user ${userId} to rooms:`, err);
@@ -92,7 +92,7 @@ const checkSocketConnections = () => {
     const socket = io.sockets.sockets.get(socketId);
     
     if (!socket || !socket.connected) {
-      console.log(`Removendo socket desconectado ${socketId} para usuário ${userId}`);
+      console.log(`Removendo socket desconectado ${socketId} para Utilizador ${userId}`);
       delete userSocketMap[userId];
       
       // Remover também do multi-map
@@ -108,7 +108,7 @@ const checkSocketConnections = () => {
   }
   
   if (socketsRemovidos > 0) {
-    // Atualizar lista de usuários online para todos
+    // Atualizar lista de Utilizadors online para todos
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
     console.log(`${socketsRemovidos} conexões inválidas removidas`);
   }
@@ -138,28 +138,28 @@ io.on("connection", (socket) => {
   }
   userSocketsMultiMap[userId].add(socket.id);
   
-  console.log(`Usuário ${userId} conectado com socket ${socket.id}. Total conexões: ${userSocketsMultiMap[userId].size}`);
+  console.log(`Utilizador ${userId} conectado com socket ${socket.id}. Total conexões: ${userSocketsMultiMap[userId].size}`);
 
   // Emite um evento para todos os users conectados
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   // Juntar-se a salas de grupo - melhorado para garantir sucesso
-  // Buscar grupos do usuário e entrar nas salas correspondentes
+  // Buscar grupos do Utilizador e entrar nas salas correspondentes
   Group.find({ members: userId })
     .then(groups => {
       if (groups && groups.length > 0) {
         groups.forEach(group => {
           const roomName = `group-${group._id}`;
           socket.join(roomName);
-          console.log(`Usuário ${userId} entrou automaticamente na sala ${roomName}`);
+          console.log(`Utilizador ${userId} entrou automaticamente na sala ${roomName}`);
         });
-        console.log(`Usuário ${userId} entrou em ${groups.length} salas de grupo`);
+        console.log(`Utilizador ${userId} entrou em ${groups.length} salas de grupo`);
       } else {
-        console.log(`Usuário ${userId} não tem grupos para entrar`);
+        console.log(`Utilizador ${userId} não tem grupos para entrar`);
       }
     })
     .catch(err => {
-      console.error(`Erro ao entrar em salas de grupo para usuário ${userId}:`, err);
+      console.error(`Erro ao entrar em salas de grupo para Utilizador ${userId}:`, err);
     });
 
   // Evento específico para indicar "digitando"
@@ -211,39 +211,39 @@ io.on("connection", (socket) => {
           }
         }
         
-        console.log(`Reconexão solicitada: Usuário ${userId} reconectado a ${joinedCount} salas de grupo`);
+        console.log(`Reconexão solicitada: Utilizador ${userId} reconectado a ${joinedCount} salas de grupo`);
         socket.emit("roomsReconnected", { 
           success: true, 
           count: joinedCount,
           groups: groups.map(g => g._id.toString())
         });
       } else {
-        console.log(`Reconexão solicitada: Usuário ${userId} não tem grupos para entrar`);
+        console.log(`Reconexão solicitada: Utilizador ${userId} não tem grupos para entrar`);
         socket.emit("roomsReconnected", { success: true, count: 0, groups: [] });
       }
     } catch (err) {
-      console.error(`Erro ao reconectar usuário ${userId} às salas:`, err);
+      console.error(`Erro ao reconectar Utilizador ${userId} às salas:`, err);
       socket.emit("roomsReconnected", { success: false, error: "Falha na reconexão" });
     }
   });
   
   // Evento de desconexão do Socket.IO melhorado
   socket.on("disconnect", (reason) => {
-    console.log(`Usuário desconectou-se: Socket ${socket.id}, Razão: ${reason}`);
+    console.log(`Utilizador desconectou-se: Socket ${socket.id}, Razão: ${reason}`);
     
-    // Remover este socket específico das conexões do usuário
+    // Remover este socket específico das conexões do Utilizador
     if (userSocketsMultiMap[userId]) {
       userSocketsMultiMap[userId].delete(socket.id);
       
-      // Se ainda houver outras conexões, manter o usuário online
+      // Se ainda houver outras conexões, manter o Utilizador online
       if (userSocketsMultiMap[userId].size > 0) {
-        console.log(`Usuário ${userId} ainda tem ${userSocketsMultiMap[userId].size} conexões ativas`);
+        console.log(`Utilizador ${userId} ainda tem ${userSocketsMultiMap[userId].size} conexões ativas`);
         
         // Atualizar o socket ID principal
         const remainingSockets = Array.from(userSocketsMultiMap[userId]);
         userSocketMap[userId] = remainingSockets[0]; // Usar o primeiro socket disponível
         
-        // Não atualizar a lista de usuários online, pois o usuário ainda está conectado
+        // Não atualizar a lista de Utilizadors online, pois o Utilizador ainda está conectado
         return;
       }
       
@@ -251,11 +251,11 @@ io.on("connection", (socket) => {
       delete userSocketsMultiMap[userId];
     }
     
-    // Remover o usuário do mapa principal
+    // Remover o Utilizador do mapa principal
     if (userSocketMap[userId] === socket.id) {
       delete userSocketMap[userId];
       
-      // Notificar todos os clientes sobre a mudança na lista de usuários online
+      // Notificar todos os clientes sobre a mudança na lista de Utilizadors online
       io.emit("getOnlineUsers", Object.keys(userSocketMap));
     }
   });
@@ -267,13 +267,13 @@ io.on("connection", (socket) => {
     
     // Listar todos os clientes na sala para depuração
     const clients = io.sockets.adapter.rooms.get(roomName)?.size || 0;
-    console.log(`Usuário ${userId} entrou manualmente no grupo ${roomName}. Total de clientes na sala: ${clients}`);
+    console.log(`Utilizador ${userId} entrou manualmente no grupo ${roomName}. Total de clientes na sala: ${clients}`);
   });
 
   socket.on("leaveGroup", (groupId) => {
     const roomName = `group-${groupId}`;
     socket.leave(roomName);
-    console.log(`Usuário ${userId} saiu do grupo ${roomName}`);
+    console.log(`Utilizador ${userId} saiu do grupo ${roomName}`);
   });
 
   // Backup para garantir entrega de mensagens
@@ -281,7 +281,7 @@ io.on("connection", (socket) => {
     const { groupId, text, timestamp } = data;
     const roomName = `group-${groupId}`;
     
-    console.log(`Usuário ${userId} está tentando enviar mensagem direta para ${roomName}`);
+    console.log(`Utilizador ${userId} está tentando enviar mensagem direta para ${roomName}`);
     
     // MODIFICADO: Enviar para todos na sala EXCETO o remetente
     // Isso evita que o remetente receba sua própria mensagem de volta
@@ -294,14 +294,14 @@ io.on("connection", (socket) => {
   });
 });
 
-// Função para enviar mensagem para todos os sockets de um usuário
+// Função para enviar mensagem para todos os sockets de um Utilizador
 export function sendToAllUserSockets(userId, eventName, data) {
   if (!userId || !eventName) return false;
   
   try {
     let sentCount = 0;
     
-    // Enviar para todos os sockets deste usuário
+    // Enviar para todos os sockets deste Utilizador
     if (userSocketsMultiMap[userId]) {
       const sockets = Array.from(userSocketsMultiMap[userId]);
       
@@ -326,7 +326,7 @@ export function sendToAllUserSockets(userId, eventName, data) {
     
     return sentCount > 0;
   } catch (error) {
-    console.error(`Erro ao enviar evento para usuário ${userId}:`, error);
+    console.error(`Erro ao enviar evento para Utilizador ${userId}:`, error);
     return false;
   }
 }
@@ -339,16 +339,16 @@ export function broadcastToGroup(groupId, eventName, data, excludeUserId = null)
     const roomName = `group-${groupId}`;
     
     if (excludeUserId) {
-      // Se tivermos que Eliminar um usuário específico e ele tem múltiplos sockets
+      // Se tivermos que Eliminar um Utilizador específico e ele tem múltiplos sockets
       if (userSocketsMultiMap[excludeUserId] && userSocketsMultiMap[excludeUserId].size > 0) {
         const socketIds = Array.from(userSocketsMultiMap[excludeUserId]);
         
-        // Emite para todos na sala EXCETO os sockets do usuário
+        // Emite para todos na sala EXCETO os sockets do Utilizador
         socketIds.forEach(socketId => {
           io.to(roomName).except(socketId).emit(eventName, data);
         });
       } else {
-        // Modo antigo - apenas um socket por usuário
+        // Modo antigo - apenas um socket por Utilizador
         const socketId = userSocketMap[excludeUserId];
         if (socketId) {
           io.to(roomName).except(socketId).emit(eventName, data);

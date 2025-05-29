@@ -211,7 +211,7 @@ export const useAuthStore = create((set, get) => ({
         socketReconnectAttempts: 0 
       });
 
-      // Configurar listener para usuários online
+      // Configurar listener para Utilizadors online
       socket.on("getOnlineUsers", (userIds) => {
         set({ onlineUsers: userIds });
       });
@@ -243,7 +243,7 @@ export const useAuthStore = create((set, get) => ({
     if (socket) {
       set({ socket, socketError: null });
       
-      // Reconfigurar listener para usuários online
+      // Reconfigurar listener para Utilizadors online
       socket.on("getOnlineUsers", (userIds) => {
         set({ onlineUsers: userIds });
       });

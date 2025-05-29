@@ -133,7 +133,7 @@ const ForgotPasswordPage = () => {
             {devToken && (
               <div className={`mt-6 p-4 border border-warning rounded-lg ${showDevInfo ? 'block' : 'hidden'}`}>
                 <h3 className="font-bold text-warning mb-2">Modo de Desenvolvimento</h3>
-                <p className="text-sm mb-3">Como o envio de email pode não estar configurado corretamente, você pode usar estas opções para testar:</p>
+                <p className="text-sm mb-3">Como o envio de email pode não estar configurado corretamente, Eu pode usar estas opções para testar:</p>
                 
                 <div className="grid grid-cols-1 gap-3">
                   <button 

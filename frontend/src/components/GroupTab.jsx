@@ -26,7 +26,7 @@ const GroupTab = ({ searchQuery, onCreateGroup }) => {
 
   // Função para lidar com a seleção de grupo
   const handleGroupSelect = (group) => {
-    // Limpar o usuário selecionado quando um grupo é selecionado
+    // Limpar o Utilizador selecionado quando um grupo é selecionado
     if (selectedUser) {
       setSelectedUser(null);
     }
@@ -50,7 +50,7 @@ const GroupTab = ({ searchQuery, onCreateGroup }) => {
           <div className="mb-3">
             <Users size={48} className="mx-auto opacity-40" />
           </div>
-          <p className="mb-2">Você ainda não participa de nenhum grupo</p>
+          <p className="mb-2">Eu ainda não participa de nenhum grupo</p>
           <button 
             onClick={onCreateGroup}
             className="btn btn-sm btn-primary mt-2"

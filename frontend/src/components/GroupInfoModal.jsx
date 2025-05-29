@@ -39,7 +39,7 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen, selectedGroup?._id]);
 
-  // Verificar se o usuário logado é o criador do grupo
+  // Verificar se o Utilizador logado é o criador do grupo
   const isCreator = selectedGroup?.createdBy === authUser._id;
   
   // Lista de membros formatada
@@ -159,7 +159,7 @@ const GroupInfoModal = ({ isOpen, onClose }) => {
                           )}
                           {member._id === authUser._id && (
                             <span className="ml-2 text-xs bg-base-300 px-1.5 py-0.5 rounded">
-                              Você
+                              Eu
                             </span>
                           )}
                         </div>

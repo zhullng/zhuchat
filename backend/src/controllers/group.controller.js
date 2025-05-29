@@ -51,12 +51,12 @@ export const createGroup = async (req, res) => {
   }
 };
 
-// Obter todos os grupos do usuário
+// Obter todos os grupos do Utilizador
 export const getUserGroups = async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Encontrar grupos onde o usuário é membro
+    // Encontrar grupos onde o Utilizador é membro
     const groups = await Group.find({ 
       members: { $in: [userId] } 
     }).populate("members", "fullName profilePic email");
@@ -82,7 +82,7 @@ export const getGroupById = async (req, res) => {
     const groupId = req.params.id;
     const userId = req.user._id;
     
-    // Verificar se o usuário é membro do grupo
+    // Verificar se o Utilizador é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [userId] }
@@ -124,14 +124,14 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(400).json({ error: "Mensagem vazia" });
     }
     
-    // Verificar se o usuário é membro do grupo
+    // Verificar se o Utilizador é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [senderId] }
     }).populate("members", "fullName profilePic");
     
     if (!group) {
-      return res.status(403).json({ error: "Você não é membro deste grupo" });
+      return res.status(403).json({ error: "Eu não é membro deste grupo" });
     }
     
     let imageUrl = null;
@@ -233,7 +233,7 @@ export const updateGroupInfo = async (req, res) => {
       return res.status(404).json({ error: "Grupo não encontrado" });
     }
     
-    // Verificar se o usuário é o criador
+    // Verificar se o Utilizador é o criador
     if (group.createdBy.toString() !== userId.toString()) {
       return res.status(403).json({ error: "Apenas o criador pode editar informações do grupo" });
     }
@@ -302,7 +302,7 @@ export const deleteGroupMessage = async (req, res) => {
       return res.status(400).json({ error: "A mensagem não pertence a este grupo" });
     }
     
-    // Verificar se o usuário é o remetente da mensagem ou administrador do grupo
+    // Verificar se o Utilizador é o remetente da mensagem ou administrador do grupo
     const group = await Group.findById(groupId);
     
     if (!group) {
@@ -314,7 +314,7 @@ export const deleteGroupMessage = async (req, res) => {
     const isSender = message.senderId.toString() === userId.toString();
     
     if (!isSender && !isAdmin && !isCreator) {
-      return res.status(403).json({ error: "Você não tem permissão para Eliminar esta mensagem" });
+      return res.status(403).json({ error: "Eu não tem permissão para Eliminar esta mensagem" });
     }
     
     // Eliminar a mensagem
@@ -341,14 +341,14 @@ export const getGroupMessages = async (req, res) => {
     const { id: groupId } = req.params;
     const userId = req.user._id;
     
-    // Verificar se o usuário é membro do grupo
+    // Verificar se o Utilizador é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [userId] }
     });
     
     if (!group) {
-      return res.status(403).json({ error: "Você não é membro deste grupo" });
+      return res.status(403).json({ error: "Eu não é membro deste grupo" });
     }
     
     // Obter as mensagens do grupo
@@ -370,23 +370,23 @@ export const markGroupMessagesAsRead = async (req, res) => {
     const { id: groupId } = req.params;
     const userId = req.user._id;
     
-    // Verificar se o usuário é membro do grupo
+    // Verificar se o Utilizador é membro do grupo
     const group = await Group.findOne({
       _id: groupId,
       members: { $in: [userId] }
     });
     
     if (!group) {
-      return res.status(403).json({ error: "Você não é membro deste grupo" });
+      return res.status(403).json({ error: "Eu não é membro deste grupo" });
     }
     
-    // Encontrar mensagens que o usuário ainda não leu
+    // Encontrar mensagens que o Utilizador ainda não leu
     const messagesToUpdate = await GroupMessage.find({
       groupId,
       'read.userId': { $ne: userId }
     });
     
-    // Adicionar o usuário à lista de leitores de cada mensagem
+    // Adicionar o Utilizador à lista de leitores de cada mensagem
     for (const message of messagesToUpdate) {
       message.read.push({ userId, readAt: new Date() });
       await message.save();
@@ -403,7 +403,7 @@ export const markGroupMessagesAsRead = async (req, res) => {
 export const addGroupMembers = async (req, res) => {
   try {
     const { id: groupId } = req.params;
-    const { members } = req.body; // Array de IDs de usuários a adicionar
+    const { members } = req.body; // Array de IDs de Utilizadors a adicionar
     const userId = req.user._id;
     
     // Buscar o grupo
@@ -413,13 +413,13 @@ export const addGroupMembers = async (req, res) => {
       return res.status(404).json({ error: "Grupo não encontrado" });
     }
     
-    // Verificar se o usuário é membro do grupo
+    // Verificar se o Utilizador é membro do grupo
     const isUserMember = group.members.some(id => id.toString() === userId.toString());
     if (!isUserMember) {
-      return res.status(403).json({ error: "Você não é membro deste grupo" });
+      return res.status(403).json({ error: "Eu não é membro deste grupo" });
     }
     
-    // Verificar se o usuário é o criador ou um administrador
+    // Verificar se o Utilizador é o criador ou um administrador
     const isCreator = group.createdBy.toString() === userId.toString();
     const isAdmin = group.admins && group.admins.some(id => id.toString() === userId.toString());
     
@@ -496,8 +496,8 @@ export const removeGroupMember = async (req, res) => {
     const isUserMember = group.members.some(m => m.toString() === userId.toString());
     
     if (!isUserMember) {
-      console.log("Usuário não é membro do grupo");
-      return res.status(403).json({ error: "Você não é membro deste grupo" });
+      console.log("Utilizador não é membro do grupo");
+      return res.status(403).json({ error: "Eu não é membro deste grupo" });
     }
 
     // Não permitir remover o criador
@@ -511,7 +511,7 @@ export const removeGroupMember = async (req, res) => {
     
     if (!isMemberInGroup) {
       console.log("Membro não existe no grupo");
-      return res.status(404).json({ error: "Usuário não é membro deste grupo" });
+      return res.status(404).json({ error: "Utilizador não é membro deste grupo" });
     }
 
     console.log("Removendo membro:", memberId);
@@ -562,26 +562,26 @@ export const leaveGroup = async (req, res) => {
     const creatorId = group.createdBy ? group.createdBy.toString() : null;
     const requestUserId = userId ? userId.toString() : null;
     
-    // Verificar se o usuário é o criador
+    // Verificar se o Utilizador é o criador
     if (creatorId === requestUserId) {
       return res.status(400).json({ error: "O criador não pode sair do grupo, deve deletá-lo" });
     }
     
-    // Verificar se o usuário é membro
+    // Verificar se o Utilizador é membro
     const isUserMember = Array.isArray(group.members) && 
       group.members.some(memberId => memberId && memberId.toString() === requestUserId);
     
     if (!isUserMember) {
-      return res.status(400).json({ error: "Você não é membro deste grupo" });
+      return res.status(400).json({ error: "Eu não é membro deste grupo" });
     }
     
-    // Remover o usuário dos membros de forma segura
+    // Remover o Utilizador dos membros de forma segura
     if (Array.isArray(group.members)) {
       group.members = group.members.filter(memberId => 
         memberId && memberId.toString() !== requestUserId
       );
       
-      // Se o usuário era um administrador, removê-lo dos administradores também
+      // Se o Utilizador era um administrador, removê-lo dos administradores também
       if (group.admins) {
         group.admins = group.admins.filter(adminId => 
           adminId && adminId.toString() !== requestUserId
@@ -616,7 +616,7 @@ export const deleteGroup = async (req, res) => {
     const stringUserId = String(userId);
     const stringCreatorId = String(group.createdBy);
     
-    // Verificar se o usuário é o criador
+    // Verificar se o Utilizador é o criador
     if (stringUserId !== stringCreatorId) {
       return res.status(403).json({ error: "Apenas o criador pode Eliminar o grupo" });
     }
@@ -662,9 +662,9 @@ export const deleteEmptyGroup = async (req, res) => {
     const stringUserId = String(userId);
     const stringCreatorId = String(group.createdBy);
     
-    // Verificar se o usuário é o criador
+    // Verificar se o Utilizador é o criador
     if (stringUserId !== stringCreatorId) {
-      console.log("❌ Usuário não é o criador:", { userId: stringUserId, creatorId: stringCreatorId });
+      console.log("❌ Utilizador não é o criador:", { userId: stringUserId, creatorId: stringCreatorId });
       return res.status(403).json({ error: "Apenas o criador pode Eliminar o grupo" });
     }
     

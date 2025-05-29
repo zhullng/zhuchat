@@ -348,7 +348,7 @@ export const blockUser = async (req, res) => {
     const blockedContact = new Contact({
       userId: currentUserId,
       contactId: userId,
-      email: userToBlock.email, // Incluir email do usuário bloqueado
+      email: userToBlock.email, // Incluir email do Utilizador bloqueado
       status: "blocked"
     });
 

@@ -27,7 +27,7 @@ const MessageInput = () => {
     setIsIOS(isIOSDevice());
   }, []);
 
-  // Foco inicial quando o componente monta ou o usuário selecionado muda
+  // Foco inicial quando o componente monta ou o Utilizador selecionado muda
   useEffect(() => {
     if (textareaRef.current && selectedUser) {
       // Pequeno atraso para garantir que o DOM esteja pronto

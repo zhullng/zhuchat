@@ -366,16 +366,16 @@ const GroupChatContainer = ({ isMobile = false, onBack }) => {
               senderId = message.senderId;
             }
             
-            // Verificar se a mensagem é do usuário atual
+            // Verificar se a mensagem é do Utilizador atual
             isMyMessage = senderId === authUser._id;
             
             // Determinar nome do remetente
             if (isMyMessage) {
               // Se for minha mensagem, uso meu nome
-              senderName = authUser.fullName || 'Você';
+              senderName = authUser.fullName || 'Eu';
               senderPic = authUser.profilePic || '/avatar.png';
             } else if (typeof message.senderId === 'object' && message.senderId !== null && message.senderId.fullName) {
-              // Se for objeto de outro usuário com nome, uso os dados fornecidos
+              // Se for objeto de outro Utilizador com nome, uso os dados fornecidos
               senderName = message.senderId.fullName;
               senderPic = message.senderId.profilePic || '/avatar.png';
             } else {

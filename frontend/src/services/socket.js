@@ -19,7 +19,7 @@ export const initializeSocket = (authUser) => {
     }
 
     if (!authUser || !authUser._id) {
-      console.log("Usuário não autenticado, não inicializando socket");
+      console.log("Utilizador não autenticado, não inicializando socket");
       return null;
     }
 
@@ -199,7 +199,7 @@ const handleReconnect = (reason) => {
 
 /**
  * Reconecta forçadamente o socket
- * @param {Object} authUser - Usuário autenticado
+ * @param {Object} authUser - Utilizador autenticado
  */
 export const forceReconnect = (authUser) => {
   if (socket) {

@@ -283,12 +283,12 @@ const Sidebar = () => {
     // Fechar menu de opções se estiver aberto
     setShowContactMenu(false);
     
-    // Limpar seleção de grupo ao selecionar um usuário
+    // Limpar seleção de grupo ao selecionar um Utilizador
     if (selectedGroup) {
       selectGroup(null);
     }
     
-    // Definir o usuário selecionado
+    // Definir o Utilizador selecionado
     setSelectedUser(user);
     
     // Forçar marcação como lida imediatamente se houver mensagens não lidas
@@ -297,7 +297,7 @@ const Sidebar = () => {
     }
   };
 
-  // Função para obter usuários ordenados e filtrados
+  // Função para obter Utilizadors ordenados e filtrados
   const getSortedAndFilteredUsers = useCallback(() => {
     if (!users || !Array.isArray(users) || users.length === 0) return [];
     

@@ -48,7 +48,7 @@ export const useGroupStore = create((set, get) => ({
           const messages = res.data || [];
           const authUser = useAuthStore.getState().authUser;
           
-          // Contar mensagens não lidas (onde o usuário não está na lista de leitores)
+          // Contar mensagens não lidas (onde o Utilizador não está na lista de leitores)
           const unreadCount = messages.filter(msg => 
             !msg.read.some(r => r.userId === authUser._id)
           ).length;
@@ -96,7 +96,7 @@ export const useGroupStore = create((set, get) => ({
           chatStore.setSelectedUser(null);
         }
       } catch (error) {
-        console.warn("Não foi possível limpar o usuário selecionado:", error);
+        console.warn("Não foi possível limpar o Utilizador selecionado:", error);
       }
       
       // Mostrar apenas o toast de criação, não de adição
@@ -129,7 +129,7 @@ export const useGroupStore = create((set, get) => ({
           chatStore.setSelectedUser(null);
         }
       } catch (error) {
-        console.warn("Não foi possível limpar o usuário selecionado:", error);
+        console.warn("Não foi possível limpar o Utilizador selecionado:", error);
       }
       
       // ATUALIZADO: Garantir que estamos inscritos nos eventos antes de entrar no grupo
@@ -189,13 +189,13 @@ export const useGroupStore = create((set, get) => ({
           ? message.senderId?._id 
           : message.senderId;
         
-        // Se for o usuário atual
+        // Se for o Utilizador atual
         if (senderId === authUser._id) {
           return {
             ...message,
             senderId: {
               _id: authUser._id,
-              fullName: authUser.fullName || 'Você',
+              fullName: authUser.fullName || 'Eu',
               profilePic: authUser.profilePic || '/avatar.png'
             }
           };
@@ -266,7 +266,7 @@ export const useGroupStore = create((set, get) => ({
         file: messageData.file || null,
         senderId: {
           _id: authUser._id,
-          fullName: authUser.fullName || "Você",
+          fullName: authUser.fullName || "Eu",
           profilePic: authUser.profilePic || "/avatar.png"
         },
         createdAt: new Date().toISOString(),
@@ -291,7 +291,7 @@ export const useGroupStore = create((set, get) => ({
             ...newMessage,
             senderId: {
               _id: authUser._id,
-              fullName: authUser.fullName || "Você",
+              fullName: authUser.fullName || "Eu",
               profilePic: authUser.profilePic || "/avatar.png"
             }
           } : msg
@@ -354,7 +354,7 @@ export const useGroupStore = create((set, get) => ({
       set(state => ({
         groups: [group, ...state.groups]
       }));
-      toast.success(`Você foi adicionado ao grupo ${group.name}`);
+      toast.success(`Eu foi adicionado ao grupo ${group.name}`);
     });
     
     // Mensagem de grupo eliminada
@@ -377,7 +377,7 @@ export const useGroupStore = create((set, get) => ({
       const authUser = useAuthStore.getState().authUser;
       const currentGroup = get().selectedGroup;
       
-      // Ignorar mensagens do próprio usuário
+      // Ignorar mensagens do próprio Utilizador
       if (message.senderId._id === authUser._id) {
         return;
       }
@@ -475,7 +475,7 @@ export const useGroupStore = create((set, get) => ({
       set(state => ({
         groups: [group, ...state.groups]
       }));
-      toast.success(`Você foi adicionado ao grupo ${group.name}`);
+      toast.success(`Eu foi adicionado ao grupo ${group.name}`);
       
       // Entrar automaticamente na sala de grupo
       socket.emit("joinGroup", group._id);
@@ -487,7 +487,7 @@ export const useGroupStore = create((set, get) => ({
         groups: state.groups.filter(g => g._id !== groupId),
         selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
       }));
-      toast.info("Você foi removido de um grupo");
+      toast.info("Eu foi removido de um grupo");
       
       // Sair da sala de grupo
       socket.emit("leaveGroup", groupId);
@@ -632,7 +632,7 @@ export const useGroupStore = create((set, get) => ({
         selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup
       }));
       
-      toast.success("Você saiu do grupo com sucesso");
+      toast.success("Eu saiu do grupo com sucesso");
     } catch (error) {
       console.error("Erro ao sair do grupo:", error);
       toast.error(error.response?.data?.error || "Erro ao sair do grupo");
@@ -698,7 +698,7 @@ export const useGroupStore = create((set, get) => ({
           toast.dismiss(loadingToast);
           
           // Remover o confirm e sempre manter a remoção do grupo localmente
-          // Nenhuma decisão do usuário é necessária aqui
+          // Nenhuma decisão do Utilizador é necessária aqui
           toast.success("Grupo removido localmente");
         }
       }
@@ -786,7 +786,7 @@ export const useGroupStore = create((set, get) => ({
       // Log detalhado do erro
       console.error("Erro ao eliminar mensagem de grupo:", error);
       
-      // Notificação de erro para o usuário
+      // Notificação de erro para o Utilizador
       toast.error(error.response?.data?.error || "Erro ao eliminar mensagem");
       
       // Propagar o erro para tratamento adicional, se necessário

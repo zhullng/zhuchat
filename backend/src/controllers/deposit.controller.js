@@ -11,7 +11,7 @@ const ensurePaymentCustomer = async (user) => {
       return user.stripeCustomerId;
     }
 
-    // Em uma aplicação real, aqui você conectaria com Stripe ou outro gateway
+    // Em uma aplicação real, aqui Eu conectaria com Stripe ou outro gateway
     // Para este exemplo, simularemos a criação de um ID de cliente
     const customerId = `cust_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
@@ -55,7 +55,7 @@ export const depositFunds = async (req, res) => {
     // Garantir que o utilizador tem ID de cliente
     const customerId = await ensurePaymentCustomer(req.user);
 
-    // Em uma aplicação real, aqui você processaria o pagamento com um gateway
+    // Em uma aplicação real, aqui Eu processaria o pagamento com um gateway
     // Para este exemplo, simularemos um pagamento bem-sucedido
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 

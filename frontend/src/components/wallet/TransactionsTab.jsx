@@ -143,8 +143,8 @@ const TransactionsTab = ({ transfers, userId, isLoading }) => {
               {isSender ? 'Para ' : 'De '}
               <strong>
                 {isSender 
-                  ? (transfer.receiver && (transfer.receiver.fullName || transfer.receiver.username || 'Usuário'))
-                  : (transfer.sender && (transfer.sender.fullName || transfer.sender.username || 'Usuário'))}
+                  ? (transfer.receiver && (transfer.receiver.fullName || transfer.receiver.username || 'Utilizador'))
+                  : (transfer.sender && (transfer.sender.fullName || transfer.sender.username || 'Utilizador'))}
               </strong>
             </p>
             <p className="text-sm text-gray-500">{formatDate(transfer.createdAt)}</p>

@@ -34,7 +34,7 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
   const imgRef = useRef(null);
   const previewCanvasRef = useRef(null);
 
-  // Filtrar usuários com base na pesquisa
+  // Filtrar Utilizadors com base na pesquisa
   const filteredUsers = users.filter(user => 
     user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())

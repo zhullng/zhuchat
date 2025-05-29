@@ -224,7 +224,7 @@ export const useWalletStore = create((set, get) => ({
             currency: 'EUR'
           }).format(data.amount);
           
-          toast.success(`Você recebeu ${amountFormatted} de ${data.senderName || 'outro usuário'}`);
+          toast.success(`Eu recebeu ${amountFormatted} de ${data.senderName || 'outro Utilizador'}`);
         }
         
         // Recarregar dados da carteira para refletir o novo saldo

@@ -11,12 +11,12 @@ const GroupItem = ({ group, isSelected, hasUnread, unreadCount, onSelect }) => {
   const { selectedUser, setSelectedUser } = useChatStore();
   const [showMenu, setShowMenu] = useState(false);
 
-  // Verificar se o usuário logado é o criador do grupo
+  // Verificar se o Utilizador logado é o criador do grupo
   const isCreator = group.createdBy === authUser._id;
 
   // Manipular clique no grupo
   const handleGroupClick = () => {
-    // Limpar qualquer usuário selecionado
+    // Limpar qualquer Utilizador selecionado
     if (selectedUser) {
       setSelectedUser(null);
     }

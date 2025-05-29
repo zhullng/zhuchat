@@ -262,7 +262,7 @@ const ChatContainer = () => {
     }
   };
 
-  // Determina o nome a ser exibido para o usuário selecionado (nickname ou nome real)
+  // Determina o nome a ser exibido para o Utilizador selecionado (nickname ou nome real)
   const selectedUserDisplayName = selectedUser.note || selectedUser.fullName || 'Nome Desconhecido';
 
   if (isMessagesLoading) {

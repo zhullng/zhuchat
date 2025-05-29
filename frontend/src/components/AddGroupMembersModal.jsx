@@ -26,14 +26,14 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
   // Obter IDs de membros atuais
   const currentMemberIds = selectedGroup.members.map(member => member._id);
   
-  // Filtrar usuários que não são membros e correspondem à pesquisa
+  // Filtrar Utilizadors que não são membros e correspondem à pesquisa
   const filteredUsers = users.filter(user => 
     !currentMemberIds.includes(user._id) && 
     (user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
      user.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   
-  // Alternar seleção de usuário
+  // Alternar seleção de Utilizador
   const toggleUserSelection = (userId) => {
     if (selectedUsers.includes(userId)) {
       setSelectedUsers(prev => prev.filter(id => id !== userId));
@@ -45,7 +45,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
   // Adicionar membros ao grupo
   const handleAddMembers = async () => {
     if (selectedUsers.length === 0) {
-      toast.error("Selecione pelo menos um usuário para adicionar");
+      toast.error("Selecione pelo menos um Utilizador para adicionar");
       return;
     }
     
@@ -87,7 +87,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
               Grupo: {selectedGroup.name}
             </h3>
             <p className="text-xs text-base-content/70">
-              Selecione os contatos que você deseja adicionar ao grupo
+              Selecione os contatos que Eu deseja adicionar ao grupo
             </p>
           </div>
           
@@ -104,7 +104,7 @@ const AddGroupMembersModal = ({ isOpen, onClose }) => {
             />
           </div>
           
-          {/* Lista de usuários */}
+          {/* Lista de Utilizadors */}
           <div className="border border-base-300 rounded-lg overflow-hidden mb-4">
             <div className="max-h-64 overflow-y-auto">
               {filteredUsers.length === 0 ? (

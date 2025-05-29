@@ -44,7 +44,7 @@ export const GlobalSearch = () => {
   const { messages } = useChatStore();
   const { selectedUser } = useChatStore();
 
-  // Filtrar mensagens apenas do usuário selecionado e que contêm o termo de busca
+  // Filtrar mensagens apenas do Utilizador selecionado e que contêm o termo de busca
   const searchResults = messages.filter(message => 
     message.text && 
     (message.senderId === selectedUser._id || message.receiverId === selectedUser._id) &&

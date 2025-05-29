@@ -42,7 +42,7 @@ const BlockedUsersPage = () => {
       const success = await unblockUser(userId);
       
       if (success) {
-        // Atualiza a lista local removendo o usuário desbloqueado
+        // Atualiza a lista local removendo o Utilizador desbloqueado
         setBlockedUsers(blockedUsers.filter(user => user._id !== userId));
         setShowUnblockModal(false);
         setSelectedUser(null);
