@@ -188,7 +188,7 @@ const WithdrawTab = ({ refreshData, balance }) => {
           type="number"
           className={`input input-bordered w-full ${errors.amount ? 'input-error' : ''}`}
           placeholder="0.00"
-          min="1"
+          min={getMaxWithdrawAmount() > 0 ? "1" : undefined}
           max={getMaxWithdrawAmount()}
           step="0.01"
           value={amount}
